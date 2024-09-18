@@ -4,6 +4,36 @@ use egui::Color32;
 pub enum Building {
     Miner(Miner),
     Smelter(Smelter),
+    Splitter(Splitter),
+}
+
+#[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize, PartialEq)]
+pub struct Splitter {}
+
+impl Splitter {
+    pub fn header_image(&self) -> &'static str {
+        "file://assets/img/20px-Conveyor_Splitter.png"
+    }
+
+    pub fn name(&self) -> String {
+        "Splitter".to_string()
+    }
+
+    pub fn description(&self) -> String {
+        "Splits things".to_string()
+    }
+
+    pub fn num_inputs(&self) -> usize {
+        1
+    }
+
+    pub fn num_outputs(&self) -> usize {
+        3
+    }
+
+    pub fn input_material(&self) -> Option<Material> {
+        None
+    }
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq)]
@@ -121,6 +151,10 @@ impl Miner {
             }
             None => 0,
         }
+    }
+
+    pub fn input_material(&self) -> Option<Material> {
+        None
     }
 }
 
@@ -241,13 +275,31 @@ impl SmelterRecipie {
         }
     }
 
-    pub fn output_speed(&self) -> usize {
-        match self {
-            Self::CateriumIngot => 15,
-            Self::CopperIngot => 30,
-            Self::IronIngot => 30,
-            Self::PureAluminiumIngot => 30,
+    pub fn output_speed(&self, input_size: usize) -> usize {
+        if input_size == 0 {
+            return 0;
         }
+
+        let (duration, output_size, input_base) = match self {
+            Self::CateriumIngot => (4., 1., 3.),
+            Self::CopperIngot => (2., 1., 1.),
+            Self::IronIngot => (2., 1., 1.),
+            Self::PureAluminiumIngot => (2., 1., 2.),
+        };
+
+        let input_size = (input_size as f32 / 60.) * duration;
+
+        // 45/60 * 4secs = 3
+        let a = if input_size < input_base {
+            input_size / input_base
+        } else {
+            1.
+        };
+
+        // 60/4 * 1 = 15
+        let b = (60. / duration) * a;
+
+        b.round() as usize
     }
 }
 
@@ -292,10 +344,19 @@ impl Material {
 }
 
 impl Building {
+    pub fn input_material(&self) -> Option<Material> {
+        match self {
+            Self::Miner(m) => m.input_material(),
+            Self::Smelter(s) => s.input_material(),
+            Self::Splitter(s) => s.input_material(),
+        }
+    }
+
     pub fn outputs(&self) -> usize {
         match self {
             Self::Miner(m) => m.num_outputs(),
             Self::Smelter(s) => s.num_outputs(),
+            Self::Splitter(s) => s.num_outputs(),
         }
     }
 
@@ -303,6 +364,7 @@ impl Building {
         match self {
             Self::Miner(m) => m.num_inputs(),
             Self::Smelter(s) => s.num_inputs(),
+            Self::Splitter(s) => s.num_inputs(),
         }
     }
 
@@ -310,6 +372,7 @@ impl Building {
         match self {
             Self::Miner(m) => m.name(),
             Self::Smelter(s) => s.name(),
+            Self::Splitter(s) => s.name(),
         }
     }
 
@@ -317,6 +380,7 @@ impl Building {
         match self {
             Self::Miner(m) => m.description(),
             Self::Smelter(s) => s.description(),
+            Self::Splitter(s) => s.description(),
         }
     }
 }
@@ -380,13 +444,47 @@ impl Smelter {
         (base as f32 * (self.speed / 100.)).round() as usize
     }
 
-    pub fn output_speed(&self) -> usize {
+    pub fn output_speed(&self, input_size: usize) -> usize {
         let base = self
             .recipie
             .as_ref()
-            .map(|r| r.input_speed())
+            .map(|r| r.output_speed(input_size))
             .unwrap_or_default();
         let amplification = if self.amplified { 2. } else { 1. };
+
+        // TODO: take speed into account for input_size
+
         (base as f32 * (self.speed / 100.) * amplification).round() as usize
+    }
+
+    pub fn input_material(&self) -> Option<Material> {
+        match self.recipie {
+            Some(ref r) => Some(r.input_material()),
+            None => None,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_output_speed() {
+        assert_eq!(SmelterRecipie::CateriumIngot.output_speed(0), 0);
+        assert_eq!(SmelterRecipie::CateriumIngot.output_speed(10), 3);
+        assert_eq!(SmelterRecipie::CateriumIngot.output_speed(45), 15);
+        assert_eq!(SmelterRecipie::CateriumIngot.output_speed(60), 15);
+
+        assert_eq!(SmelterRecipie::IronIngot.output_speed(0), 0);
+        assert_eq!(SmelterRecipie::IronIngot.output_speed(10), 10);
+        assert_eq!(SmelterRecipie::IronIngot.output_speed(30), 30);
+        assert_eq!(SmelterRecipie::IronIngot.output_speed(60), 30);
+
+        assert_eq!(SmelterRecipie::PureAluminiumIngot.output_speed(0), 0);
+        assert_eq!(SmelterRecipie::PureAluminiumIngot.output_speed(10), 5);
+        assert_eq!(SmelterRecipie::PureAluminiumIngot.output_speed(30), 15);
+        assert_eq!(SmelterRecipie::PureAluminiumIngot.output_speed(60), 30);
+        assert_eq!(SmelterRecipie::PureAluminiumIngot.output_speed(120), 30);
     }
 }
