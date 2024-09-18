@@ -1,17 +1,10 @@
-use std::collections::HashMap;
-
-use buildings::{Building, Material, Miner, Smelter, Splitter};
+use buildings::{Building, Material, Merger, Miner, Smelter, Splitter};
 use eframe::{App, CreationContext};
 use egui::{emath::Rot2, vec2, Color32, Id, Rect, Ui, Vec2};
 use egui_snarl::{
-    ui::{AnyPins, BackgroundPattern, PinInfo, SnarlStyle, SnarlViewer, WireStyle},
+    ui::{AnyPins, BackgroundPattern, PinInfo, SnarlStyle, SnarlViewer},
     InPin, InPinId, NodeId, OutPin, OutPinId, Snarl,
 };
-
-const STRING_COLOR: Color32 = Color32::from_rgb(0x00, 0xb0, 0x00);
-const NUMBER_COLOR: Color32 = Color32::from_rgb(0xb0, 0x00, 0x00);
-const IMAGE_COLOR: Color32 = Color32::from_rgb(0xb0, 0x00, 0xb0);
-const UNTYPED_COLOR: Color32 = Color32::from_rgb(0xb0, 0xb0, 0xb0);
 
 const BUILDING_COLOR: Color32 = Color32::from_rgb(0xb0, 0xb0, 0xb0);
 
@@ -19,73 +12,10 @@ mod buildings;
 
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
 enum DemoNode {
-    /// Node with single input.
-    /// Displays the value of the input.
-    Sink,
-
     Building(Building),
-
-    /// Value node with a single output.
-    /// The value is editable in UI.
-    Number(f64),
-
-    /// Value node with a single output.
-    String(String),
-
-    /// Converts URI to Image
-    ShowImage(String),
-
-    /// Expression node with a single output.
-    /// It has number of inputs equal to number of variables in the expression.
-    ExprNode(ExprNode),
 }
 
 impl DemoNode {
-    fn number_out(&self) -> f64 {
-        match self {
-            DemoNode::Number(value) => *value,
-            DemoNode::ExprNode(expr_node) => expr_node.eval(),
-            _ => unreachable!(),
-        }
-    }
-
-    fn number_in(&mut self, idx: usize) -> &mut f64 {
-        match self {
-            DemoNode::ExprNode(expr_node) => &mut expr_node.values[idx - 1],
-            _ => unreachable!(),
-        }
-    }
-
-    fn label_in(&mut self, idx: usize) -> &str {
-        match self {
-            DemoNode::ShowImage(_) if idx == 0 => "URL",
-            DemoNode::ExprNode(expr_node) => &expr_node.bindings[idx - 1],
-            _ => unreachable!(),
-        }
-    }
-
-    fn string_out(&self) -> &str {
-        match self {
-            DemoNode::String(value) => value,
-            _ => unreachable!(),
-        }
-    }
-
-    fn string_in(&mut self) -> &mut String {
-        match self {
-            DemoNode::ShowImage(uri) => uri,
-            DemoNode::ExprNode(expr_node) => &mut expr_node.text,
-            _ => unreachable!(),
-        }
-    }
-
-    fn expr_node(&mut self) -> &mut ExprNode {
-        match self {
-            DemoNode::ExprNode(expr_node) => expr_node,
-            _ => unreachable!(),
-        }
-    }
-
     /// The speed for this output
     fn output_speed(&self, snarl: &Snarl<DemoNode>, remote_node: NodeId) -> usize {
         match self {
@@ -117,12 +47,30 @@ impl DemoNode {
                         .find(|(_output, input)| input.node == remote_node);
 
                     let input_speed = input_wire
-                        .map(|(output, input)| snarl[output.node].output_speed(snarl, output.node))
+                        .map(|(output, _input)| snarl[output.node].output_speed(snarl, output.node))
                         .unwrap_or_default();
                     remote_s.output_speed(input_speed)
                 }
+                Building::Merger(_remote_m) => {
+                    let wires = snarl
+                        .wires()
+                        .filter(|(_output, input)| input.node == remote_node);
+
+                    let mut speed = 0;
+                    for (output, _input) in wires {
+                        // TODO: this is expensive, find a better way
+                        let num_connections = snarl
+                            .wires()
+                            .filter(|(o, _i)| o.node == remote_node)
+                            .count();
+
+                        let base_speed = snarl[output.node].output_speed(snarl, output.node);
+
+                        speed += base_speed / num_connections;
+                    }
+                    speed
+                }
             },
-            _ => unreachable!(),
         }
     }
 
@@ -148,8 +96,20 @@ impl DemoNode {
                 Building::Smelter(remote_s) => {
                     remote_s.recipie.as_ref().map(|r| r.output_material())
                 }
+                Building::Merger(_remote_m) => {
+                    // For now we just grab the first one, as we don't support sushi belts (yet)
+                    let input_wire = snarl
+                        .wires()
+                        .find(|(_output, input)| input.node == remote_node);
+
+                    match input_wire {
+                        Some((output, _input)) => {
+                            snarl[output.node].output_material(snarl, output.node)
+                        }
+                        None => None,
+                    }
+                }
             },
-            _ => unreachable!(),
         }
     }
 }
@@ -236,8 +196,8 @@ impl SnarlViewer<DemoNode> for DemoViewer {
                     });
                 }
                 Building::Splitter(_) => {}
+                Building::Merger(_) => {}
             },
-            _ => {}
         }
     }
 
@@ -292,6 +252,17 @@ impl SnarlViewer<DemoNode> for DemoViewer {
                         ui.label(self.title(node));
                     });
                 }
+                Building::Merger(m) => {
+                    ui.horizontal(|ui| {
+                        let image = egui::Image::new(m.header_image())
+                            .maintain_aspect_ratio(true)
+                            .shrink_to_fit()
+                            .show_loading_spinner(true);
+                        ui.add(image);
+
+                        ui.label(self.title(node));
+                    });
+                }
             },
             node => {
                 ui.label(self.title(node));
@@ -303,41 +274,6 @@ impl SnarlViewer<DemoNode> for DemoViewer {
     fn connect(&mut self, from: &OutPin, to: &InPin, snarl: &mut Snarl<DemoNode>) {
         // Validate connection
         match (&snarl[from.id.node], &snarl[to.id.node]) {
-            (DemoNode::Sink, _) => {
-                unreachable!("Sink node has no outputs")
-            }
-            (_, DemoNode::Sink) => {}
-            (_, DemoNode::Number(_)) => {
-                unreachable!("Number node has no inputs")
-            }
-            (_, DemoNode::String(_)) => {
-                unreachable!("String node has no inputs")
-            }
-            (DemoNode::Number(_), DemoNode::ShowImage(_)) => {
-                return;
-            }
-            (DemoNode::ShowImage(_), DemoNode::ShowImage(_)) => {
-                return;
-            }
-            (DemoNode::String(_), DemoNode::ShowImage(_)) => {}
-            (DemoNode::ExprNode(_), DemoNode::ExprNode(_)) if to.id.input == 0 => {
-                return;
-            }
-            (DemoNode::ExprNode(_), DemoNode::ExprNode(_)) => {}
-            (DemoNode::Number(_), DemoNode::ExprNode(_)) if to.id.input == 0 => {
-                return;
-            }
-            (DemoNode::Number(_), DemoNode::ExprNode(_)) => {}
-            (DemoNode::String(_), DemoNode::ExprNode(_)) if to.id.input == 0 => {}
-            (DemoNode::String(_), DemoNode::ExprNode(_)) => {
-                return;
-            }
-            (DemoNode::ShowImage(_), DemoNode::ExprNode(_)) => {
-                return;
-            }
-            (DemoNode::ExprNode(_), DemoNode::ShowImage(_)) => {
-                return;
-            }
             (DemoNode::Building(_), DemoNode::Building(_)) => {}
             (_, DemoNode::Building(_)) => {
                 return;
@@ -356,33 +292,18 @@ impl SnarlViewer<DemoNode> for DemoViewer {
 
     fn title(&mut self, node: &DemoNode) -> String {
         match node {
-            DemoNode::Sink => "Sink".to_owned(),
-            DemoNode::Number(_) => "Number".to_owned(),
-            DemoNode::String(_) => "String".to_owned(),
-            DemoNode::ShowImage(_) => "Show image".to_owned(),
-            DemoNode::ExprNode(_) => "Expr".to_owned(),
             DemoNode::Building(b) => b.name(),
         }
     }
 
     fn inputs(&mut self, node: &DemoNode) -> usize {
         match node {
-            DemoNode::Sink => 1,
-            DemoNode::Number(_) => 0,
-            DemoNode::String(_) => 0,
-            DemoNode::ShowImage(_) => 1,
-            DemoNode::ExprNode(expr_node) => 1 + expr_node.bindings.len(),
             DemoNode::Building(b) => b.inputs(),
         }
     }
 
     fn outputs(&mut self, node: &DemoNode) -> usize {
         match node {
-            DemoNode::Sink => 0,
-            DemoNode::Number(_) => 1,
-            DemoNode::String(_) => 1,
-            DemoNode::ShowImage(_) => 1,
-            DemoNode::ExprNode(_) => 1,
             DemoNode::Building(b) => b.outputs(),
         }
     }
@@ -395,213 +316,6 @@ impl SnarlViewer<DemoNode> for DemoViewer {
         snarl: &mut Snarl<DemoNode>,
     ) -> PinInfo {
         match snarl[pin.id.node] {
-            DemoNode::Sink => {
-                assert_eq!(pin.id.input, 0, "Sink node has only one input");
-
-                match &*pin.remotes {
-                    [] => {
-                        ui.label("None");
-                        PinInfo::star().with_fill(UNTYPED_COLOR)
-                    }
-                    [remote] => match snarl[remote.node] {
-                        DemoNode::Sink => unreachable!("Sink node has no outputs"),
-                        DemoNode::Number(value) => {
-                            assert_eq!(remote.output, 0, "Number node has only one output");
-                            ui.label(format_float(value));
-                            PinInfo::square().with_fill(NUMBER_COLOR)
-                        }
-                        DemoNode::String(ref value) => {
-                            assert_eq!(remote.output, 0, "String node has only one output");
-                            ui.label(format!("{:?}", value));
-
-                            PinInfo::triangle().with_fill(STRING_COLOR).with_wire_style(
-                                WireStyle::AxisAligned {
-                                    corner_radius: 10.0,
-                                },
-                            )
-                        }
-                        DemoNode::ExprNode(ref expr) => {
-                            assert_eq!(remote.output, 0, "Expr node has only one output");
-                            ui.label(format_float(expr.eval()));
-                            PinInfo::square().with_fill(NUMBER_COLOR)
-                        }
-                        DemoNode::ShowImage(ref uri) => {
-                            assert_eq!(remote.output, 0, "ShowImage node has only one output");
-
-                            let image = egui::Image::new(uri)
-                                .fit_to_original_size(scale)
-                                .show_loading_spinner(true);
-                            ui.add(image);
-
-                            PinInfo::circle().with_fill(IMAGE_COLOR)
-                        }
-                        DemoNode::Building(_) => {
-                            panic!("building can't sink");
-                        }
-                    },
-                    _ => unreachable!("Sink input has only one wire"),
-                }
-            }
-            DemoNode::Number(_) => {
-                unreachable!("Number node has no inputs")
-            }
-            DemoNode::String(_) => {
-                unreachable!("String node has no inputs")
-            }
-            DemoNode::ShowImage(_) => match &*pin.remotes {
-                [] => {
-                    let input = snarl[pin.id.node].string_in();
-                    egui::TextEdit::singleline(input)
-                        .clip_text(false)
-                        .desired_width(0.0)
-                        .margin(ui.spacing().item_spacing)
-                        .show(ui);
-                    PinInfo::triangle().with_fill(STRING_COLOR).with_wire_style(
-                        WireStyle::AxisAligned {
-                            corner_radius: 10.0,
-                        },
-                    )
-                }
-                [remote] => {
-                    let new_value = snarl[remote.node].string_out().to_owned();
-
-                    egui::TextEdit::singleline(&mut &*new_value)
-                        .clip_text(false)
-                        .desired_width(0.0)
-                        .margin(ui.spacing().item_spacing)
-                        .show(ui);
-
-                    let input = snarl[pin.id.node].string_in();
-                    *input = new_value;
-
-                    PinInfo::triangle().with_fill(STRING_COLOR).with_wire_style(
-                        WireStyle::AxisAligned {
-                            corner_radius: 10.0,
-                        },
-                    )
-                }
-                _ => unreachable!("Sink input has only one wire"),
-            },
-            DemoNode::ExprNode(_) if pin.id.input == 0 => {
-                let changed = match &*pin.remotes {
-                    [] => {
-                        let input = snarl[pin.id.node].string_in();
-                        let r = egui::TextEdit::singleline(input)
-                            .clip_text(false)
-                            .desired_width(0.0)
-                            .margin(ui.spacing().item_spacing)
-                            .show(ui)
-                            .response;
-
-                        r.changed()
-                    }
-                    [remote] => {
-                        let new_string = snarl[remote.node].string_out().to_owned();
-
-                        egui::TextEdit::singleline(&mut &*new_string)
-                            .clip_text(false)
-                            .desired_width(0.0)
-                            .margin(ui.spacing().item_spacing)
-                            .show(ui);
-
-                        let input = snarl[pin.id.node].string_in();
-                        if new_string != *input {
-                            *input = new_string;
-                            true
-                        } else {
-                            false
-                        }
-                    }
-                    _ => unreachable!("Expr pins has only one wire"),
-                };
-
-                if changed {
-                    let expr_node = snarl[pin.id.node].expr_node();
-
-                    if let Ok(expr) = syn::parse_str(&expr_node.text) {
-                        expr_node.expr = expr;
-
-                        let values = Iterator::zip(
-                            expr_node.bindings.iter().map(String::clone),
-                            expr_node.values.iter().copied(),
-                        )
-                        .collect::<HashMap<String, f64>>();
-
-                        let mut new_bindings = Vec::new();
-                        expr_node.expr.extend_bindings(&mut new_bindings);
-
-                        let old_bindings =
-                            std::mem::replace(&mut expr_node.bindings, new_bindings.clone());
-
-                        let new_values = new_bindings
-                            .iter()
-                            .map(|name| values.get(&**name).copied().unwrap_or(0.0))
-                            .collect::<Vec<_>>();
-
-                        expr_node.values = new_values;
-
-                        let old_inputs = (0..old_bindings.len())
-                            .map(|idx| {
-                                snarl.in_pin(InPinId {
-                                    node: pin.id.node,
-                                    input: idx + 1,
-                                })
-                            })
-                            .collect::<Vec<_>>();
-
-                        for (idx, name) in old_bindings.iter().enumerate() {
-                            let new_idx =
-                                new_bindings.iter().position(|new_name| *new_name == *name);
-
-                            match new_idx {
-                                None => {
-                                    snarl.drop_inputs(old_inputs[idx].id);
-                                }
-                                Some(new_idx) if new_idx != idx => {
-                                    let new_in_pin = InPinId {
-                                        node: pin.id.node,
-                                        input: new_idx,
-                                    };
-                                    for &remote in &old_inputs[idx].remotes {
-                                        snarl.disconnect(remote, old_inputs[idx].id);
-                                        snarl.connect(remote, new_in_pin);
-                                    }
-                                }
-                                _ => {}
-                            }
-                        }
-                    }
-                }
-                PinInfo::triangle().with_fill(STRING_COLOR).with_wire_style(
-                    WireStyle::AxisAligned {
-                        corner_radius: 10.0,
-                    },
-                )
-            }
-            DemoNode::ExprNode(ref expr_node) => {
-                if pin.id.input <= expr_node.bindings.len() {
-                    match &*pin.remotes {
-                        [] => {
-                            let node = &mut snarl[pin.id.node];
-                            ui.label(node.label_in(pin.id.input));
-                            ui.add(egui::DragValue::new(node.number_in(pin.id.input)));
-                            PinInfo::square().with_fill(NUMBER_COLOR)
-                        }
-                        [remote] => {
-                            let new_value = snarl[remote.node].number_out();
-                            let node = &mut snarl[pin.id.node];
-                            ui.label(node.label_in(pin.id.input));
-                            ui.label(format_float(new_value));
-                            *node.number_in(pin.id.input) = new_value;
-                            PinInfo::square().with_fill(NUMBER_COLOR)
-                        }
-                        _ => unreachable!("Expr pins has only one wire"),
-                    }
-                } else {
-                    ui.label("Removed");
-                    PinInfo::circle().with_fill(Color32::BLACK)
-                }
-            }
             DemoNode::Building(ref b) => match b {
                 Building::Miner(_) => {
                     unreachable!("Miner has no inputs")
@@ -647,6 +361,26 @@ impl SnarlViewer<DemoNode> for DemoViewer {
 
                     PinInfo::circle().with_fill(color.unwrap_or(BUILDING_COLOR))
                 }
+                Building::Merger(_) => {
+                    // 3 inputs
+
+                    let actual_input_speed = match &*pin.remotes {
+                        [] => 0,
+                        [remote] => snarl[remote.node].output_speed(snarl, remote.node),
+                        _ => unreachable!("only one"),
+                    };
+                    let color = match &*pin.remotes {
+                        [] => None,
+                        [remote] => snarl[remote.node]
+                            .output_material(snarl, remote.node)
+                            .map(|m| m.color()),
+                        _ => unreachable!("only one output"),
+                    };
+
+                    ui.label(format!("{}/min", actual_input_speed));
+
+                    PinInfo::circle().with_fill(color.unwrap_or(BUILDING_COLOR))
+                }
             },
         }
     }
@@ -659,37 +393,6 @@ impl SnarlViewer<DemoNode> for DemoViewer {
         snarl: &mut Snarl<DemoNode>,
     ) -> PinInfo {
         match snarl[pin.id.node] {
-            DemoNode::Sink => {
-                unreachable!("Sink node has no outputs")
-            }
-            DemoNode::Number(ref mut value) => {
-                assert_eq!(pin.id.output, 0, "Number node has only one output");
-                ui.add(egui::DragValue::new(value));
-                PinInfo::square().with_fill(NUMBER_COLOR)
-            }
-            DemoNode::String(ref mut value) => {
-                assert_eq!(pin.id.output, 0, "String node has only one output");
-                let edit = egui::TextEdit::singleline(value)
-                    .clip_text(false)
-                    .desired_width(0.0)
-                    .margin(ui.spacing().item_spacing);
-                ui.add(edit);
-                PinInfo::triangle().with_fill(STRING_COLOR).with_wire_style(
-                    WireStyle::AxisAligned {
-                        corner_radius: 10.0,
-                    },
-                )
-            }
-            DemoNode::ExprNode(ref expr_node) => {
-                let value = expr_node.eval();
-                assert_eq!(pin.id.output, 0, "Expr node has only one output");
-                ui.label(format_float(value));
-                PinInfo::square().with_fill(NUMBER_COLOR)
-            }
-            DemoNode::ShowImage(_) => {
-                ui.allocate_at_least(egui::Vec2::ZERO, egui::Sense::hover());
-                PinInfo::circle().with_fill(IMAGE_COLOR)
-            }
             DemoNode::Building(ref b) => match b {
                 Building::Miner(m) => {
                     assert_eq!(pin.id.output, 0, "Miner has only one output");
@@ -711,6 +414,19 @@ impl SnarlViewer<DemoNode> for DemoViewer {
                     PinInfo::circle().with_fill(color)
                 }
                 Building::Splitter(_s) => {
+                    let (speed, material) = if !pin.remotes.is_empty() {
+                        let speed = snarl[pin.id.node].output_speed(snarl, pin.id.node);
+                        let material = snarl[pin.id.node].output_material(snarl, pin.id.node);
+                        (speed, material)
+                    } else {
+                        (0, None)
+                    };
+
+                    ui.label(format!("{}/min", speed));
+                    let color = material.map(|m| m.color()).unwrap_or(BUILDING_COLOR);
+                    PinInfo::circle().with_fill(color)
+                }
+                Building::Merger(_m) => {
                     let (speed, material) = if !pin.remotes.is_empty() {
                         let speed = snarl[pin.id.node].output_speed(snarl, pin.id.node);
                         let material = snarl[pin.id.node].output_material(snarl, pin.id.node);
@@ -757,6 +473,10 @@ impl SnarlViewer<DemoNode> for DemoViewer {
             );
             ui.close_menu();
         }
+        if ui.button("Merger").clicked() {
+            snarl.insert_node(pos, DemoNode::Building(Building::Merger(Merger::default())));
+            ui.close_menu();
+        }
     }
 
     fn has_dropped_wire_menu(&mut self, _src_pins: AnyPins, _snarl: &mut Snarl<DemoNode>) -> bool {
@@ -780,36 +500,16 @@ impl SnarlViewer<DemoNode> for DemoViewer {
         ui.label("Add node");
 
         type PinCompat = usize;
-        const PIN_NUM: PinCompat = 1;
-        const PIN_STR: PinCompat = 2;
-        const PIN_IMG: PinCompat = 4;
         const PIN_BUILDING: PinCompat = 8;
-        const PIN_SINK: PinCompat = PIN_NUM | PIN_STR | PIN_IMG;
 
         fn pin_out_compat(node: &DemoNode) -> PinCompat {
             match node {
-                DemoNode::Sink => 0,
-                DemoNode::Number(_) => PIN_NUM,
-                DemoNode::String(_) => PIN_STR,
-                DemoNode::ShowImage(_) => PIN_IMG,
-                DemoNode::ExprNode(_) => PIN_NUM,
                 DemoNode::Building(_) => PIN_BUILDING,
             }
         }
 
         fn pin_in_compat(node: &DemoNode, pin: usize) -> PinCompat {
             match node {
-                DemoNode::Sink => PIN_SINK,
-                DemoNode::Number(_) => 0,
-                DemoNode::String(_) => 0,
-                DemoNode::ShowImage(_) => PIN_STR,
-                DemoNode::ExprNode(_) => {
-                    if pin == 0 {
-                        PIN_STR
-                    } else {
-                        PIN_NUM
-                    }
-                }
                 DemoNode::Building(_) => PIN_BUILDING,
             }
         }
@@ -823,16 +523,11 @@ impl SnarlViewer<DemoNode> for DemoViewer {
 
                 let src_pin = src_pins[0];
                 let src_out_ty = pin_out_compat(snarl.get_node(src_pin.node).unwrap());
-                let dst_in_candidates = [
-                    ("Sink", (|| DemoNode::Sink) as fn() -> DemoNode, PIN_SINK),
-                    ("Show Image", || DemoNode::ShowImage("".to_owned()), PIN_STR),
-                    ("Expr", || DemoNode::ExprNode(ExprNode::new()), PIN_STR),
-                    (
-                        "Building",
-                        || DemoNode::Building(Building::Smelter(Smelter::default())),
-                        PIN_BUILDING,
-                    ),
-                ];
+                let dst_in_candidates = [(
+                    "Building",
+                    || DemoNode::Building(Building::Smelter(Smelter::default())),
+                    PIN_BUILDING,
+                )];
 
                 for (name, ctor, in_ty) in dst_in_candidates {
                     if src_out_ty & in_ty != 0 && ui.button(name).clicked() {
@@ -854,21 +549,11 @@ impl SnarlViewer<DemoNode> for DemoViewer {
                     acc | pin_in_compat(snarl.get_node(pin.node).unwrap(), pin.input)
                 });
 
-                let dst_out_candidates = [
-                    (
-                        "Number",
-                        (|| DemoNode::Number(0.)) as fn() -> DemoNode,
-                        PIN_NUM,
-                    ),
-                    ("String", || DemoNode::String("".to_owned()), PIN_STR),
-                    ("Expr", || DemoNode::ExprNode(ExprNode::new()), PIN_NUM),
-                    ("Show Image", || DemoNode::ShowImage("".to_owned()), PIN_IMG),
-                    (
-                        "Building",
-                        || DemoNode::Building(Building::Smelter(Smelter::default())),
-                        PIN_BUILDING,
-                    ),
-                ];
+                let dst_out_candidates = [(
+                    "Building",
+                    || DemoNode::Building(Building::Smelter(Smelter::default())),
+                    PIN_BUILDING,
+                )];
 
                 for (name, ctor, out_ty) in dst_out_candidates {
                     if all_src_types & out_ty != 0 && ui.button(name).clicked() {
@@ -941,21 +626,6 @@ impl SnarlViewer<DemoNode> for DemoViewer {
         snarl: &mut Snarl<DemoNode>,
     ) {
         match snarl[node] {
-            DemoNode::Sink => {
-                ui.label("Displays anything connected to it");
-            }
-            DemoNode::Number(_) => {
-                ui.label("Outputs integer value");
-            }
-            DemoNode::String(_) => {
-                ui.label("Outputs string value");
-            }
-            DemoNode::ShowImage(_) => {
-                ui.label("Displays image from URL in input");
-            }
-            DemoNode::ExprNode(_) => {
-                ui.label("Evaluates algebraic expression with input for each unique variable name");
-            }
             DemoNode::Building(ref b) => {
                 ui.label(b.description());
             }

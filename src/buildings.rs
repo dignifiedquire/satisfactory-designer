@@ -5,6 +5,36 @@ pub enum Building {
     Miner(Miner),
     Smelter(Smelter),
     Splitter(Splitter),
+    Merger(Merger),
+}
+
+#[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize, PartialEq)]
+pub struct Merger {}
+
+impl Merger {
+    pub fn header_image(&self) -> &'static str {
+        "file://assets/img/20px-Conveyor_Merger.png"
+    }
+
+    pub fn name(&self) -> String {
+        "Merger".to_string()
+    }
+
+    pub fn description(&self) -> String {
+        "Merges things".to_string()
+    }
+
+    pub fn num_inputs(&self) -> usize {
+        3
+    }
+
+    pub fn num_outputs(&self) -> usize {
+        1
+    }
+
+    pub fn input_material(&self) -> Option<Material> {
+        None
+    }
 }
 
 #[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize, PartialEq)]
@@ -280,7 +310,7 @@ impl SmelterRecipie {
             return 0;
         }
 
-        let (duration, output_size, input_base) = match self {
+        let (duration, _output_size, input_base) = match self {
             Self::CateriumIngot => (4., 1., 3.),
             Self::CopperIngot => (2., 1., 1.),
             Self::IronIngot => (2., 1., 1.),
@@ -349,6 +379,7 @@ impl Building {
             Self::Miner(m) => m.input_material(),
             Self::Smelter(s) => s.input_material(),
             Self::Splitter(s) => s.input_material(),
+            Self::Merger(s) => s.input_material(),
         }
     }
 
@@ -357,6 +388,7 @@ impl Building {
             Self::Miner(m) => m.num_outputs(),
             Self::Smelter(s) => s.num_outputs(),
             Self::Splitter(s) => s.num_outputs(),
+            Self::Merger(s) => s.num_outputs(),
         }
     }
 
@@ -365,6 +397,7 @@ impl Building {
             Self::Miner(m) => m.num_inputs(),
             Self::Smelter(s) => s.num_inputs(),
             Self::Splitter(s) => s.num_inputs(),
+            Self::Merger(s) => s.num_inputs(),
         }
     }
 
@@ -373,6 +406,7 @@ impl Building {
             Self::Miner(m) => m.name(),
             Self::Smelter(s) => s.name(),
             Self::Splitter(s) => s.name(),
+            Self::Merger(s) => s.name(),
         }
     }
 
@@ -381,6 +415,7 @@ impl Building {
             Self::Miner(m) => m.description(),
             Self::Smelter(s) => s.description(),
             Self::Splitter(s) => s.description(),
+            Self::Merger(s) => s.description(),
         }
     }
 }
