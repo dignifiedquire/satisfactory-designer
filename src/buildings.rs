@@ -1,216 +1,24 @@
 use egui::Color32;
 
+mod constructor;
+mod merger;
+mod miner;
+mod smelter;
+mod splitter;
+
+pub use self::constructor::Constructor;
+pub use self::merger::Merger;
+pub use self::miner::{Miner, MinerLevel, ResourcePurity};
+pub use self::smelter::{Smelter, SmelterRecipie};
+pub use self::splitter::Splitter;
+
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
 pub enum Building {
     Miner(Miner),
     Smelter(Smelter),
     Splitter(Splitter),
     Merger(Merger),
-}
-
-#[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize, PartialEq)]
-pub struct Merger {}
-
-impl Merger {
-    pub fn header_image(&self) -> &'static str {
-        "file://assets/img/20px-Conveyor_Merger.png"
-    }
-
-    pub fn name(&self) -> String {
-        "Merger".to_string()
-    }
-
-    pub fn description(&self) -> String {
-        "Merges things".to_string()
-    }
-
-    pub fn num_inputs(&self) -> usize {
-        3
-    }
-
-    pub fn num_outputs(&self) -> usize {
-        1
-    }
-
-    pub fn input_material(&self) -> Option<Material> {
-        None
-    }
-}
-
-#[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize, PartialEq)]
-pub struct Splitter {}
-
-impl Splitter {
-    pub fn header_image(&self) -> &'static str {
-        "file://assets/img/20px-Conveyor_Splitter.png"
-    }
-
-    pub fn name(&self) -> String {
-        "Splitter".to_string()
-    }
-
-    pub fn description(&self) -> String {
-        "Splits things".to_string()
-    }
-
-    pub fn num_inputs(&self) -> usize {
-        1
-    }
-
-    pub fn num_outputs(&self) -> usize {
-        3
-    }
-
-    pub fn input_material(&self) -> Option<Material> {
-        None
-    }
-}
-
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq)]
-pub struct Miner {
-    pub resource: Option<ResourceType>,
-    pub resource_purity: ResourcePurity,
-    pub level: MinerLevel,
-    pub speed: f32,
-}
-
-impl Default for Miner {
-    fn default() -> Self {
-        Self {
-            resource: None,
-            resource_purity: ResourcePurity::Normal,
-            level: MinerLevel::Mk1,
-            speed: 100.,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize, PartialEq)]
-pub enum MinerLevel {
-    Mk1,
-    Mk2,
-    Mk3,
-}
-
-impl MinerLevel {
-    pub fn name(&self) -> &'static str {
-        match self {
-            Self::Mk1 => "Mk.1",
-            Self::Mk2 => "Mk.2",
-            Self::Mk3 => "Mk.3",
-        }
-    }
-
-    pub fn mining_speed(&self) -> usize {
-        match self {
-            Self::Mk1 => 60,
-            Self::Mk2 => 120,
-            Self::Mk3 => 240,
-        }
-    }
-}
-
-impl Miner {
-    pub fn header_image(&self) -> &'static str {
-        "file://assets/img/20px-Miner_Mk.1.png"
-    }
-
-    pub fn name(&self) -> String {
-        match &self.resource {
-            Some(r) => format!(
-                "Miner {:?} ({} {})",
-                self.level,
-                r.name(),
-                self.resource_purity.name()
-            ),
-            None => "Resource Node".to_string(),
-        }
-    }
-
-    pub fn description(&self) -> String {
-        "Mines things".to_string()
-    }
-
-    pub fn available_purities(&self) -> Vec<ResourcePurity> {
-        vec![
-            ResourcePurity::Impure,
-            ResourcePurity::Normal,
-            ResourcePurity::Pure,
-        ]
-    }
-
-    pub fn available_levels(&self) -> Vec<MinerLevel> {
-        vec![MinerLevel::Mk1, MinerLevel::Mk2, MinerLevel::Mk3]
-    }
-
-    pub fn available_resources(&self) -> Vec<ResourceType> {
-        use ResourceType::*;
-        vec![
-            Bauxite,
-            CateriumOre,
-            CopperOre,
-            IronOre,
-            Limestone,
-            RawQuartz,
-            SamOre,
-            Sulfur,
-            Uranium,
-        ]
-    }
-
-    pub fn num_inputs(&self) -> usize {
-        0
-    }
-
-    pub fn num_outputs(&self) -> usize {
-        1
-    }
-
-    pub fn input_speed(&self) -> usize {
-        0
-    }
-
-    pub fn output_speed(&self) -> usize {
-        match self.resource {
-            Some(_) => {
-                // (Mining Speed) in items/min = (Purity Modifier) * (Overclock percentage) / 100 * (Default Mining Speed) items/min
-                let val = self.resource_purity.modifier()
-                    * (self.speed / 100.)
-                    * self.level.mining_speed() as f32;
-                val.round() as usize
-            }
-            None => 0,
-        }
-    }
-
-    pub fn input_material(&self) -> Option<Material> {
-        None
-    }
-}
-
-#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize, PartialEq)]
-pub enum ResourcePurity {
-    Impure,
-    Normal,
-    Pure,
-}
-
-impl ResourcePurity {
-    pub fn modifier(&self) -> f32 {
-        match self {
-            Self::Impure => 0.5,
-            Self::Normal => 1.,
-            Self::Pure => 2.,
-        }
-    }
-
-    pub fn name(&self) -> &'static str {
-        match self {
-            Self::Impure => "Impure",
-            Self::Normal => "Normal",
-            Self::Pure => "Pure",
-        }
-    }
+    Constructor(Constructor),
 }
 
 #[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize, PartialEq)]
@@ -257,83 +65,6 @@ impl ResourceType {
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq)]
-pub enum SmelterRecipie {
-    CateriumIngot,
-    CopperIngot,
-    IronIngot,
-    PureAluminiumIngot,
-}
-
-impl SmelterRecipie {
-    pub fn name(&self) -> String {
-        match self {
-            SmelterRecipie::CateriumIngot => "Caterium Ingot".to_string(),
-            SmelterRecipie::CopperIngot => "Copper Ingot".to_string(),
-            SmelterRecipie::IronIngot => "Iron Ingot".to_string(),
-            SmelterRecipie::PureAluminiumIngot => "Pure Aluminium Ingot".to_string(),
-        }
-    }
-
-    pub fn output_color(&self) -> Color32 {
-        self.output_material().color()
-    }
-
-    pub fn input_material(&self) -> Material {
-        match self {
-            Self::CateriumIngot => Material::CateriumOre,
-            Self::CopperIngot => Material::CopperOre,
-            Self::IronIngot => Material::IronOre,
-            Self::PureAluminiumIngot => Material::AluminiumScrap,
-        }
-    }
-
-    pub fn output_material(&self) -> Material {
-        match self {
-            Self::CateriumIngot => Material::CateriumIngot,
-            Self::CopperIngot => Material::CopperIngot,
-            Self::IronIngot => Material::IronIngot,
-            Self::PureAluminiumIngot => Material::AluminiumIngot,
-        }
-    }
-
-    pub fn input_speed(&self) -> usize {
-        match self {
-            Self::CateriumIngot => 45,
-            Self::CopperIngot => 30,
-            Self::IronIngot => 30,
-            Self::PureAluminiumIngot => 60,
-        }
-    }
-
-    pub fn output_speed(&self, input_size: usize) -> usize {
-        if input_size == 0 {
-            return 0;
-        }
-
-        let (duration, _output_size, input_base) = match self {
-            Self::CateriumIngot => (4., 1., 3.),
-            Self::CopperIngot => (2., 1., 1.),
-            Self::IronIngot => (2., 1., 1.),
-            Self::PureAluminiumIngot => (2., 1., 2.),
-        };
-
-        let input_size = (input_size as f32 / 60.) * duration;
-
-        // 45/60 * 4secs = 3
-        let a = if input_size < input_base {
-            input_size / input_base
-        } else {
-            1.
-        };
-
-        // 60/4 * 1 = 15
-        let b = (60. / duration) * a;
-
-        b.round() as usize
-    }
-}
-
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq)]
 pub enum Material {
     CopperOre,
     IronOre,
@@ -349,6 +80,8 @@ pub enum Material {
     SamOre,
     Sulfur,
     Uranium,
+    AlienProtein,
+    AlienDnaCapsule,
 }
 
 impl Material {
@@ -369,17 +102,29 @@ impl Material {
             Self::SamOre => Color32::from_hex("#AE1CD7").unwrap(), // TODO: better color
             Self::Sulfur => Color32::from_hex("#FCDC48").unwrap(),
             Self::Uranium => Color32::from_hex("#88D288").unwrap(),
+            _ => Color32::from_hex("#697082").unwrap(),
         }
     }
 }
 
 impl Building {
+    pub fn header_image(&self) -> &'static str {
+        match self {
+            Self::Miner(m) => m.header_image(),
+            Self::Smelter(s) => s.header_image(),
+            Self::Splitter(s) => s.header_image(),
+            Self::Merger(s) => s.header_image(),
+            Self::Constructor(s) => s.header_image(),
+        }
+    }
+
     pub fn input_material(&self) -> Option<Material> {
         match self {
             Self::Miner(m) => m.input_material(),
             Self::Smelter(s) => s.input_material(),
             Self::Splitter(s) => s.input_material(),
             Self::Merger(s) => s.input_material(),
+            Self::Constructor(s) => s.input_material(),
         }
     }
 
@@ -389,6 +134,7 @@ impl Building {
             Self::Smelter(s) => s.num_outputs(),
             Self::Splitter(s) => s.num_outputs(),
             Self::Merger(s) => s.num_outputs(),
+            Self::Constructor(s) => s.num_outputs(),
         }
     }
 
@@ -398,6 +144,7 @@ impl Building {
             Self::Smelter(s) => s.num_inputs(),
             Self::Splitter(s) => s.num_inputs(),
             Self::Merger(s) => s.num_inputs(),
+            Self::Constructor(s) => s.num_inputs(),
         }
     }
 
@@ -407,6 +154,7 @@ impl Building {
             Self::Smelter(s) => s.name(),
             Self::Splitter(s) => s.name(),
             Self::Merger(s) => s.name(),
+            Self::Constructor(s) => s.name(),
         }
     }
 
@@ -416,88 +164,25 @@ impl Building {
             Self::Smelter(s) => s.description(),
             Self::Splitter(s) => s.description(),
             Self::Merger(s) => s.description(),
+            Self::Constructor(s) => s.description(),
         }
     }
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct Smelter {
-    pub recipie: Option<SmelterRecipie>,
-    pub speed: f32,
-    pub amplified: bool,
-}
+fn calc_output(input_size: usize, duration: f32, _output_size: f32, input_base: f32) -> usize {
+    let input_size = (input_size as f32 / 60.) * duration;
 
-impl Default for Smelter {
-    fn default() -> Self {
-        Self {
-            recipie: None,
-            speed: 100.,
-            amplified: false,
-        }
-    }
-}
+    // 45/60 * 4secs = 3
+    let a = if input_size < input_base {
+        input_size / input_base
+    } else {
+        1.
+    };
 
-impl Smelter {
-    pub fn header_image(&self) -> &'static str {
-        "file://assets/img/20px-Smelter.png"
-    }
+    // 60/4 * 1 = 15
+    let b = (60. / duration) * a;
 
-    pub fn available_recipies(&self) -> Vec<SmelterRecipie> {
-        vec![
-            SmelterRecipie::CateriumIngot,
-            SmelterRecipie::CopperIngot,
-            SmelterRecipie::IronIngot,
-            SmelterRecipie::PureAluminiumIngot,
-        ]
-    }
-
-    pub fn name(&self) -> String {
-        match &self.recipie {
-            Some(r) => format!("Smelter ({})", r.name()),
-            None => "Smelter".to_string(),
-        }
-    }
-
-    pub fn description(&self) -> String {
-        "Smelts things".to_string()
-    }
-
-    pub fn num_inputs(&self) -> usize {
-        1
-    }
-
-    pub fn num_outputs(&self) -> usize {
-        1
-    }
-
-    pub fn input_speed(&self) -> usize {
-        let base = self
-            .recipie
-            .as_ref()
-            .map(|r| r.input_speed())
-            .unwrap_or_default();
-        (base as f32 * (self.speed / 100.)).round() as usize
-    }
-
-    pub fn output_speed(&self, input_size: usize) -> usize {
-        let base = self
-            .recipie
-            .as_ref()
-            .map(|r| r.output_speed(input_size))
-            .unwrap_or_default();
-        let amplification = if self.amplified { 2. } else { 1. };
-
-        // TODO: take speed into account for input_size
-
-        (base as f32 * (self.speed / 100.) * amplification).round() as usize
-    }
-
-    pub fn input_material(&self) -> Option<Material> {
-        match self.recipie {
-            Some(ref r) => Some(r.input_material()),
-            None => None,
-        }
-    }
+    b.round() as usize
 }
 
 #[cfg(test)]

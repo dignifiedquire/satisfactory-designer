@@ -1,4 +1,4 @@
-use buildings::{Building, Material, Merger, Miner, Smelter, Splitter};
+use buildings::{Building, Constructor, Material, Merger, Miner, Smelter, Splitter};
 use eframe::{App, CreationContext};
 use egui::{emath::Rot2, vec2, Color32, Id, Rect, Ui, Vec2};
 use egui_snarl::{
@@ -51,6 +51,17 @@ impl DemoNode {
                         .unwrap_or_default();
                     remote_s.output_speed(input_speed)
                 }
+                Building::Constructor(remote_s) => {
+                    let input_wire = snarl
+                        .wires()
+                        .find(|(_output, input)| input.node == remote_node);
+
+                    let input_speed = input_wire
+                        .map(|(output, _input)| snarl[output.node].output_speed(snarl, output.node))
+                        .unwrap_or_default();
+                    remote_s.output_speed(input_speed)
+                }
+
                 Building::Merger(_remote_m) => {
                     let wires = snarl
                         .wires()
@@ -94,6 +105,9 @@ impl DemoNode {
                     }
                 }
                 Building::Smelter(remote_s) => {
+                    remote_s.recipie.as_ref().map(|r| r.output_material())
+                }
+                Building::Constructor(remote_s) => {
                     remote_s.recipie.as_ref().map(|r| r.output_material())
                 }
                 Building::Merger(_remote_m) => {
@@ -197,6 +211,31 @@ impl SnarlViewer<DemoNode> for DemoViewer {
                 }
                 Building::Splitter(_) => {}
                 Building::Merger(_) => {}
+                Building::Constructor(s) => {
+                    ui.vertical(|ui| {
+                        let text = match &s.recipie {
+                            Some(r) => r.name(),
+                            None => "Select Recipie".to_string(),
+                        };
+                        egui::ComboBox::from_label("Recipie")
+                            .selected_text(text)
+                            .show_ui(ui, |ui| {
+                                for recipie in s.available_recipies() {
+                                    let name = recipie.name();
+                                    ui.selectable_value(&mut s.recipie, Some(recipie), name);
+                                }
+                            });
+
+                        ui.add_space(16.0);
+
+                        let overclock =
+                            egui::Slider::new(&mut s.speed, 0.0..=250.0).text("Overclocking");
+                        ui.add(overclock);
+
+                        ui.add_space(16.0);
+                        ui.checkbox(&mut s.amplified, "Sommersloop");
+                    });
+                }
             },
         }
     }
@@ -218,51 +257,15 @@ impl SnarlViewer<DemoNode> for DemoViewer {
         snarl: &mut Snarl<DemoNode>,
     ) {
         match &snarl[node] {
-            node @ DemoNode::Building(b) => match b {
-                Building::Miner(m) => {
-                    ui.horizontal(|ui| {
-                        let image = egui::Image::new(m.header_image())
-                            .maintain_aspect_ratio(true)
-                            .shrink_to_fit()
-                            .show_loading_spinner(true);
-                        ui.add(image);
+            node @ DemoNode::Building(b) => {
+                ui.horizontal(|ui| {
+                    let image = egui::Image::new(b.header_image())
+                        .maintain_aspect_ratio(true)
+                        .show_loading_spinner(true);
+                    ui.add(image);
 
-                        ui.label(self.title(node));
-                    });
-                }
-                Building::Smelter(s) => {
-                    ui.horizontal(|ui| {
-                        let image = egui::Image::new(s.header_image())
-                            .maintain_aspect_ratio(true)
-                            .shrink_to_fit()
-                            .show_loading_spinner(true);
-                        ui.add(image);
-
-                        ui.label(self.title(node));
-                    });
-                }
-                Building::Splitter(s) => {
-                    ui.horizontal(|ui| {
-                        let image = egui::Image::new(s.header_image())
-                            .maintain_aspect_ratio(true)
-                            .shrink_to_fit()
-                            .show_loading_spinner(true);
-                        ui.add(image);
-
-                        ui.label(self.title(node));
-                    });
-                }
-                Building::Merger(m) => {
-                    ui.horizontal(|ui| {
-                        let image = egui::Image::new(m.header_image())
-                            .maintain_aspect_ratio(true)
-                            .shrink_to_fit()
-                            .show_loading_spinner(true);
-                        ui.add(image);
-
-                        ui.label(self.title(node));
-                    });
-                }
+                    ui.label(self.title(node));
+                });
             },
             node => {
                 ui.label(self.title(node));
@@ -381,6 +384,27 @@ impl SnarlViewer<DemoNode> for DemoViewer {
 
                     PinInfo::circle().with_fill(color.unwrap_or(BUILDING_COLOR))
                 }
+                Building::Constructor(ref s) => {
+                    assert_eq!(pin.id.input, 0, "Constructor node has only one input");
+
+                    let actual_input_speed = match &*pin.remotes {
+                        [] => 0,
+                        [remote] => snarl[remote.node].output_speed(snarl, remote.node),
+                        _ => unreachable!("only one output"),
+                    };
+
+                    let max_input_speed = s.input_speed();
+                    ui.label(format!(
+                        "{}/min ({}/min)",
+                        actual_input_speed, max_input_speed
+                    ));
+
+                    let color = s
+                        .input_material()
+                        .map(|m| m.color())
+                        .unwrap_or(BUILDING_COLOR);
+                    PinInfo::circle().with_fill(color)
+                }
             },
         }
     }
@@ -439,6 +463,16 @@ impl SnarlViewer<DemoNode> for DemoViewer {
                     let color = material.map(|m| m.color()).unwrap_or(BUILDING_COLOR);
                     PinInfo::circle().with_fill(color)
                 }
+                Building::Constructor(s) => {
+                    assert_eq!(pin.id.output, 0, "Constructor node has only one output");
+                    let speed = snarl[pin.id.node].output_speed(snarl, pin.id.node);
+                    let material = snarl[pin.id.node].output_material(snarl, pin.id.node);
+
+                    ui.label(format!("{}/min", speed));
+
+                    let color = material.map(|m| m.color()).unwrap_or(BUILDING_COLOR);
+                    PinInfo::circle().with_fill(color)
+                }
             },
         }
     }
@@ -463,6 +497,13 @@ impl SnarlViewer<DemoNode> for DemoViewer {
             snarl.insert_node(
                 pos,
                 DemoNode::Building(Building::Smelter(Smelter::default())),
+            );
+            ui.close_menu();
+        }
+        if ui.button("Constructor").clicked() {
+            snarl.insert_node(
+                pos,
+                DemoNode::Building(Building::Constructor(Constructor::default())),
             );
             ui.close_menu();
         }
