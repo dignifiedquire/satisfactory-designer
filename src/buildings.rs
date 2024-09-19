@@ -6,6 +6,7 @@ mod miner;
 mod smelter;
 mod splitter;
 mod storage_container;
+mod water_extractor;
 
 pub use self::constructor::Constructor;
 pub use self::merger::Merger;
@@ -13,6 +14,7 @@ pub use self::miner::{Miner, MinerLevel, ResourcePurity};
 pub use self::smelter::{Smelter, SmelterRecipie};
 pub use self::splitter::Splitter;
 pub use self::storage_container::StorageContainer;
+pub use self::water_extractor::WaterExtractor;
 
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
 pub enum Building {
@@ -22,6 +24,7 @@ pub enum Building {
     Merger(Merger),
     Constructor(Constructor),
     StorageContainer(StorageContainer),
+    WaterExtractor(WaterExtractor),
 }
 
 #[derive(
@@ -276,6 +279,41 @@ impl Material {
     }
 }
 
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    serde::Serialize,
+    serde::Deserialize,
+    PartialEq,
+    strum::Display,
+    strum::VariantArray,
+)]
+pub enum Fluid {
+    #[strum(to_string = "Water")]
+    Water,
+}
+
+impl Fluid {
+    pub fn name(&self) -> String {
+        self.to_string()
+    }
+
+    pub fn color(&self) -> Color32 {
+        let code = match self {
+            Self::Water => "#1662AD",
+        };
+        Color32::from_hex(code).unwrap()
+    }
+
+    pub fn image(&self) -> String {
+        let name = match self {
+            Self::Water => "40px-Water.png",
+        };
+        format!("file://assets/img/{}", name)
+    }
+}
+
 impl Building {
     pub fn header_image(&self) -> &'static str {
         match self {
@@ -285,17 +323,7 @@ impl Building {
             Self::Merger(s) => s.header_image(),
             Self::Constructor(s) => s.header_image(),
             Self::StorageContainer(s) => s.header_image(),
-        }
-    }
-
-    pub fn input_material(&self) -> Option<Material> {
-        match self {
-            Self::Miner(m) => m.input_material(),
-            Self::Smelter(s) => s.input_material(),
-            Self::Splitter(s) => s.input_material(),
-            Self::Merger(s) => s.input_material(),
-            Self::Constructor(s) => s.input_material(),
-            Self::StorageContainer(s) => s.input_material(),
+            Self::WaterExtractor(s) => s.header_image(),
         }
     }
 
@@ -307,6 +335,7 @@ impl Building {
             Self::Merger(s) => s.num_outputs(),
             Self::Constructor(s) => s.num_outputs(),
             Self::StorageContainer(s) => s.num_outputs(),
+            Self::WaterExtractor(s) => s.num_outputs(),
         }
     }
 
@@ -318,6 +347,7 @@ impl Building {
             Self::Merger(s) => s.num_inputs(),
             Self::Constructor(s) => s.num_inputs(),
             Self::StorageContainer(s) => s.num_inputs(),
+            Self::WaterExtractor(s) => s.num_inputs(),
         }
     }
 
@@ -329,6 +359,7 @@ impl Building {
             Self::Merger(s) => s.name(),
             Self::Constructor(s) => s.name(),
             Self::StorageContainer(s) => s.name(),
+            Self::WaterExtractor(s) => s.name(),
         }
     }
 
@@ -340,6 +371,7 @@ impl Building {
             Self::Merger(s) => s.description(),
             Self::Constructor(s) => s.description(),
             Self::StorageContainer(s) => s.description(),
+            Self::WaterExtractor(s) => s.description(),
         }
     }
 }
@@ -402,6 +434,36 @@ impl Belt {
             Self::Mk4 => 480.,
             Self::Mk5 => 780.,
             Self::Mk6 => 1200.,
+        }
+    }
+}
+
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    serde::Serialize,
+    serde::Deserialize,
+    PartialEq,
+    strum::VariantArray,
+    strum::Display,
+)]
+pub enum Pipe {
+    #[strum(to_string = "Mk.1")]
+    Mk1,
+    #[strum(to_string = "Mk.2")]
+    Mk2,
+}
+
+impl Pipe {
+    pub fn name(&self) -> String {
+        self.to_string()
+    }
+
+    pub fn speed(&self) -> f32 {
+        match self {
+            Self::Mk1 => 300.,
+            Self::Mk2 => 600.,
         }
     }
 }

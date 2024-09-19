@@ -1,5 +1,6 @@
 use buildings::{
-    Building, Constructor, Material, Merger, Miner, Smelter, Splitter, StorageContainer,
+    Building, Constructor, Fluid, Material, Merger, Miner, Smelter, Splitter, StorageContainer,
+    WaterExtractor,
 };
 use eframe::{App, CreationContext};
 use egui::{emath::Rot2, vec2, Color32, FontId, Id, Rect, RichText, Ui, Vec2};
@@ -23,6 +24,7 @@ impl Node {
         match self {
             Node::Building(b) => match b {
                 Building::Miner(remote_m) => remote_m.output_speed(),
+                Building::WaterExtractor(w) => w.output_speed(),
                 Building::StorageContainer(s) => s.output_speed(),
                 Building::Splitter(_remote_s) => {
                     let input_wire = snarl
@@ -94,6 +96,9 @@ impl Node {
             Node::Building(b) => match b {
                 Building::Miner(remote_m) => {
                     remote_m.resource.as_ref().map(|r| r.output_material())
+                }
+                Building::WaterExtractor(_) => {
+                    unreachable!("no output material");
                 }
                 Building::StorageContainer(s) => s.output_material(),
                 Building::Splitter(_remote_s) => {
@@ -202,6 +207,24 @@ impl SnarlViewer<Node> for Viewer {
                                     ui.selectable_value(&mut m.resource_purity, purity, name);
                                 }
                             });
+                        ui.add_space(10.0 * scale);
+                        add_speed_ui(ui, &mut m.speed);
+                    }
+                    Building::WaterExtractor(m) => {
+                        let text = match &m.output_pipe {
+                            Some(r) => r.name(),
+                            None => "Select Pipe".to_string(),
+                        };
+
+                        egui::ComboBox::from_label("Pipe")
+                            .selected_text(text)
+                            .show_ui(ui, |ui| {
+                                for pipe in m.available_pipes() {
+                                    let name = pipe.name();
+                                    ui.selectable_value(&mut m.output_pipe, Some(*pipe), name);
+                                }
+                            });
+
                         ui.add_space(10.0 * scale);
                         add_speed_ui(ui, &mut m.speed);
                     }
@@ -439,6 +462,9 @@ impl SnarlViewer<Node> for Viewer {
                 Building::Miner(_) => {
                     unreachable!("Miner has no inputs")
                 }
+                Building::WaterExtractor(_) => {
+                    unreachable!("Miner has no inputs")
+                }
                 Building::StorageContainer(_) => {
                     unreachable!("Storage Container has no inputs")
                 }
@@ -577,6 +603,19 @@ impl SnarlViewer<Node> for Viewer {
 
                     PinInfo::circle().with_fill(color)
                 }
+                Building::WaterExtractor(w) => {
+                    assert_eq!(pin.id.output, 0, "Water Extractor has only one output");
+                    let speed = w.output_speed();
+                    let fluid = w.output_fluid();
+                    let color = fluid.color();
+
+                    ui.horizontal(|ui| {
+                        add_fluid_image(ui, scale, &fluid);
+                        ui.label(format!("{}/m^3", speed));
+                    });
+
+                    PinInfo::circle().with_fill(color)
+                }
                 Building::StorageContainer(s) => {
                     assert_eq!(pin.id.output, 0, "Storage Container has only one output");
                     let speed = s.output_speed();
@@ -694,6 +733,15 @@ impl SnarlViewer<Node> for Viewer {
             snarl.insert_node(
                 pos,
                 Node::Building(Building::Constructor(Constructor::default())),
+            );
+            ui.close_menu();
+        }
+
+        ui.separator();
+        if ui.button("Water Extractor").clicked() {
+            snarl.insert_node(
+                pos,
+                Node::Building(Building::WaterExtractor(WaterExtractor::default())),
             );
             ui.close_menu();
         }
@@ -1233,5 +1281,16 @@ fn add_speed_ui(ui: &mut Ui, value: &mut f32) {
         let overclock = egui::DragValue::new(value).range(0.0..=250.0).suffix("%");
         ui.add(overclock);
         ui.label("Speed");
+    });
+}
+
+fn add_fluid_image(ui: &mut Ui, scale: f32, fluid: &Fluid) {
+    let image = egui::Image::new(fluid.image())
+        .max_height(20. * scale)
+        .maintain_aspect_ratio(true)
+        .show_loading_spinner(true);
+    ui.add(image).on_hover_ui(|ui| {
+        ui.style_mut().interaction.selectable_labels = true;
+        ui.label(fluid.name());
     });
 }
