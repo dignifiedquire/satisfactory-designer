@@ -305,7 +305,7 @@ impl SnarlViewer<Node> for Viewer {
                                             ui.add(image);
                                             ui.selectable_value(
                                                 &mut s.recipie,
-                                                Some(recipie),
+                                                Some(*recipie),
                                                 name,
                                             );
                                         });
@@ -1127,13 +1127,11 @@ impl DemoApp {
         let mut style = SnarlStyle::new();
         style
             .bg_pattern
-            .replace(BackgroundPattern::custom(|style, viewport, ui| {
+            .replace(BackgroundPattern::custom(|_style, viewport, ui| {
+                // Dot grid background
+
                 let spacing = vec2(50.0, 50.0);
                 let angle = 0.0;
-
-                let bg_stroke = style
-                    .bg_pattern_stroke
-                    .unwrap_or(ui.visuals().widgets.noninteractive.bg_stroke);
 
                 let spacing = vec2(spacing.x.max(1.0), spacing.y.max(1.0));
 
@@ -1160,13 +1158,6 @@ impl DemoApp {
                         #[allow(clippy::cast_possible_truncation)]
                         let y = (y as f32 + min_y) * spacing.y;
 
-                        let top = (rot * vec2(x, pattern_bounds.min.y)).to_pos2();
-                        let bottom = (rot * vec2(x, pattern_bounds.max.y)).to_pos2();
-
-                        let top = viewport.graph_pos_to_screen(top);
-                        let bottom = viewport.graph_pos_to_screen(bottom);
-
-                        // ui.painter().line_segment([top, bottom], bg_stroke);
                         let pos = egui::Pos2::new(x, y);
                         let pos = viewport.graph_pos_to_screen(pos);
                         let radius = viewport.scale * 1.0;

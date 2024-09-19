@@ -1,23 +1,32 @@
 use egui::Color32;
+use strum::VariantArray;
 
 use super::{calc_output, Material};
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    serde::Serialize,
+    serde::Deserialize,
+    PartialEq,
+    strum::Display,
+    strum::VariantArray,
+)]
 pub enum SmelterRecipie {
+    #[strum(to_string = "Caterium Ingot")]
     CateriumIngot,
+    #[strum(to_string = "Copper Ingot")]
     CopperIngot,
+    #[strum(to_string = "Iron Ingot")]
     IronIngot,
+    #[strum(to_string = "Pure Aluminum Ingot")]
     PureAluminumIngot,
 }
 
 impl SmelterRecipie {
     pub fn name(&self) -> String {
-        match self {
-            SmelterRecipie::CateriumIngot => "Caterium Ingot".to_string(),
-            SmelterRecipie::CopperIngot => "Copper Ingot".to_string(),
-            SmelterRecipie::IronIngot => "Iron Ingot".to_string(),
-            SmelterRecipie::PureAluminumIngot => "Pure Aluminum Ingot".to_string(),
-        }
+        self.to_string()
     }
 
     pub fn image(&self) -> String {
@@ -101,13 +110,8 @@ impl Smelter {
         "file://assets/img/Smelter.png"
     }
 
-    pub fn available_recipies(&self) -> Vec<SmelterRecipie> {
-        vec![
-            SmelterRecipie::CateriumIngot,
-            SmelterRecipie::CopperIngot,
-            SmelterRecipie::IronIngot,
-            SmelterRecipie::PureAluminumIngot,
-        ]
+    pub fn available_recipies(&self) -> &'static [SmelterRecipie] {
+        SmelterRecipie::VARIANTS
     }
 
     pub fn name(&self) -> String {
