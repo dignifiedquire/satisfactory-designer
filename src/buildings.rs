@@ -64,83 +64,200 @@ impl ResourceType {
     }
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, strum::Display)]
 pub enum Material {
+    #[strum(to_string = "Copper Ore")]
     CopperOre,
+    #[strum(to_string = "Iron Ore")]
     IronOre,
+    #[strum(to_string = "Caterium Ore")]
     CateriumOre,
+    #[strum(to_string = "Copper Ingot")]
     CopperIngot,
+    #[strum(to_string = "Iron Ingot")]
     IronIngot,
+    #[strum(to_string = "Caterium Ingot")]
     CateriumIngot,
+    #[strum(to_string = "Aluminium Scrap")]
     AluminiumScrap,
+    #[strum(to_string = "Aluminium Ingot")]
     AluminiumIngot,
+    #[strum(to_string = "Bauxite")]
     Bauxite,
+    #[strum(to_string = "Limestone")]
     Limestone,
+    #[strum(to_string = "Raw Quartz")]
     RawQuartz,
+    #[strum(to_string = "Sam Ore")]
     SamOre,
+    #[strum(to_string = "Sulfur")]
     Sulfur,
+    #[strum(to_string = "Uranium")]
     Uranium,
+    #[strum(to_string = "Alien Protein")]
     AlienProtein,
+    #[strum(to_string = "Alien DNA Capsule")]
     AlienDnaCapsule,
+    #[strum(to_string = "Leaves")]
     Leaves,
+    #[strum(to_string = "Mycelia")]
     Mycelia,
+    #[strum(to_string = "Wood")]
     Wood,
+    #[strum(to_string = "Wire")]
     Wire,
+    #[strum(to_string = "Plastic")]
     Plastic,
+    #[strum(to_string = "Ficsite Ingot")]
     FicsiteIngot,
+    #[strum(to_string = "Hatcher Remains")]
     HatcherRemains,
+    #[strum(to_string = "Hog Remains")]
     HogRemains,
+    #[strum(to_string = "Blue Power Slug")]
     BluePowerSlug,
+    #[strum(to_string = "Yellow Power Slug")]
     YellowPowerSlug,
+    #[strum(to_string = "Purple Power Slug")]
     PurplePowerSlug,
+    #[strum(to_string = "SAM")]
     Sam,
+    #[strum(to_string = "Iron Rod")]
     IronRod,
+    #[strum(to_string = "Biomass")]
     Biomass,
+    #[strum(to_string = "Spitter Remains")]
     SpitterRemains,
+    #[strum(to_string = "Steel Ingot")]
     SteelIngot,
+    #[strum(to_string = "Stinger Remains")]
     StingerRemains,
+    #[strum(to_string = "Steel Beam")]
     SteelBeam,
+    #[strum(to_string = "Aluminium Casing")]
     AluminiumCasing,
+    #[strum(to_string = "Cable")]
     Cable,
+    #[strum(to_string = "Concrete")]
     Concrete,
+    #[strum(to_string = "Copper Powder")]
     CopperPowder,
+    #[strum(to_string = "Copper Sheet")]
     CopperSheet,
+    #[strum(to_string = "Empty Canister")]
     EmptyCanister,
+    #[strum(to_string = "Empty Fluid Tank")]
     EmptyFluidTank,
+    #[strum(to_string = "Ficsite Trigon")]
     FicsiteTrigon,
+    #[strum(to_string = "Iron Plate")]
     IronPlate,
+    #[strum(to_string = "Iron Rebar")]
     IronRebar,
+    #[strum(to_string = "Power Shard")]
     PowerShard,
+    #[strum(to_string = "Quartz Crystal")]
     QuartzCrystal,
+    #[strum(to_string = "Reanimated SAM")]
     ReanimatedSam,
+    #[strum(to_string = "Screw")]
     Screw,
+    #[strum(to_string = "Silica")]
     Silica,
+    #[strum(to_string = "Solid Biofuel")]
     SolidBiofuel,
+    #[strum(to_string = "Steel Pipe")]
     SteelPipe,
+    #[strum(to_string = "Coal")]
     Coal,
+    #[strum(to_string = "Quickwire")]
     Quickwire,
 }
 
 impl Material {
+    pub fn name(&self) -> String {
+        self.to_string()
+    }
+
     pub fn color(&self) -> Color32 {
         // Colors based on https://www.reddit.com/r/SatisfactoryGame/comments/154vft6/vencams_colour_list_25/
-        match self {
-            Self::CopperOre => Color32::from_hex("#BD4C39").unwrap(),
-            Self::IronOre => Color32::from_hex("#8E5C5C").unwrap(),
-            Self::CateriumOre => Color32::from_hex("#E2B148").unwrap(),
-            Self::CopperIngot => Color32::from_hex("#A56355").unwrap(),
-            Self::IronIngot => Color32::from_hex("#989A9D").unwrap(),
-            Self::CateriumIngot => Color32::from_hex("#CCA566").unwrap(),
-            Self::AluminiumScrap => Color32::from_hex("#BCC0C9").unwrap(),
-            Self::AluminiumIngot => Color32::from_hex("#D2D3D4").unwrap(),
-            Self::Bauxite => Color32::from_hex("#CD7660").unwrap(),
-            Self::Limestone => Color32::from_hex("#C8BFA7").unwrap(),
-            Self::RawQuartz => Color32::from_hex("#F177B5").unwrap(),
-            Self::SamOre => Color32::from_hex("#AE1CD7").unwrap(), // TODO: better color
-            Self::Sulfur => Color32::from_hex("#FCDC48").unwrap(),
-            Self::Uranium => Color32::from_hex("#88D288").unwrap(),
-            _ => Color32::from_hex("#697082").unwrap(),
-        }
+        let color = match self {
+            Self::CopperOre => "#BD4C39",
+            Self::IronOre => "#8E5C5C",
+            Self::CateriumOre => "#E2B148",
+            Self::CopperIngot => "#A56355",
+            Self::IronIngot => "#989A9D",
+            Self::CateriumIngot => "#CCA566",
+            Self::AluminiumScrap => "#BCC0C9",
+            Self::AluminiumIngot => "#D2D3D4",
+            Self::Bauxite => "#CD7660",
+            Self::Limestone => "#C8BFA7",
+            Self::RawQuartz => "#F177B5",
+            Self::SamOre => "#AE1CD7",
+            Self::Sulfur => "#FCDC48",
+            Self::Uranium => "#88D288",
+            _ => "#697082",
+        };
+        Color32::from_hex(color).unwrap()
+    }
+
+    pub fn image(&self) -> String {
+        let name = match self {
+            Self::CopperOre => "40px-Copper_Ore.png",
+            Self::IronOre => "40px-Iron_Ore.png",
+            Self::CateriumOre => "40px-Caterium_Ore.png",
+            Self::CopperIngot => "40px-Copper_Ingot.png",
+            Self::IronIngot => "40px-Iron_Ingot.png",
+            Self::CateriumIngot => "40px-Caterium_Ingot.png",
+            Self::AluminiumScrap => "40px-Aluminium_Scrap.png",
+            Self::AluminiumIngot => "40px-Aluminium_Ingot.png",
+            Self::Bauxite => "40px-Bauxite.png",
+            Self::Limestone => "40px-Limestone.png",
+            Self::RawQuartz => "40px-Raw_Quartz.png",
+            Self::SamOre => "40px-SAM_Ore.png",
+            Self::Sulfur => "40px-Sulfur.png",
+            Self::Uranium => "40px-Uranium.png",
+            Self::AlienProtein => "40px-Alien_Protein.png",
+            Self::AlienDnaCapsule => "40px-Alien_DNA_Capsule.png",
+            Self::Leaves => "40px-Leaves.png",
+            Self::Mycelia => "40px-Mycelia.png",
+            Self::Wood => "40px-Wood.png",
+            Self::Wire => "40px-Wire.png",
+            Self::Plastic => "40px-Plastic.png",
+            Self::FicsiteIngot => "40px-Ficsite_Ingot.png",
+            Self::HatcherRemains => "40px-Hatcher_Remains.png",
+            Self::HogRemains => "40px-Hog_Remains.png",
+            Self::BluePowerSlug => "40px-Blue_Power_Slug.png",
+            Self::YellowPowerSlug => "40px-Yellow_Power_Slug.png",
+            Self::PurplePowerSlug => "40px-Purple_Power_Slug.png",
+            Self::Sam => "40px-SAM.png",
+            Self::IronRod => "40px-Iron_Rod.png",
+            Self::Biomass => "40px-Biomass.png",
+            Self::SpitterRemains => "40px-Spitter_Remains.png",
+            Self::SteelIngot => "40px-Steel_Ingot.png",
+            Self::StingerRemains => "40px-Stinger_Remains.png",
+            Self::SteelBeam => "40px-Steel_Beam.png",
+            Self::AluminiumCasing => "40px-Aluminium_Casing.png",
+            Self::Cable => "40px-Cable.png",
+            Self::Concrete => "40px-Concrete.png",
+            Self::CopperPowder => "40px-Copper_Powder.png",
+            Self::CopperSheet => "40px-Copper_Sheet.png",
+            Self::EmptyCanister => "40px-Empty_Canister.png",
+            Self::EmptyFluidTank => "40px-Empty_Fluid_Tank.png",
+            Self::FicsiteTrigon => "40px-Ficsite_Trigon.png",
+            Self::IronPlate => "40px-Iron_Plate.png",
+            Self::IronRebar => "40px-Iron_Rebar.png",
+            Self::PowerShard => "40px-Power_Shard.png",
+            Self::QuartzCrystal => "40px-Quartz_Crystal.png",
+            Self::ReanimatedSam => "40px-Reanimated_SAM.png",
+            Self::Screw => "40px-Screw.png",
+            Self::Silica => "40px-Silica.png",
+            Self::SolidBiofuel => "40px-Solid_Biofuel.png",
+            Self::SteelPipe => "40px-Steel_Pipe.png",
+            Self::Coal => "40px-Coal.png",
+            Self::Quickwire => "40px-Quickwire.png",
+        };
+        format!("file://assets/img/{}", name)
     }
 }
 

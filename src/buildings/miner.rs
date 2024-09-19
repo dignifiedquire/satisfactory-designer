@@ -46,7 +46,11 @@ impl MinerLevel {
 
 impl Miner {
     pub fn header_image(&self) -> &'static str {
-        "file://assets/img/20px-Miner_Mk.1.png"
+        match self.level {
+            MinerLevel::Mk1 => "file://assets/img/Miner_Mk.1.png",
+            MinerLevel::Mk2 => "file://assets/img/Miner_Mk.2.png",
+            MinerLevel::Mk3 => "file://assets/img/Miner_Mk.3.png",
+        }
     }
 
     pub fn name(&self) -> String {

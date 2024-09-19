@@ -5,7 +5,7 @@ pub struct Splitter {}
 
 impl Splitter {
     pub fn header_image(&self) -> &'static str {
-        "file://assets/img/20px-Conveyor_Splitter.png"
+        "file://assets/img/Conveyor_Splitter.png"
     }
 
     pub fn name(&self) -> String {

@@ -179,8 +179,7 @@ impl SnarlViewer<DemoNode> for DemoViewer {
                             });
                         ui.add_space(16.0);
 
-                        let overclock =
-                            egui::Slider::new(&mut m.speed, 0.0..=250.0).text("Overclocking");
+                        let overclock = egui::Slider::new(&mut m.speed, 0.0..=250.0).text("Speed");
                         ui.add(overclock);
                     });
                 }
@@ -201,8 +200,7 @@ impl SnarlViewer<DemoNode> for DemoViewer {
 
                         ui.add_space(16.0);
 
-                        let overclock =
-                            egui::Slider::new(&mut s.speed, 0.0..=250.0).text("Overclocking");
+                        let overclock = egui::Slider::new(&mut s.speed, 0.0..=250.0).text("Speed");
                         ui.add(overclock);
 
                         ui.add_space(16.0);
@@ -228,8 +226,7 @@ impl SnarlViewer<DemoNode> for DemoViewer {
 
                         ui.add_space(16.0);
 
-                        let overclock =
-                            egui::Slider::new(&mut s.speed, 0.0..=250.0).text("Overclocking");
+                        let overclock = egui::Slider::new(&mut s.speed, 0.0..=250.0).text("Speed");
                         ui.add(overclock);
 
                         ui.add_space(16.0);
@@ -326,83 +323,108 @@ impl SnarlViewer<DemoNode> for DemoViewer {
                 Building::Smelter(ref s) => {
                     assert_eq!(pin.id.input, 0, "Smelter node has only one input");
 
-                    let actual_input_speed = match &*pin.remotes {
-                        [] => 0.,
-                        [remote] => snarl[remote.node].output_speed(snarl, remote.node),
+                    let (actual_input_speed, material) = match &*pin.remotes {
+                        [] => (0., None),
+                        [remote] => {
+                            let speed = snarl[remote.node].output_speed(snarl, remote.node);
+                            let material = snarl[remote.node].output_material(snarl, remote.node);
+                            (speed, material)
+                        }
                         _ => unreachable!("only one output"),
                     };
 
                     let max_input_speed = s.input_speed();
-                    ui.label(format!(
-                        "{}/min ({}/min)",
-                        actual_input_speed, max_input_speed
-                    ));
-
-                    let color = s
-                        .input_material()
+                    let color = material
+                        .as_ref()
                         .map(|m| m.color())
                         .unwrap_or(BUILDING_COLOR);
+
+                    ui.horizontal(|ui| {
+                        add_material_image(ui, scale, &material);
+                        ui.label(format!(
+                            "{}/min ({}/min)",
+                            actual_input_speed, max_input_speed
+                        ));
+                    });
+
                     PinInfo::circle().with_fill(color)
                 }
                 Building::Splitter(_) => {
                     assert_eq!(pin.id.input, 0, "Splitter node has only one input");
 
-                    let actual_input_speed = match &*pin.remotes {
-                        [] => 0.,
-                        [remote] => snarl[remote.node].output_speed(snarl, remote.node),
-                        _ => unreachable!("only one output"),
-                    };
-                    let color = match &*pin.remotes {
-                        [] => None,
-                        [remote] => snarl[remote.node]
-                            .output_material(snarl, remote.node)
-                            .map(|m| m.color()),
+                    let (actual_input_speed, material) = match &*pin.remotes {
+                        [] => (0., None),
+                        [remote] => {
+                            let speed = snarl[remote.node].output_speed(snarl, remote.node);
+                            let material = snarl[remote.node].output_material(snarl, remote.node);
+                            (speed, material)
+                        }
                         _ => unreachable!("only one output"),
                     };
 
-                    ui.label(format!("{}/min", actual_input_speed));
+                    let color = material
+                        .as_ref()
+                        .map(|m| m.color())
+                        .unwrap_or(BUILDING_COLOR);
 
-                    PinInfo::circle().with_fill(color.unwrap_or(BUILDING_COLOR))
+                    ui.horizontal(|ui| {
+                        add_material_image(ui, scale, &material);
+                        ui.label(format!("{}/min", actual_input_speed,));
+                    });
+
+                    PinInfo::circle().with_fill(color)
                 }
                 Building::Merger(_) => {
                     // 3 inputs
-
-                    let actual_input_speed = match &*pin.remotes {
-                        [] => 0.,
-                        [remote] => snarl[remote.node].output_speed(snarl, remote.node),
-                        _ => unreachable!("only one"),
-                    };
-                    let color = match &*pin.remotes {
-                        [] => None,
-                        [remote] => snarl[remote.node]
-                            .output_material(snarl, remote.node)
-                            .map(|m| m.color()),
+                    let (actual_input_speed, material) = match &*pin.remotes {
+                        [] => (0., None),
+                        [remote] => {
+                            let speed = snarl[remote.node].output_speed(snarl, remote.node);
+                            let material = snarl[remote.node].output_material(snarl, remote.node);
+                            (speed, material)
+                        }
                         _ => unreachable!("only one output"),
                     };
 
-                    ui.label(format!("{}/min", actual_input_speed));
+                    let color = material
+                        .as_ref()
+                        .map(|m| m.color())
+                        .unwrap_or(BUILDING_COLOR);
 
-                    PinInfo::circle().with_fill(color.unwrap_or(BUILDING_COLOR))
+                    ui.horizontal(|ui| {
+                        add_material_image(ui, scale, &material);
+                        ui.label(format!("{}/min", actual_input_speed,));
+                    });
+
+                    PinInfo::circle().with_fill(color)
                 }
                 Building::Constructor(ref s) => {
                     assert_eq!(pin.id.input, 0, "Constructor node has only one input");
 
-                    let actual_input_speed = match &*pin.remotes {
-                        [] => 0.,
-                        [remote] => snarl[remote.node].output_speed(snarl, remote.node),
+                    let (actual_input_speed, material) = match &*pin.remotes {
+                        [] => (0., None),
+                        [remote] => {
+                            let speed = snarl[remote.node].output_speed(snarl, remote.node);
+                            let material = snarl[remote.node].output_material(snarl, remote.node);
+                            (speed, material)
+                        }
                         _ => unreachable!("only one output"),
                     };
 
                     let max_input_speed = s.input_speed();
-                    ui.label(format!(
-                        "{}/min ({}/min)",
-                        actual_input_speed, max_input_speed
-                    ));
-
-                    let color = s
-                        .input_material()
+                    let color = material
+                        .as_ref()
                         .map(|m| m.color())
                         .unwrap_or(BUILDING_COLOR);
+
+                    ui.horizontal(|ui| {
+                        add_material_image(ui, scale, &material);
+                        ui.label(format!(
+                            "{}/min ({}/min)",
+                            actual_input_speed, max_input_speed
+                        ));
+                    });
+
                     PinInfo::circle().with_fill(color)
                 }
             },
@@ -413,18 +435,25 @@ impl SnarlViewer<DemoNode> for DemoViewer {
         &mut self,
         pin: &OutPin,
         ui: &mut Ui,
-        _scale: f32,
+        scale: f32,
         snarl: &mut Snarl<DemoNode>,
     ) -> PinInfo {
         match snarl[pin.id.node] {
             DemoNode::Building(ref b) => match b {
-                Building::Miner(m) => {
+                Building::Miner(_) => {
                     assert_eq!(pin.id.output, 0, "Miner has only one output");
                     let speed = snarl[pin.id.node].output_speed(snarl, pin.id.node);
                     let material = snarl[pin.id.node].output_material(snarl, pin.id.node);
-                    ui.label(format!("{}/min", speed));
+                    let color = material
+                        .as_ref()
+                        .map(|m| m.color())
+                        .unwrap_or(BUILDING_COLOR);
 
-                    let color = material.map(|m| m.color()).unwrap_or(BUILDING_COLOR);
+                    ui.horizontal(|ui| {
+                        add_material_image(ui, scale, &material);
+                        ui.label(format!("{}/min", speed));
+                    });
+
                     PinInfo::circle().with_fill(color)
                 }
                 Building::Smelter(s) => {
@@ -438,7 +467,10 @@ impl SnarlViewer<DemoNode> for DemoViewer {
                         .map(|r| r.max_output_speed())
                         .unwrap_or_default();
 
-                    ui.label(format!("{}/min ({}/min)", speed, max_speed));
+                    ui.horizontal(|ui| {
+                        add_material_image(ui, scale, &material);
+                        ui.label(format!("{}/min ({}/min)", speed, max_speed));
+                    });
 
                     let color = material.map(|m| m.color()).unwrap_or(BUILDING_COLOR);
                     PinInfo::circle().with_fill(color)
@@ -452,7 +484,11 @@ impl SnarlViewer<DemoNode> for DemoViewer {
                         (0., None)
                     };
 
-                    ui.label(format!("{}/min", speed));
+                    ui.horizontal(|ui| {
+                        add_material_image(ui, scale, &material);
+                        ui.label(format!("{}/min", speed));
+                    });
+
                     let color = material.map(|m| m.color()).unwrap_or(BUILDING_COLOR);
                     PinInfo::circle().with_fill(color)
                 }
@@ -465,7 +501,11 @@ impl SnarlViewer<DemoNode> for DemoViewer {
                         (0., None)
                     };
 
-                    ui.label(format!("{}/min", speed));
+                    ui.horizontal(|ui| {
+                        add_material_image(ui, scale, &material);
+                        ui.label(format!("{}/min", speed));
+                    });
+
                     let color = material.map(|m| m.color()).unwrap_or(BUILDING_COLOR);
                     PinInfo::circle().with_fill(color)
                 }
@@ -479,7 +519,10 @@ impl SnarlViewer<DemoNode> for DemoViewer {
                         .map(|r| r.max_output_speed())
                         .unwrap_or_default();
 
-                    ui.label(format!("{}/min ({}/min)", speed, max_speed));
+                    ui.horizontal(|ui| {
+                        add_material_image(ui, scale, &material);
+                        ui.label(format!("{}/min ({}/min)", speed, max_speed));
+                    });
 
                     let color = material.map(|m| m.color()).unwrap_or(BUILDING_COLOR);
                     PinInfo::circle().with_fill(color)
@@ -661,26 +704,6 @@ impl SnarlViewer<DemoNode> for DemoViewer {
         if ui.button("Remove").clicked() {
             snarl.remove_node(node);
             ui.close_menu();
-        }
-    }
-
-    fn has_on_hover_popup(&mut self, _: &DemoNode) -> bool {
-        true
-    }
-
-    fn show_on_hover_popup(
-        &mut self,
-        node: NodeId,
-        _inputs: &[InPin],
-        _outputs: &[OutPin],
-        ui: &mut Ui,
-        _scale: f32,
-        snarl: &mut Snarl<DemoNode>,
-    ) {
-        match snarl[node] {
-            DemoNode::Building(ref b) => {
-                ui.label(b.description());
-            }
         }
     }
 }
@@ -1138,4 +1161,19 @@ fn main() {
 fn format_float(v: f64) -> String {
     let v = (v * 1000.0).round() / 1000.0;
     format!("{}", v)
+}
+
+fn add_material_image(ui: &mut Ui, scale: f32, material: &Option<Material>) {
+    if let Some(material) = material {
+        let image = egui::Image::new(material.image())
+            .max_height(20. * scale)
+            .maintain_aspect_ratio(true)
+            .show_loading_spinner(true);
+        ui.add(image).on_hover_ui(|ui| {
+            ui.style_mut().interaction.selectable_labels = true;
+            ui.label(material.name());
+        });
+    } else {
+        ui.add_space(20. * scale);
+    }
 }

@@ -94,7 +94,7 @@ impl Default for Smelter {
 
 impl Smelter {
     pub fn header_image(&self) -> &'static str {
-        "file://assets/img/20px-Smelter.png"
+        "file://assets/img/Smelter.png"
     }
 
     pub fn available_recipies(&self) -> Vec<SmelterRecipie> {

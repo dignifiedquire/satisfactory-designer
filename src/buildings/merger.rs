@@ -5,7 +5,7 @@ pub struct Merger {}
 
 impl Merger {
     pub fn header_image(&self) -> &'static str {
-        "file://assets/img/20px-Conveyor_Merger.png"
+        "file://assets/img/Conveyor_Merger.png"
     }
 
     pub fn name(&self) -> String {
