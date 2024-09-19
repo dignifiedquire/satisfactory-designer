@@ -222,7 +222,7 @@ impl SnarlViewer<DemoNode> for DemoViewer {
                             .show_ui(ui, |ui| {
                                 for recipie in s.available_recipies() {
                                     let name = recipie.name();
-                                    ui.selectable_value(&mut s.recipie, Some(recipie), name);
+                                    ui.selectable_value(&mut s.recipie, Some(*recipie), name);
                                 }
                             });
 
@@ -266,7 +266,7 @@ impl SnarlViewer<DemoNode> for DemoViewer {
 
                     ui.label(self.title(node));
                 });
-            },
+            }
             node => {
                 ui.label(self.title(node));
             }
@@ -432,7 +432,13 @@ impl SnarlViewer<DemoNode> for DemoViewer {
                     let speed = snarl[pin.id.node].output_speed(snarl, pin.id.node);
                     let material = snarl[pin.id.node].output_material(snarl, pin.id.node);
 
-                    ui.label(format!("{}/min", speed));
+                    let max_speed = s
+                        .recipie
+                        .as_ref()
+                        .map(|r| r.max_output_speed())
+                        .unwrap_or_default();
+
+                    ui.label(format!("{}/min ({}/min)", speed, max_speed));
 
                     let color = material.map(|m| m.color()).unwrap_or(BUILDING_COLOR);
                     PinInfo::circle().with_fill(color)
@@ -467,8 +473,13 @@ impl SnarlViewer<DemoNode> for DemoViewer {
                     assert_eq!(pin.id.output, 0, "Constructor node has only one output");
                     let speed = snarl[pin.id.node].output_speed(snarl, pin.id.node);
                     let material = snarl[pin.id.node].output_material(snarl, pin.id.node);
+                    let max_speed = s
+                        .recipie
+                        .as_ref()
+                        .map(|r| r.max_output_speed())
+                        .unwrap_or_default();
 
-                    ui.label(format!("{}/min", speed));
+                    ui.label(format!("{}/min ({}/min)", speed, max_speed));
 
                     let color = material.map(|m| m.color()).unwrap_or(BUILDING_COLOR);
                     PinInfo::circle().with_fill(color)

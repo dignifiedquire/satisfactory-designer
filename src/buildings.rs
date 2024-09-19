@@ -82,6 +82,43 @@ pub enum Material {
     Uranium,
     AlienProtein,
     AlienDnaCapsule,
+    Leaves,
+    Mycelia,
+    Wood,
+    Wire,
+    Plastic,
+    FicsiteIngot,
+    HatcherRemains,
+    HogRemains,
+    BluePowerSlug,
+    YellowPowerSlug,
+    PurplePowerSlug,
+    Sam,
+    IronRod,
+    Biomass,
+    SpitterRemains,
+    SteelIngot,
+    StingerRemains,
+    SteelBeam,
+    AluminiumCasing,
+    Cable,
+    Concrete,
+    CopperPowder,
+    CopperSheet,
+    EmptyCanister,
+    EmptyFluidTank,
+    FicsiteTrigon,
+    IronPlate,
+    IronRebar,
+    PowerShard,
+    QuartzCrystal,
+    ReanimatedSam,
+    Screw,
+    Silica,
+    SolidBiofuel,
+    SteelPipe,
+    Coal,
+    Quickwire,
 }
 
 impl Material {
@@ -169,42 +206,22 @@ impl Building {
     }
 }
 
-fn calc_output(input_size: usize, duration: f32, _output_size: f32, input_base: f32) -> usize {
-    let input_size = (input_size as f32 / 60.) * duration;
+fn calc_output(input_size: Option<usize>, duration: f32, _output_size: f32, input_base: f32) -> f32 {
+    let a = match input_size {
+        Some(input_size) => {
+            let input_size = (input_size as f32 / 60.) * duration;
 
-    // 45/60 * 4secs = 3
-    let a = if input_size < input_base {
-        input_size / input_base
-    } else {
-        1.
+            // 45/60 * 4secs = 3
+            if input_size < input_base {
+                input_size / input_base
+            } else {
+                1.
+            }
+        }
+        None => 1.
     };
 
     // 60/4 * 1 = 15
     let b = (60. / duration) * a;
-
-    b.round() as usize
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_output_speed() {
-        assert_eq!(SmelterRecipie::CateriumIngot.output_speed(0), 0);
-        assert_eq!(SmelterRecipie::CateriumIngot.output_speed(10), 3);
-        assert_eq!(SmelterRecipie::CateriumIngot.output_speed(45), 15);
-        assert_eq!(SmelterRecipie::CateriumIngot.output_speed(60), 15);
-
-        assert_eq!(SmelterRecipie::IronIngot.output_speed(0), 0);
-        assert_eq!(SmelterRecipie::IronIngot.output_speed(10), 10);
-        assert_eq!(SmelterRecipie::IronIngot.output_speed(30), 30);
-        assert_eq!(SmelterRecipie::IronIngot.output_speed(60), 30);
-
-        assert_eq!(SmelterRecipie::PureAluminiumIngot.output_speed(0), 0);
-        assert_eq!(SmelterRecipie::PureAluminiumIngot.output_speed(10), 5);
-        assert_eq!(SmelterRecipie::PureAluminiumIngot.output_speed(30), 15);
-        assert_eq!(SmelterRecipie::PureAluminiumIngot.output_speed(60), 30);
-        assert_eq!(SmelterRecipie::PureAluminiumIngot.output_speed(120), 30);
-    }
+    b.round()
 }

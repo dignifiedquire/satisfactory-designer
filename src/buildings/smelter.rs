@@ -51,9 +51,17 @@ impl SmelterRecipie {
         }
     }
 
-    pub fn output_speed(&self, input_size: usize) -> usize {
-        if input_size == 0 {
-            return 0;
+    pub fn max_output_speed(&self) -> f32 {
+        self.output_speed_inner(None)
+    }
+
+    pub fn output_speed(&self, input_size: usize) -> f32 {
+        self.output_speed_inner(Some(input_size))
+    }
+
+    fn output_speed_inner(&self, input_size: Option<usize>) -> f32 {
+        if input_size == Some(0) {
+            return 0.;
         }
 
         let (duration, output_size, input_base) = match self {
@@ -144,5 +152,29 @@ impl Smelter {
             Some(ref r) => Some(r.input_material()),
             None => None,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_output_speed() {
+        assert_eq!(SmelterRecipie::CateriumIngot.output_speed(0), 0.);
+        assert_eq!(SmelterRecipie::CateriumIngot.output_speed(10), 3.);
+        assert_eq!(SmelterRecipie::CateriumIngot.output_speed(45), 15.);
+        assert_eq!(SmelterRecipie::CateriumIngot.output_speed(60), 15.);
+
+        assert_eq!(SmelterRecipie::IronIngot.output_speed(0), 0.);
+        assert_eq!(SmelterRecipie::IronIngot.output_speed(10), 10.);
+        assert_eq!(SmelterRecipie::IronIngot.output_speed(30), 30.);
+        assert_eq!(SmelterRecipie::IronIngot.output_speed(60), 30.);
+
+        assert_eq!(SmelterRecipie::PureAluminiumIngot.output_speed(0), 0.);
+        assert_eq!(SmelterRecipie::PureAluminiumIngot.output_speed(10), 5.);
+        assert_eq!(SmelterRecipie::PureAluminiumIngot.output_speed(30), 15.);
+        assert_eq!(SmelterRecipie::PureAluminiumIngot.output_speed(60), 30.);
+        assert_eq!(SmelterRecipie::PureAluminiumIngot.output_speed(120), 30.);
     }
 }
