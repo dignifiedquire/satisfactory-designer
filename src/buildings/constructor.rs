@@ -106,10 +106,14 @@ impl ConstructorRecipie {
         self.to_string()
     }
 
+    pub fn image(&self) -> String {
+        self.output_material().image()
+    }
+
     pub fn input_material(&self) -> Material {
         match self {
             Self::AlienDnaCapsule => Material::AlienProtein,
-            Self::AluminumCasing => Material::AluminiumIngot,
+            Self::AluminumCasing => Material::AluminumIngot,
             Self::BiomassAlienProtein => Material::AlienProtein,
             Self::BiomassLeaves => Material::Leaves,
             Self::BiomassMycelia => Material::Mycelia,
@@ -119,7 +123,7 @@ impl ConstructorRecipie {
             Self::CopperPowder => Material::CopperIngot,
             Self::CopperSheet => Material::CopperIngot,
             Self::EmptyCanister => Material::Plastic,
-            Self::EmptyFluidTank => Material::AluminiumIngot,
+            Self::EmptyFluidTank => Material::AluminumIngot,
             Self::FicsiteTrigon => Material::FicsiteIngot,
             Self::HatcherProtein => Material::HatcherRemains,
             Self::HogProtein => Material::HogRemains,
@@ -140,8 +144,8 @@ impl ConstructorRecipie {
             Self::SteelPipe => Material::SteelIngot,
             Self::StingerProtein => Material::StingerRemains,
             Self::Wire => Material::CopperIngot,
-            Self::AluminumBeam => Material::AluminiumIngot,
-            Self::AluminumRod => Material::AluminiumIngot,
+            Self::AluminumBeam => Material::AluminumIngot,
+            Self::AluminumRod => Material::AluminumIngot,
             Self::Biocoal => Material::Biomass,
             Self::CastScrew => Material::IronIngot,
             Self::CateriumWire => Material::CateriumIngot,
@@ -157,7 +161,7 @@ impl ConstructorRecipie {
     pub fn output_material(&self) -> Material {
         match self {
             Self::AlienDnaCapsule => Material::AlienDnaCapsule,
-            Self::AluminumCasing => Material::AluminiumCasing,
+            Self::AluminumCasing => Material::AluminumCasing,
             Self::BiomassAlienProtein => Material::Biomass,
             Self::BiomassLeaves => Material::Biomass,
             Self::BiomassMycelia => Material::Biomass,

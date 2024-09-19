@@ -90,7 +90,7 @@ impl Miner {
             IronOre,
             Limestone,
             RawQuartz,
-            SamOre,
+            Sam,
             Sulfur,
             Uranium,
         ]

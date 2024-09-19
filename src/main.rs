@@ -1,6 +1,6 @@
 use buildings::{Building, Constructor, Material, Merger, Miner, Smelter, Splitter};
 use eframe::{App, CreationContext};
-use egui::{emath::Rot2, vec2, Color32, Id, Rect, Ui, Vec2};
+use egui::{emath::Rot2, style::Spacing, vec2, Color32, FontId, Id, Rect, RichText, Ui, Vec2};
 use egui_snarl::{
     ui::{AnyPins, BackgroundPattern, PinInfo, SnarlStyle, SnarlViewer},
     InPin, InPinId, NodeId, OutPin, OutPinId, Snarl,
@@ -11,15 +11,15 @@ const BUILDING_COLOR: Color32 = Color32::from_rgb(0xb0, 0xb0, 0xb0);
 mod buildings;
 
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
-enum DemoNode {
+enum Node {
     Building(Building),
 }
 
-impl DemoNode {
+impl Node {
     /// The speed for this output
-    fn output_speed(&self, snarl: &Snarl<DemoNode>, remote_node: NodeId) -> f32 {
+    fn output_speed(&self, snarl: &Snarl<Node>, remote_node: NodeId) -> f32 {
         match self {
-            DemoNode::Building(b) => match b {
+            Node::Building(b) => match b {
                 Building::Miner(remote_m) => remote_m.output_speed(),
                 Building::Splitter(_remote_s) => {
                     let input_wire = snarl
@@ -86,9 +86,9 @@ impl DemoNode {
     }
 
     /// The output material
-    fn output_material(&self, snarl: &Snarl<DemoNode>, remote_node: NodeId) -> Option<Material> {
+    fn output_material(&self, snarl: &Snarl<Node>, remote_node: NodeId) -> Option<Material> {
         match self {
-            DemoNode::Building(b) => match b {
+            Node::Building(b) => match b {
                 Building::Miner(remote_m) => {
                     remote_m.resource.as_ref().map(|r| r.output_material())
                 }
@@ -128,9 +128,9 @@ impl DemoNode {
     }
 }
 
-struct DemoViewer;
+struct Viewer;
 
-impl SnarlViewer<DemoNode> for DemoViewer {
+impl SnarlViewer<Node> for Viewer {
     fn show_body(
         &mut self,
         node: NodeId,
@@ -138,27 +138,49 @@ impl SnarlViewer<DemoNode> for DemoViewer {
         outputs: &[OutPin],
         ui: &mut Ui,
         scale: f32,
-        snarl: &mut Snarl<DemoNode>,
+        snarl: &mut Snarl<Node>,
     ) {
-        ui.add_space(16.0);
-        match &mut snarl[node] {
-            DemoNode::Building(b) => match b {
-                Building::Miner(m) => {
-                    ui.vertical(|ui| {
-                        let text = match &m.resource {
-                            Some(r) => r.name(),
-                            None => "Select Resource",
-                        };
-                        egui::ComboBox::from_label("Resource")
-                            .selected_text(text)
-                            .show_ui(ui, |ui| {
-                                for resource in m.available_resources() {
-                                    let name = resource.name();
-                                    ui.selectable_value(&mut m.resource, Some(resource), name);
-                                }
-                            });
+        ui.vertical(|ui| {
+            ui.add_space(10.0 * scale);
+            match &mut snarl[node] {
+                Node::Building(b) => match b {
+                    Building::Miner(m) => {
+                        ui.horizontal(|ui| {
+                            let x = 20. * scale;
+                            if let Some(ref resource) = m.resource {
+                                let image = egui::Image::new(resource.image())
+                                    .fit_to_exact_size(vec2(x, x))
+                                    .show_loading_spinner(true);
+                                ui.add(image);
+                            } else {
+                                ui.add_space(x);
+                            }
 
-                        ui.add_space(16.0);
+                            let text = match &m.resource {
+                                Some(r) => r.name(),
+                                None => "Select Resource",
+                            };
+                            egui::ComboBox::from_id_source(egui::Id::new("miner_resource"))
+                                .selected_text(text)
+                                .show_ui(ui, |ui| {
+                                    for resource in m.available_resources() {
+                                        let name = resource.name();
+                                        ui.horizontal(|ui| {
+                                            let image = egui::Image::new(resource.image())
+                                                .fit_to_exact_size(vec2(20., 20.))
+                                                .show_loading_spinner(true);
+                                            ui.add(image);
+                                            ui.selectable_value(
+                                                &mut m.resource,
+                                                Some(resource),
+                                                name,
+                                            );
+                                        });
+                                    }
+                                });
+                        });
+
+                        ui.add_space(10.0 * scale);
                         egui::ComboBox::from_label("Level")
                             .selected_text(m.level.name())
                             .show_ui(ui, |ui| {
@@ -168,7 +190,7 @@ impl SnarlViewer<DemoNode> for DemoViewer {
                                 }
                             });
 
-                        ui.add_space(16.0);
+                        ui.add_space(10.0 * scale);
                         egui::ComboBox::from_label("Purity")
                             .selected_text(m.resource_purity.name())
                             .show_ui(ui, |ui| {
@@ -177,69 +199,107 @@ impl SnarlViewer<DemoNode> for DemoViewer {
                                     ui.selectable_value(&mut m.resource_purity, purity, name);
                                 }
                             });
-                        ui.add_space(16.0);
+                        ui.add_space(10.0 * scale);
+                        add_speed_ui(ui, &mut m.speed);
+                    }
+                    Building::Smelter(s) => {
+                        ui.horizontal(|ui| {
+                            let x = 20. * scale;
+                            if let Some(ref recipie) = s.recipie {
+                                let image = egui::Image::new(recipie.image())
+                                    .fit_to_exact_size(vec2(x, x))
+                                    .show_loading_spinner(true);
+                                ui.add(image);
+                            } else {
+                                ui.add_space(x);
+                            }
 
-                        let overclock = egui::Slider::new(&mut m.speed, 0.0..=250.0).text("Speed");
-                        ui.add(overclock);
-                    });
-                }
-                Building::Smelter(s) => {
-                    ui.vertical(|ui| {
-                        let text = match &s.recipie {
-                            Some(r) => r.name(),
-                            None => "Select Recipie".to_string(),
-                        };
-                        egui::ComboBox::from_label("Recipie")
-                            .selected_text(text)
-                            .show_ui(ui, |ui| {
-                                for recipie in s.available_recipies() {
-                                    let name = recipie.name();
-                                    ui.selectable_value(&mut s.recipie, Some(recipie), name);
-                                }
-                            });
+                            let text = match &s.recipie {
+                                Some(r) => r.name(),
+                                None => "Select Recipie".to_string(),
+                            };
+                            egui::ComboBox::from_id_source(egui::Id::new("smelter_recipie"))
+                                .selected_text(text)
+                                .show_ui(ui, |ui| {
+                                    for recipie in s.available_recipies() {
+                                        let name = recipie.name();
+                                        ui.horizontal(|ui| {
+                                            let image = egui::Image::new(recipie.image())
+                                                .fit_to_exact_size(vec2(20., 20.))
+                                                .show_loading_spinner(true);
+                                            ui.add(image);
+                                            ui.selectable_value(
+                                                &mut s.recipie,
+                                                Some(recipie),
+                                                name,
+                                            );
+                                        });
+                                    }
+                                });
+                        });
 
-                        ui.add_space(16.0);
+                        ui.add_space(10.0 * scale);
+                        add_speed_ui(ui, &mut s.speed);
 
-                        let overclock = egui::Slider::new(&mut s.speed, 0.0..=250.0).text("Speed");
-                        ui.add(overclock);
-
-                        ui.add_space(16.0);
+                        ui.add_space(10.0 * scale);
                         ui.checkbox(&mut s.amplified, "Sommersloop");
-                    });
-                }
-                Building::Splitter(_) => {}
-                Building::Merger(_) => {}
-                Building::Constructor(s) => {
-                    ui.vertical(|ui| {
-                        let text = match &s.recipie {
-                            Some(r) => r.name(),
-                            None => "Select Recipie".to_string(),
-                        };
-                        egui::ComboBox::from_label("Recipie")
-                            .selected_text(text)
-                            .show_ui(ui, |ui| {
-                                for recipie in s.available_recipies() {
-                                    let name = recipie.name();
-                                    ui.selectable_value(&mut s.recipie, Some(*recipie), name);
-                                }
-                            });
+                    }
+                    Building::Splitter(_) => {}
+                    Building::Merger(_) => {}
+                    Building::Constructor(s) => {
+                        ui.horizontal(|ui| {
+                            let x = 20. * scale;
+                            if let Some(ref recipie) = s.recipie {
+                                let image = egui::Image::new(recipie.image())
+                                    .fit_to_exact_size(vec2(x, x))
+                                    .show_loading_spinner(true);
+                                ui.add(image);
+                            } else {
+                                ui.add_space(x);
+                            }
 
-                        ui.add_space(16.0);
+                            let text = match &s.recipie {
+                                Some(r) => r.name(),
+                                None => "Select Recipie".to_string(),
+                            };
 
-                        let overclock = egui::Slider::new(&mut s.speed, 0.0..=250.0).text("Speed");
-                        ui.add(overclock);
+                            egui::ComboBox::from_id_source(egui::Id::new("constructor_recipie"))
+                                .selected_text(text)
+                                .show_ui(ui, |ui| {
+                                    for recipie in s.available_recipies() {
+                                        let name = recipie.name();
 
-                        ui.add_space(16.0);
+                                        ui.horizontal(|ui| {
+                                            let image = egui::Image::new(recipie.image())
+                                                .fit_to_exact_size(vec2(20., 20.))
+                                                .show_loading_spinner(true);
+                                            ui.add(image);
+                                            ui.selectable_value(
+                                                &mut s.recipie,
+                                                Some(*recipie),
+                                                name,
+                                            );
+                                        });
+                                    }
+                                });
+                        });
+
+                        ui.add_space(10.0 * scale);
+                        add_speed_ui(ui, &mut s.speed);
+
+                        ui.add_space(10.0 * scale);
                         ui.checkbox(&mut s.amplified, "Sommersloop");
-                    });
-                }
-            },
-        }
+                    }
+                },
+            }
+
+            ui.add_space(10.0 * scale);
+        });
     }
 
-    fn has_body(&mut self, node: &DemoNode) -> bool {
+    fn has_body(&mut self, node: &Node) -> bool {
         match node {
-            DemoNode::Building(_) => true,
+            Node::Building(_) => true,
             _ => false,
         }
     }
@@ -251,17 +311,26 @@ impl SnarlViewer<DemoNode> for DemoViewer {
         outputs: &[OutPin],
         ui: &mut Ui,
         scale: f32,
-        snarl: &mut Snarl<DemoNode>,
+        snarl: &mut Snarl<Node>,
     ) {
         match &snarl[node] {
-            node @ DemoNode::Building(b) => {
-                ui.horizontal(|ui| {
-                    let image = egui::Image::new(b.header_image())
-                        .maintain_aspect_ratio(true)
-                        .show_loading_spinner(true);
-                    ui.add(image);
+            node @ Node::Building(b) => {
+                ui.vertical(|ui| {
+                    ui.add_space(5.);
+                    ui.horizontal(|ui| {
+                        let x = 30. * scale;
+                        let image = egui::Image::new(b.header_image())
+                            .fit_to_exact_size(vec2(x, x))
+                            .show_loading_spinner(true);
+                        ui.add(image);
+                        ui.add_space(5.);
 
-                    ui.label(self.title(node));
+                        let title = self.title(node);
+                        let text = RichText::new(title).font(FontId::proportional(15.0 * scale));
+                        ui.label(text);
+                        ui.add_space(5.);
+                    });
+                    ui.add_space(5.);
                 });
             }
             node => {
@@ -271,14 +340,14 @@ impl SnarlViewer<DemoNode> for DemoViewer {
     }
 
     #[inline]
-    fn connect(&mut self, from: &OutPin, to: &InPin, snarl: &mut Snarl<DemoNode>) {
+    fn connect(&mut self, from: &OutPin, to: &InPin, snarl: &mut Snarl<Node>) {
         // Validate connection
         match (&snarl[from.id.node], &snarl[to.id.node]) {
-            (DemoNode::Building(_), DemoNode::Building(_)) => {}
-            (_, DemoNode::Building(_)) => {
+            (Node::Building(_), Node::Building(_)) => {}
+            (_, Node::Building(_)) => {
                 return;
             }
-            (DemoNode::Building(_), _) => {
+            (Node::Building(_), _) => {
                 return;
             }
         }
@@ -290,21 +359,21 @@ impl SnarlViewer<DemoNode> for DemoViewer {
         snarl.connect(from.id, to.id);
     }
 
-    fn title(&mut self, node: &DemoNode) -> String {
+    fn title(&mut self, node: &Node) -> String {
         match node {
-            DemoNode::Building(b) => b.name(),
+            Node::Building(b) => b.name(),
         }
     }
 
-    fn inputs(&mut self, node: &DemoNode) -> usize {
+    fn inputs(&mut self, node: &Node) -> usize {
         match node {
-            DemoNode::Building(b) => b.inputs(),
+            Node::Building(b) => b.inputs(),
         }
     }
 
-    fn outputs(&mut self, node: &DemoNode) -> usize {
+    fn outputs(&mut self, node: &Node) -> usize {
         match node {
-            DemoNode::Building(b) => b.outputs(),
+            Node::Building(b) => b.outputs(),
         }
     }
 
@@ -313,10 +382,10 @@ impl SnarlViewer<DemoNode> for DemoViewer {
         pin: &InPin,
         ui: &mut Ui,
         scale: f32,
-        snarl: &mut Snarl<DemoNode>,
+        snarl: &mut Snarl<Node>,
     ) -> PinInfo {
         match snarl[pin.id.node] {
-            DemoNode::Building(ref b) => match b {
+            Node::Building(ref b) => match b {
                 Building::Miner(_) => {
                     unreachable!("Miner has no inputs")
                 }
@@ -346,6 +415,7 @@ impl SnarlViewer<DemoNode> for DemoViewer {
                             actual_input_speed, max_input_speed
                         ));
                     });
+                    ui.add_space(15.0 * scale);
 
                     PinInfo::circle().with_fill(color)
                 }
@@ -436,10 +506,10 @@ impl SnarlViewer<DemoNode> for DemoViewer {
         pin: &OutPin,
         ui: &mut Ui,
         scale: f32,
-        snarl: &mut Snarl<DemoNode>,
+        snarl: &mut Snarl<Node>,
     ) -> PinInfo {
         match snarl[pin.id.node] {
-            DemoNode::Building(ref b) => match b {
+            Node::Building(ref b) => match b {
                 Building::Miner(_) => {
                     assert_eq!(pin.id.output, 0, "Miner has only one output");
                     let speed = snarl[pin.id.node].output_speed(snarl, pin.id.node);
@@ -531,7 +601,7 @@ impl SnarlViewer<DemoNode> for DemoViewer {
         }
     }
 
-    fn has_graph_menu(&mut self, _pos: egui::Pos2, _snarl: &mut Snarl<DemoNode>) -> bool {
+    fn has_graph_menu(&mut self, _pos: egui::Pos2, _snarl: &mut Snarl<Node>) -> bool {
         true
     }
 
@@ -540,41 +610,40 @@ impl SnarlViewer<DemoNode> for DemoViewer {
         pos: egui::Pos2,
         ui: &mut Ui,
         _scale: f32,
-        snarl: &mut Snarl<DemoNode>,
+        snarl: &mut Snarl<Node>,
     ) {
         ui.label("Add building");
+        ui.separator();
+
         if ui.button("Miner").clicked() {
-            snarl.insert_node(pos, DemoNode::Building(Building::Miner(Miner::default())));
+            snarl.insert_node(pos, Node::Building(Building::Miner(Miner::default())));
             ui.close_menu();
         }
         if ui.button("Smelter").clicked() {
-            snarl.insert_node(
-                pos,
-                DemoNode::Building(Building::Smelter(Smelter::default())),
-            );
+            snarl.insert_node(pos, Node::Building(Building::Smelter(Smelter::default())));
             ui.close_menu();
         }
         if ui.button("Constructor").clicked() {
             snarl.insert_node(
                 pos,
-                DemoNode::Building(Building::Constructor(Constructor::default())),
+                Node::Building(Building::Constructor(Constructor::default())),
             );
             ui.close_menu();
         }
+
+        ui.separator();
+
         if ui.button("Splitter").clicked() {
-            snarl.insert_node(
-                pos,
-                DemoNode::Building(Building::Splitter(Splitter::default())),
-            );
+            snarl.insert_node(pos, Node::Building(Building::Splitter(Splitter::default())));
             ui.close_menu();
         }
         if ui.button("Merger").clicked() {
-            snarl.insert_node(pos, DemoNode::Building(Building::Merger(Merger::default())));
+            snarl.insert_node(pos, Node::Building(Building::Merger(Merger::default())));
             ui.close_menu();
         }
     }
 
-    fn has_dropped_wire_menu(&mut self, _src_pins: AnyPins, _snarl: &mut Snarl<DemoNode>) -> bool {
+    fn has_dropped_wire_menu(&mut self, _src_pins: AnyPins, _snarl: &mut Snarl<Node>) -> bool {
         true
     }
 
@@ -584,103 +653,13 @@ impl SnarlViewer<DemoNode> for DemoViewer {
         ui: &mut Ui,
         _scale: f32,
         src_pins: AnyPins,
-        snarl: &mut Snarl<DemoNode>,
+        snarl: &mut Snarl<Node>,
     ) {
-        // In this demo, we create a context-aware node graph menu, and connect a wire
-        // dropped on the fly based on user input to a new node created.
-        //
-        // In your implementation, you may want to define specifications for each node's
-        // pin inputs and outputs and compatibility to make this easier.
-
         ui.label("Add node");
-
-        type PinCompat = usize;
-        const PIN_BUILDING: PinCompat = 8;
-
-        fn pin_out_compat(node: &DemoNode) -> PinCompat {
-            match node {
-                DemoNode::Building(_) => PIN_BUILDING,
-            }
-        }
-
-        fn pin_in_compat(node: &DemoNode, pin: usize) -> PinCompat {
-            match node {
-                DemoNode::Building(_) => PIN_BUILDING,
-            }
-        }
-
-        match src_pins {
-            AnyPins::Out(src_pins) => {
-                assert!(
-                    src_pins.len() == 1,
-                    "There's no concept of multi-input nodes in this demo"
-                );
-
-                let src_pin = src_pins[0];
-                let src_out_ty = pin_out_compat(snarl.get_node(src_pin.node).unwrap());
-                let dst_in_candidates = [(
-                    "Building",
-                    || DemoNode::Building(Building::Smelter(Smelter::default())),
-                    PIN_BUILDING,
-                )];
-
-                for (name, ctor, in_ty) in dst_in_candidates {
-                    if src_out_ty & in_ty != 0 && ui.button(name).clicked() {
-                        // Create new node.
-                        let new_node = snarl.insert_node(pos, ctor());
-                        let dst_pin = InPinId {
-                            node: new_node,
-                            input: 0,
-                        };
-
-                        // Connect the wire.
-                        snarl.connect(src_pin, dst_pin);
-                        ui.close_menu();
-                    }
-                }
-            }
-            AnyPins::In(pins) => {
-                let all_src_types = pins.iter().fold(0, |acc, pin| {
-                    acc | pin_in_compat(snarl.get_node(pin.node).unwrap(), pin.input)
-                });
-
-                let dst_out_candidates = [(
-                    "Building",
-                    || DemoNode::Building(Building::Smelter(Smelter::default())),
-                    PIN_BUILDING,
-                )];
-
-                for (name, ctor, out_ty) in dst_out_candidates {
-                    if all_src_types & out_ty != 0 && ui.button(name).clicked() {
-                        // Create new node.
-                        let new_node = ctor();
-                        let dst_ty = pin_out_compat(&new_node);
-
-                        let new_node = snarl.insert_node(pos, new_node);
-                        let dst_pin = OutPinId {
-                            node: new_node,
-                            output: 0,
-                        };
-
-                        // Connect the wire.
-                        for src_pin in pins {
-                            let src_ty =
-                                pin_in_compat(snarl.get_node(src_pin.node).unwrap(), src_pin.input);
-                            if src_ty & dst_ty != 0 {
-                                // In this demo, input pin MUST be unique ...
-                                // Therefore here we drop inputs of source input pin.
-                                snarl.drop_inputs(*src_pin);
-                                snarl.connect(dst_pin, *src_pin);
-                                ui.close_menu();
-                            }
-                        }
-                    }
-                }
-            }
-        };
+        // TODO:
     }
 
-    fn has_node_menu(&mut self, _node: &DemoNode) -> bool {
+    fn has_node_menu(&mut self, _node: &Node) -> bool {
         true
     }
 
@@ -691,7 +670,7 @@ impl SnarlViewer<DemoNode> for DemoViewer {
         _outputs: &[OutPin],
         ui: &mut Ui,
         _scale: f32,
-        snarl: &mut Snarl<DemoNode>,
+        snarl: &mut Snarl<Node>,
     ) {
         ui.label("Building");
         if ui.button("Duplicate").clicked() {
@@ -1000,7 +979,7 @@ impl Expr {
 }
 
 pub struct DemoApp {
-    snarl: Snarl<DemoNode>,
+    snarl: Snarl<Node>,
     style: SnarlStyle,
     snarl_ui_id: Option<Id>,
 }
@@ -1111,7 +1090,7 @@ impl App for DemoApp {
         egui::CentralPanel::default().show(ctx, |ui| {
             self.snarl_ui_id = Some(ui.id());
 
-            self.snarl.show(&mut DemoViewer, &self.style, "snarl", ui);
+            self.snarl.show(&mut Viewer, &self.style, "snarl", ui);
         });
     }
 
@@ -1149,18 +1128,13 @@ fn main() {
     wasm_bindgen_futures::spawn_local(async {
         eframe::WebRunner::new()
             .start(
-                "egui_snarl_demo",
+                "Satisfactory Designer",
                 web_options,
                 Box::new(|cx| Ok(Box::new(DemoApp::new(cx)))),
             )
             .await
             .expect("failed to start eframe");
     });
-}
-
-fn format_float(v: f64) -> String {
-    let v = (v * 1000.0).round() / 1000.0;
-    format!("{}", v)
 }
 
 fn add_material_image(ui: &mut Ui, scale: f32, material: &Option<Material>) {
@@ -1176,4 +1150,12 @@ fn add_material_image(ui: &mut Ui, scale: f32, material: &Option<Material>) {
     } else {
         ui.add_space(20. * scale);
     }
+}
+
+fn add_speed_ui(ui: &mut Ui, value: &mut f32) {
+    ui.horizontal(|ui| {
+        let overclock = egui::DragValue::new(value).range(0.0..=250.0).suffix("%");
+        ui.add(overclock);
+        ui.label("Speed");
+    });
 }

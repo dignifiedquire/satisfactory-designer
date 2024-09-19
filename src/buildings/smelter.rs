@@ -7,7 +7,7 @@ pub enum SmelterRecipie {
     CateriumIngot,
     CopperIngot,
     IronIngot,
-    PureAluminiumIngot,
+    PureAluminumIngot,
 }
 
 impl SmelterRecipie {
@@ -16,8 +16,12 @@ impl SmelterRecipie {
             SmelterRecipie::CateriumIngot => "Caterium Ingot".to_string(),
             SmelterRecipie::CopperIngot => "Copper Ingot".to_string(),
             SmelterRecipie::IronIngot => "Iron Ingot".to_string(),
-            SmelterRecipie::PureAluminiumIngot => "Pure Aluminium Ingot".to_string(),
+            SmelterRecipie::PureAluminumIngot => "Pure Aluminum Ingot".to_string(),
         }
+    }
+
+    pub fn image(&self) -> String {
+        self.output_material().image()
     }
 
     pub fn output_color(&self) -> Color32 {
@@ -29,7 +33,7 @@ impl SmelterRecipie {
             Self::CateriumIngot => Material::CateriumOre,
             Self::CopperIngot => Material::CopperOre,
             Self::IronIngot => Material::IronOre,
-            Self::PureAluminiumIngot => Material::AluminiumScrap,
+            Self::PureAluminumIngot => Material::AluminumScrap,
         }
     }
 
@@ -38,7 +42,7 @@ impl SmelterRecipie {
             Self::CateriumIngot => Material::CateriumIngot,
             Self::CopperIngot => Material::CopperIngot,
             Self::IronIngot => Material::IronIngot,
-            Self::PureAluminiumIngot => Material::AluminiumIngot,
+            Self::PureAluminumIngot => Material::AluminumIngot,
         }
     }
 
@@ -47,7 +51,7 @@ impl SmelterRecipie {
             Self::CateriumIngot => 45,
             Self::CopperIngot => 30,
             Self::IronIngot => 30,
-            Self::PureAluminiumIngot => 60,
+            Self::PureAluminumIngot => 60,
         }
     }
 
@@ -68,7 +72,7 @@ impl SmelterRecipie {
             Self::CateriumIngot => (4., 1., 3.),
             Self::CopperIngot => (2., 1., 1.),
             Self::IronIngot => (2., 1., 1.),
-            Self::PureAluminiumIngot => (2., 1., 2.),
+            Self::PureAluminumIngot => (2., 1., 2.),
         };
 
         calc_output(input_size, duration, output_size, input_base)
@@ -102,7 +106,7 @@ impl Smelter {
             SmelterRecipie::CateriumIngot,
             SmelterRecipie::CopperIngot,
             SmelterRecipie::IronIngot,
-            SmelterRecipie::PureAluminiumIngot,
+            SmelterRecipie::PureAluminumIngot,
         ]
     }
 
@@ -171,10 +175,10 @@ mod tests {
         assert_eq!(SmelterRecipie::IronIngot.output_speed(30.), 30.);
         assert_eq!(SmelterRecipie::IronIngot.output_speed(60.), 30.);
 
-        assert_eq!(SmelterRecipie::PureAluminiumIngot.output_speed(0.), 0.);
-        assert_eq!(SmelterRecipie::PureAluminiumIngot.output_speed(10.), 5.);
-        assert_eq!(SmelterRecipie::PureAluminiumIngot.output_speed(30.), 15.);
-        assert_eq!(SmelterRecipie::PureAluminiumIngot.output_speed(60.), 30.);
-        assert_eq!(SmelterRecipie::PureAluminiumIngot.output_speed(120.), 30.);
+        assert_eq!(SmelterRecipie::PureAluminumIngot.output_speed(0.), 0.);
+        assert_eq!(SmelterRecipie::PureAluminumIngot.output_speed(10.), 5.);
+        assert_eq!(SmelterRecipie::PureAluminumIngot.output_speed(30.), 15.);
+        assert_eq!(SmelterRecipie::PureAluminumIngot.output_speed(60.), 30.);
+        assert_eq!(SmelterRecipie::PureAluminumIngot.output_speed(120.), 30.);
     }
 }

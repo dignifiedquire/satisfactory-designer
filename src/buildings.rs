@@ -29,7 +29,7 @@ pub enum ResourceType {
     IronOre,
     Limestone,
     RawQuartz,
-    SamOre,
+    Sam,
     Sulfur,
     Uranium,
 }
@@ -43,10 +43,14 @@ impl ResourceType {
             Self::IronOre => "Iron Ore",
             Self::Limestone => "Limestone",
             Self::RawQuartz => "Raw Quartz",
-            Self::SamOre => "SAM Ore",
+            Self::Sam => "SAM",
             Self::Sulfur => "Sulfur",
             Self::Uranium => "Uranium",
         }
+    }
+
+    pub fn image(&self) -> String {
+        self.output_material().image()
     }
 
     pub fn output_material(&self) -> Material {
@@ -57,7 +61,7 @@ impl ResourceType {
             Self::IronOre => Material::IronOre,
             Self::Limestone => Material::Limestone,
             Self::RawQuartz => Material::RawQuartz,
-            Self::SamOre => Material::SamOre,
+            Self::Sam => Material::Sam,
             Self::Sulfur => Material::Sulfur,
             Self::Uranium => Material::Uranium,
         }
@@ -78,18 +82,16 @@ pub enum Material {
     IronIngot,
     #[strum(to_string = "Caterium Ingot")]
     CateriumIngot,
-    #[strum(to_string = "Aluminium Scrap")]
-    AluminiumScrap,
-    #[strum(to_string = "Aluminium Ingot")]
-    AluminiumIngot,
+    #[strum(to_string = "Aluminum Scrap")]
+    AluminumScrap,
+    #[strum(to_string = "Aluminum Ingot")]
+    AluminumIngot,
     #[strum(to_string = "Bauxite")]
     Bauxite,
     #[strum(to_string = "Limestone")]
     Limestone,
     #[strum(to_string = "Raw Quartz")]
     RawQuartz,
-    #[strum(to_string = "Sam Ore")]
-    SamOre,
     #[strum(to_string = "Sulfur")]
     Sulfur,
     #[strum(to_string = "Uranium")]
@@ -134,8 +136,8 @@ pub enum Material {
     StingerRemains,
     #[strum(to_string = "Steel Beam")]
     SteelBeam,
-    #[strum(to_string = "Aluminium Casing")]
-    AluminiumCasing,
+    #[strum(to_string = "Aluminum Casing")]
+    AluminumCasing,
     #[strum(to_string = "Cable")]
     Cable,
     #[strum(to_string = "Concrete")]
@@ -188,12 +190,12 @@ impl Material {
             Self::CopperIngot => "#A56355",
             Self::IronIngot => "#989A9D",
             Self::CateriumIngot => "#CCA566",
-            Self::AluminiumScrap => "#BCC0C9",
-            Self::AluminiumIngot => "#D2D3D4",
+            Self::AluminumScrap => "#BCC0C9",
+            Self::AluminumIngot => "#D2D3D4",
             Self::Bauxite => "#CD7660",
             Self::Limestone => "#C8BFA7",
             Self::RawQuartz => "#F177B5",
-            Self::SamOre => "#AE1CD7",
+            Self::Sam => "#AE1CD7",
             Self::Sulfur => "#FCDC48",
             Self::Uranium => "#88D288",
             _ => "#697082",
@@ -209,12 +211,12 @@ impl Material {
             Self::CopperIngot => "40px-Copper_Ingot.png",
             Self::IronIngot => "40px-Iron_Ingot.png",
             Self::CateriumIngot => "40px-Caterium_Ingot.png",
-            Self::AluminiumScrap => "40px-Aluminium_Scrap.png",
-            Self::AluminiumIngot => "40px-Aluminium_Ingot.png",
+            Self::AluminumScrap => "40px-Aluminum_Scrap.png",
+            Self::AluminumIngot => "40px-Aluminum_Ingot.png",
             Self::Bauxite => "40px-Bauxite.png",
             Self::Limestone => "40px-Limestone.png",
             Self::RawQuartz => "40px-Raw_Quartz.png",
-            Self::SamOre => "40px-SAM_Ore.png",
+            Self::Sam => "40px-SAM.png",
             Self::Sulfur => "40px-Sulfur.png",
             Self::Uranium => "40px-Uranium.png",
             Self::AlienProtein => "40px-Alien_Protein.png",
@@ -230,14 +232,13 @@ impl Material {
             Self::BluePowerSlug => "40px-Blue_Power_Slug.png",
             Self::YellowPowerSlug => "40px-Yellow_Power_Slug.png",
             Self::PurplePowerSlug => "40px-Purple_Power_Slug.png",
-            Self::Sam => "40px-SAM.png",
             Self::IronRod => "40px-Iron_Rod.png",
             Self::Biomass => "40px-Biomass.png",
             Self::SpitterRemains => "40px-Spitter_Remains.png",
             Self::SteelIngot => "40px-Steel_Ingot.png",
             Self::StingerRemains => "40px-Stinger_Remains.png",
             Self::SteelBeam => "40px-Steel_Beam.png",
-            Self::AluminiumCasing => "40px-Aluminium_Casing.png",
+            Self::AluminumCasing => "40px-Aluminum_Casing.png",
             Self::Cable => "40px-Cable.png",
             Self::Concrete => "40px-Concrete.png",
             Self::CopperPowder => "40px-Copper_Powder.png",
