@@ -17,7 +17,7 @@ enum DemoNode {
 
 impl DemoNode {
     /// The speed for this output
-    fn output_speed(&self, snarl: &Snarl<DemoNode>, remote_node: NodeId) -> usize {
+    fn output_speed(&self, snarl: &Snarl<DemoNode>, remote_node: NodeId) -> f32 {
         match self {
             DemoNode::Building(b) => match b {
                 Building::Miner(remote_m) => remote_m.output_speed(),
@@ -32,13 +32,13 @@ impl DemoNode {
                             let num_connections = snarl
                                 .wires()
                                 .filter(|(o, _i)| o.node == remote_node)
-                                .count();
+                                .count() as f32;
 
                             let base_speed = snarl[output.node].output_speed(snarl, output.node);
 
                             base_speed / num_connections
                         }
-                        None => 0,
+                        None => 0.,
                     }
                 }
                 Building::Smelter(remote_s) => {
@@ -67,13 +67,13 @@ impl DemoNode {
                         .wires()
                         .filter(|(_output, input)| input.node == remote_node);
 
-                    let mut speed = 0;
+                    let mut speed = 0.;
                     for (output, _input) in wires {
                         // TODO: this is expensive, find a better way
                         let num_connections = snarl
                             .wires()
                             .filter(|(o, _i)| o.node == remote_node)
-                            .count();
+                            .count() as f32;
 
                         let base_speed = snarl[output.node].output_speed(snarl, output.node);
 
@@ -327,7 +327,7 @@ impl SnarlViewer<DemoNode> for DemoViewer {
                     assert_eq!(pin.id.input, 0, "Smelter node has only one input");
 
                     let actual_input_speed = match &*pin.remotes {
-                        [] => 0,
+                        [] => 0.,
                         [remote] => snarl[remote.node].output_speed(snarl, remote.node),
                         _ => unreachable!("only one output"),
                     };
@@ -348,7 +348,7 @@ impl SnarlViewer<DemoNode> for DemoViewer {
                     assert_eq!(pin.id.input, 0, "Splitter node has only one input");
 
                     let actual_input_speed = match &*pin.remotes {
-                        [] => 0,
+                        [] => 0.,
                         [remote] => snarl[remote.node].output_speed(snarl, remote.node),
                         _ => unreachable!("only one output"),
                     };
@@ -368,7 +368,7 @@ impl SnarlViewer<DemoNode> for DemoViewer {
                     // 3 inputs
 
                     let actual_input_speed = match &*pin.remotes {
-                        [] => 0,
+                        [] => 0.,
                         [remote] => snarl[remote.node].output_speed(snarl, remote.node),
                         _ => unreachable!("only one"),
                     };
@@ -388,7 +388,7 @@ impl SnarlViewer<DemoNode> for DemoViewer {
                     assert_eq!(pin.id.input, 0, "Constructor node has only one input");
 
                     let actual_input_speed = match &*pin.remotes {
-                        [] => 0,
+                        [] => 0.,
                         [remote] => snarl[remote.node].output_speed(snarl, remote.node),
                         _ => unreachable!("only one output"),
                     };
@@ -449,7 +449,7 @@ impl SnarlViewer<DemoNode> for DemoViewer {
                         let material = snarl[pin.id.node].output_material(snarl, pin.id.node);
                         (speed, material)
                     } else {
-                        (0, None)
+                        (0., None)
                     };
 
                     ui.label(format!("{}/min", speed));
@@ -462,7 +462,7 @@ impl SnarlViewer<DemoNode> for DemoViewer {
                         let material = snarl[pin.id.node].output_material(snarl, pin.id.node);
                         (speed, material)
                     } else {
-                        (0, None)
+                        (0., None)
                     };
 
                     ui.label(format!("{}/min", speed));

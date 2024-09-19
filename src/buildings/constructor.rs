@@ -2,7 +2,16 @@ use strum::VariantArray;
 
 use super::{calc_output, Material};
 
-#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize, PartialEq, strum::Display, strum::VariantArray)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    serde::Serialize,
+    serde::Deserialize,
+    PartialEq,
+    strum::Display,
+    strum::VariantArray,
+)]
 pub enum ConstructorRecipie {
     #[strum(to_string = "Alien DNA Capsule")]
     AlienDnaCapsule,
@@ -245,12 +254,12 @@ impl ConstructorRecipie {
         self.output_speed_inner(None)
     }
 
-    pub fn output_speed(&self, input_size: usize) -> f32 {
+    pub fn output_speed(&self, input_size: f32) -> f32 {
         self.output_speed_inner(Some(input_size))
     }
 
-    fn output_speed_inner(&self, input_size: Option<usize>) -> f32 {
-        if input_size == Some(0) {
+    fn output_speed_inner(&self, input_size: Option<f32>) -> f32 {
+        if input_size == Some(0.) {
             return 0.;
         }
 
@@ -349,16 +358,16 @@ impl Constructor {
         1
     }
 
-    pub fn input_speed(&self) -> usize {
+    pub fn input_speed(&self) -> f32 {
         let base = self
             .recipie
             .as_ref()
             .map(|r| r.input_speed())
             .unwrap_or_default();
-        (base * (self.speed / 100.)).round() as usize
+        (base * (self.speed / 100.)).round()
     }
 
-    pub fn output_speed(&self, input_size: usize) -> usize {
+    pub fn output_speed(&self, input_size: f32) -> f32 {
         let base = self
             .recipie
             .as_ref()
@@ -368,7 +377,7 @@ impl Constructor {
 
         // TODO: take speed into account for input_size
 
-        (base as f32 * (self.speed / 100.) * amplification).round() as usize
+        (base as f32 * (self.speed / 100.) * amplification).round()
     }
 
     pub fn input_material(&self) -> Option<Material> {
@@ -385,10 +394,10 @@ mod tests {
 
     #[test]
     fn test_output_speed() {
-        assert_eq!(ConstructorRecipie::SteelPipe.output_speed(0), 0.);
-        assert_eq!(ConstructorRecipie::SteelPipe.output_speed(15), 10.);
-        assert_eq!(ConstructorRecipie::SteelPipe.output_speed(30), 20.);
-        assert_eq!(ConstructorRecipie::SteelPipe.output_speed(60), 20.);
+        assert_eq!(ConstructorRecipie::SteelPipe.output_speed(0.), 0.);
+        assert_eq!(ConstructorRecipie::SteelPipe.output_speed(15.), 10.);
+        assert_eq!(ConstructorRecipie::SteelPipe.output_speed(30.), 20.);
+        assert_eq!(ConstructorRecipie::SteelPipe.output_speed(60.), 20.);
 
         assert_eq!(ConstructorRecipie::SteelPipe.max_output_speed(), 20.);
     }

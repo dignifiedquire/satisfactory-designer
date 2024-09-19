@@ -55,12 +55,12 @@ impl SmelterRecipie {
         self.output_speed_inner(None)
     }
 
-    pub fn output_speed(&self, input_size: usize) -> f32 {
+    pub fn output_speed(&self, input_size: f32) -> f32 {
         self.output_speed_inner(Some(input_size))
     }
 
-    fn output_speed_inner(&self, input_size: Option<usize>) -> f32 {
-        if input_size == Some(0) {
+    fn output_speed_inner(&self, input_size: Option<f32>) -> f32 {
+        if input_size == Some(0.) {
             return 0.;
         }
 
@@ -125,16 +125,16 @@ impl Smelter {
         1
     }
 
-    pub fn input_speed(&self) -> usize {
+    pub fn input_speed(&self) -> f32 {
         let base = self
             .recipie
             .as_ref()
             .map(|r| r.input_speed())
             .unwrap_or_default();
-        (base as f32 * (self.speed / 100.)).round() as usize
+        (base as f32 * (self.speed / 100.)).round()
     }
 
-    pub fn output_speed(&self, input_size: usize) -> usize {
+    pub fn output_speed(&self, input_size: f32) -> f32 {
         let base = self
             .recipie
             .as_ref()
@@ -144,7 +144,7 @@ impl Smelter {
 
         // TODO: take speed into account for input_size
 
-        (base as f32 * (self.speed / 100.) * amplification).round() as usize
+        (base as f32 * (self.speed / 100.) * amplification).round()
     }
 
     pub fn input_material(&self) -> Option<Material> {
@@ -161,20 +161,20 @@ mod tests {
 
     #[test]
     fn test_output_speed() {
-        assert_eq!(SmelterRecipie::CateriumIngot.output_speed(0), 0.);
-        assert_eq!(SmelterRecipie::CateriumIngot.output_speed(10), 3.);
-        assert_eq!(SmelterRecipie::CateriumIngot.output_speed(45), 15.);
-        assert_eq!(SmelterRecipie::CateriumIngot.output_speed(60), 15.);
+        assert_eq!(SmelterRecipie::CateriumIngot.output_speed(0.), 0.);
+        assert_eq!(SmelterRecipie::CateriumIngot.output_speed(10.), 3.);
+        assert_eq!(SmelterRecipie::CateriumIngot.output_speed(45.), 15.);
+        assert_eq!(SmelterRecipie::CateriumIngot.output_speed(60.), 15.);
 
-        assert_eq!(SmelterRecipie::IronIngot.output_speed(0), 0.);
-        assert_eq!(SmelterRecipie::IronIngot.output_speed(10), 10.);
-        assert_eq!(SmelterRecipie::IronIngot.output_speed(30), 30.);
-        assert_eq!(SmelterRecipie::IronIngot.output_speed(60), 30.);
+        assert_eq!(SmelterRecipie::IronIngot.output_speed(0.), 0.);
+        assert_eq!(SmelterRecipie::IronIngot.output_speed(10.), 10.);
+        assert_eq!(SmelterRecipie::IronIngot.output_speed(30.), 30.);
+        assert_eq!(SmelterRecipie::IronIngot.output_speed(60.), 30.);
 
-        assert_eq!(SmelterRecipie::PureAluminiumIngot.output_speed(0), 0.);
-        assert_eq!(SmelterRecipie::PureAluminiumIngot.output_speed(10), 5.);
-        assert_eq!(SmelterRecipie::PureAluminiumIngot.output_speed(30), 15.);
-        assert_eq!(SmelterRecipie::PureAluminiumIngot.output_speed(60), 30.);
-        assert_eq!(SmelterRecipie::PureAluminiumIngot.output_speed(120), 30.);
+        assert_eq!(SmelterRecipie::PureAluminiumIngot.output_speed(0.), 0.);
+        assert_eq!(SmelterRecipie::PureAluminiumIngot.output_speed(10.), 5.);
+        assert_eq!(SmelterRecipie::PureAluminiumIngot.output_speed(30.), 15.);
+        assert_eq!(SmelterRecipie::PureAluminiumIngot.output_speed(60.), 30.);
+        assert_eq!(SmelterRecipie::PureAluminiumIngot.output_speed(120.), 30.);
     }
 }

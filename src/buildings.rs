@@ -206,10 +206,10 @@ impl Building {
     }
 }
 
-fn calc_output(input_size: Option<usize>, duration: f32, _output_size: f32, input_base: f32) -> f32 {
+fn calc_output(input_size: Option<f32>, duration: f32, output_size: f32, input_base: f32) -> f32 {
     let a = match input_size {
         Some(input_size) => {
-            let input_size = (input_size as f32 / 60.) * duration;
+            let input_size = (input_size / 60.) * duration;
 
             // 45/60 * 4secs = 3
             if input_size < input_base {
@@ -218,10 +218,10 @@ fn calc_output(input_size: Option<usize>, duration: f32, _output_size: f32, inpu
                 1.
             }
         }
-        None => 1.
+        None => 1.,
     };
 
     // 60/4 * 1 = 15
-    let b = (60. / duration) * a;
+    let b = (60. / duration) * a * output_size;
     b.round()
 }

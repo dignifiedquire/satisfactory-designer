@@ -104,16 +104,16 @@ impl Miner {
         0
     }
 
-    pub fn output_speed(&self) -> usize {
+    pub fn output_speed(&self) -> f32 {
         match self.resource {
             Some(_) => {
                 // (Mining Speed) in items/min = (Purity Modifier) * (Overclock percentage) / 100 * (Default Mining Speed) items/min
                 let val = self.resource_purity.modifier()
                     * (self.speed / 100.)
                     * self.level.mining_speed() as f32;
-                val.round() as usize
+                val.round()
             }
-            None => 0,
+            None => 0.,
         }
     }
 
