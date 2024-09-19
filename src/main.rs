@@ -1,9 +1,11 @@
-use buildings::{Building, Constructor, Material, Merger, Miner, Smelter, Splitter};
+use buildings::{
+    Building, Constructor, Material, Merger, Miner, Smelter, Splitter, StorageContainer,
+};
 use eframe::{App, CreationContext};
-use egui::{emath::Rot2, style::Spacing, vec2, Color32, FontId, Id, Rect, RichText, Ui, Vec2};
+use egui::{emath::Rot2, vec2, Color32, FontId, Id, Rect, RichText, Ui, Vec2};
 use egui_snarl::{
     ui::{AnyPins, BackgroundPattern, PinInfo, SnarlStyle, SnarlViewer},
-    InPin, InPinId, NodeId, OutPin, OutPinId, Snarl,
+    InPin, NodeId, OutPin, Snarl,
 };
 
 const BUILDING_COLOR: Color32 = Color32::from_rgb(0xb0, 0xb0, 0xb0);
@@ -21,6 +23,7 @@ impl Node {
         match self {
             Node::Building(b) => match b {
                 Building::Miner(remote_m) => remote_m.output_speed(),
+                Building::StorageContainer(s) => s.output_speed(),
                 Building::Splitter(_remote_s) => {
                     let input_wire = snarl
                         .wires()
@@ -92,6 +95,7 @@ impl Node {
                 Building::Miner(remote_m) => {
                     remote_m.resource.as_ref().map(|r| r.output_material())
                 }
+                Building::StorageContainer(s) => s.output_material(),
                 Building::Splitter(_remote_s) => {
                     let input_wire = snarl
                         .wires()
@@ -141,7 +145,6 @@ impl SnarlViewer<Node> for Viewer {
         snarl: &mut Snarl<Node>,
     ) {
         ui.vertical(|ui| {
-            ui.add_space(10.0 * scale);
             match &mut snarl[node] {
                 Node::Building(b) => match b {
                     Building::Miner(m) => {
@@ -201,6 +204,55 @@ impl SnarlViewer<Node> for Viewer {
                             });
                         ui.add_space(10.0 * scale);
                         add_speed_ui(ui, &mut m.speed);
+                    }
+                    Building::StorageContainer(s) => {
+                        ui.horizontal(|ui| {
+                            let x = 20. * scale;
+                            if let Some(ref material) = s.material {
+                                let image = egui::Image::new(material.image())
+                                    .fit_to_exact_size(vec2(x, x))
+                                    .show_loading_spinner(true);
+                                ui.add(image);
+                            } else {
+                                ui.add_space(x);
+                            }
+
+                            let text = match &s.material {
+                                Some(m) => m.name(),
+                                None => "Select Material".to_string(),
+                            };
+                            egui::ComboBox::from_id_source(egui::Id::new(
+                                "storage_container_material",
+                            ))
+                            .selected_text(text)
+                            .show_ui(ui, |ui| {
+                                for material in s.available_materials() {
+                                    let name = material.name();
+                                    ui.horizontal(|ui| {
+                                        let image = egui::Image::new(material.image())
+                                            .fit_to_exact_size(vec2(20., 20.))
+                                            .show_loading_spinner(true);
+                                        ui.add(image);
+                                        ui.selectable_value(&mut s.material, Some(*material), name);
+                                    });
+                                }
+                            });
+                        });
+
+                        let text = match &s.output_belt {
+                            Some(m) => m.name(),
+                            None => "Select Belt".to_string(),
+                        };
+
+                        ui.add_space(10.0 * scale);
+                        egui::ComboBox::from_label("Belt")
+                            .selected_text(text)
+                            .show_ui(ui, |ui| {
+                                for level in s.available_levels() {
+                                    let name = level.name();
+                                    ui.selectable_value(&mut s.output_belt, Some(*level), name);
+                                }
+                            });
                     }
                     Building::Smelter(s) => {
                         ui.horizontal(|ui| {
@@ -316,21 +368,19 @@ impl SnarlViewer<Node> for Viewer {
         match &snarl[node] {
             node @ Node::Building(b) => {
                 ui.vertical(|ui| {
-                    ui.add_space(5.);
                     ui.horizontal(|ui| {
-                        let x = 30. * scale;
+                        let x = 25. * scale;
                         let image = egui::Image::new(b.header_image())
                             .fit_to_exact_size(vec2(x, x))
                             .show_loading_spinner(true);
                         ui.add(image);
-                        ui.add_space(5.);
+                        ui.add_space(5. * scale);
 
                         let title = self.title(node);
                         let text = RichText::new(title).font(FontId::proportional(15.0 * scale));
                         ui.label(text);
-                        ui.add_space(5.);
+                        ui.add_space(5. * scale);
                     });
-                    ui.add_space(5.);
                 });
             }
             node => {
@@ -389,6 +439,9 @@ impl SnarlViewer<Node> for Viewer {
                 Building::Miner(_) => {
                     unreachable!("Miner has no inputs")
                 }
+                Building::StorageContainer(_) => {
+                    unreachable!("Storage Container has no inputs")
+                }
                 Building::Smelter(ref s) => {
                     assert_eq!(pin.id.input, 0, "Smelter node has only one input");
 
@@ -415,8 +468,6 @@ impl SnarlViewer<Node> for Viewer {
                             actual_input_speed, max_input_speed
                         ));
                     });
-                    ui.add_space(15.0 * scale);
-
                     PinInfo::circle().with_fill(color)
                 }
                 Building::Splitter(_) => {
@@ -514,6 +565,22 @@ impl SnarlViewer<Node> for Viewer {
                     assert_eq!(pin.id.output, 0, "Miner has only one output");
                     let speed = snarl[pin.id.node].output_speed(snarl, pin.id.node);
                     let material = snarl[pin.id.node].output_material(snarl, pin.id.node);
+                    let color = material
+                        .as_ref()
+                        .map(|m| m.color())
+                        .unwrap_or(BUILDING_COLOR);
+
+                    ui.horizontal(|ui| {
+                        add_material_image(ui, scale, &material);
+                        ui.label(format!("{}/min", speed));
+                    });
+
+                    PinInfo::circle().with_fill(color)
+                }
+                Building::StorageContainer(s) => {
+                    assert_eq!(pin.id.output, 0, "Storage Container has only one output");
+                    let speed = s.output_speed();
+                    let material = s.output_material();
                     let color = material
                         .as_ref()
                         .map(|m| m.color())
@@ -639,6 +706,15 @@ impl SnarlViewer<Node> for Viewer {
         }
         if ui.button("Merger").clicked() {
             snarl.insert_node(pos, Node::Building(Building::Merger(Merger::default())));
+            ui.close_menu();
+        }
+
+        ui.separator();
+        if ui.button("Storage Container").clicked() {
+            snarl.insert_node(
+                pos,
+                Node::Building(Building::StorageContainer(StorageContainer::default())),
+            );
             ui.close_menu();
         }
     }

@@ -5,12 +5,14 @@ mod merger;
 mod miner;
 mod smelter;
 mod splitter;
+mod storage_container;
 
 pub use self::constructor::Constructor;
 pub use self::merger::Merger;
 pub use self::miner::{Miner, MinerLevel, ResourcePurity};
 pub use self::smelter::{Smelter, SmelterRecipie};
 pub use self::splitter::Splitter;
+pub use self::storage_container::StorageContainer;
 
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
 pub enum Building {
@@ -19,9 +21,12 @@ pub enum Building {
     Splitter(Splitter),
     Merger(Merger),
     Constructor(Constructor),
+    StorageContainer(StorageContainer),
 }
 
-#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize, PartialEq)]
+#[derive(
+    Debug, Clone, Copy, serde::Serialize, serde::Deserialize, PartialEq, strum::VariantArray,
+)]
 pub enum ResourceType {
     Bauxite,
     CateriumOre,
@@ -68,7 +73,16 @@ impl ResourceType {
     }
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, strum::Display)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    serde::Serialize,
+    serde::Deserialize,
+    PartialEq,
+    strum::Display,
+    strum::VariantArray,
+)]
 pub enum Material {
     #[strum(to_string = "Copper Ore")]
     CopperOre,
@@ -270,6 +284,7 @@ impl Building {
             Self::Splitter(s) => s.header_image(),
             Self::Merger(s) => s.header_image(),
             Self::Constructor(s) => s.header_image(),
+            Self::StorageContainer(s) => s.header_image(),
         }
     }
 
@@ -280,6 +295,7 @@ impl Building {
             Self::Splitter(s) => s.input_material(),
             Self::Merger(s) => s.input_material(),
             Self::Constructor(s) => s.input_material(),
+            Self::StorageContainer(s) => s.input_material(),
         }
     }
 
@@ -290,6 +306,7 @@ impl Building {
             Self::Splitter(s) => s.num_outputs(),
             Self::Merger(s) => s.num_outputs(),
             Self::Constructor(s) => s.num_outputs(),
+            Self::StorageContainer(s) => s.num_outputs(),
         }
     }
 
@@ -300,6 +317,7 @@ impl Building {
             Self::Splitter(s) => s.num_inputs(),
             Self::Merger(s) => s.num_inputs(),
             Self::Constructor(s) => s.num_inputs(),
+            Self::StorageContainer(s) => s.num_inputs(),
         }
     }
 
@@ -310,6 +328,7 @@ impl Building {
             Self::Splitter(s) => s.name(),
             Self::Merger(s) => s.name(),
             Self::Constructor(s) => s.name(),
+            Self::StorageContainer(s) => s.name(),
         }
     }
 
@@ -320,6 +339,7 @@ impl Building {
             Self::Splitter(s) => s.description(),
             Self::Merger(s) => s.description(),
             Self::Constructor(s) => s.description(),
+            Self::StorageContainer(s) => s.description(),
         }
     }
 }
@@ -342,4 +362,46 @@ fn calc_output(input_size: Option<f32>, duration: f32, output_size: f32, input_b
     // 60/4 * 1 = 15
     let b = (60. / duration) * a * output_size;
     b.round()
+}
+
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    serde::Serialize,
+    serde::Deserialize,
+    PartialEq,
+    strum::VariantArray,
+    strum::Display,
+)]
+pub enum Belt {
+    #[strum(to_string = "Mk.1")]
+    Mk1,
+    #[strum(to_string = "Mk.2")]
+    Mk2,
+    #[strum(to_string = "Mk.3")]
+    Mk3,
+    #[strum(to_string = "Mk.4")]
+    Mk4,
+    #[strum(to_string = "Mk.5")]
+    Mk5,
+    #[strum(to_string = "Mk.6")]
+    Mk6,
+}
+
+impl Belt {
+    pub fn name(&self) -> String {
+        self.to_string()
+    }
+
+    pub fn speed(&self) -> f32 {
+        match self {
+            Self::Mk1 => 60.,
+            Self::Mk2 => 120.,
+            Self::Mk3 => 270.,
+            Self::Mk4 => 480.,
+            Self::Mk5 => 780.,
+            Self::Mk6 => 1200.,
+        }
+    }
 }
