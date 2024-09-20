@@ -1,6 +1,6 @@
 use strum::VariantArray;
 
-use super::{Belt, Material, ResourceType};
+use super::{Belt, Material};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq)]
 pub struct StorageContainer {

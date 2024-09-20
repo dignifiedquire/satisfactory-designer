@@ -1,6 +1,6 @@
 use buildings::{
-    Building, Constructor, Fluid, Material, Merger, Miner, Smelter, Splitter, StorageContainer,
-    WaterExtractor,
+    Building, Constructor, Fluid, Material, Merger, Miner, Packager, Smelter, Splitter,
+    StorageContainer, WaterExtractor,
 };
 use eframe::{App, CreationContext};
 use egui::{emath::Rot2, vec2, Color32, FontId, Id, Rect, RichText, Ui, Vec2};
@@ -18,14 +18,73 @@ enum Node {
     Building(Building),
 }
 
+enum Resource {
+    Material(Material),
+    Fluid(Fluid),
+}
+
+impl Resource {
+    fn color(&self) -> Color32 {
+        match self {
+            Self::Material(m) => m.color(),
+            Self::Fluid(f) => f.color(),
+        }
+    }
+    fn name(&self) -> String {
+        match self {
+            Self::Material(m) => m.name(),
+            Self::Fluid(f) => f.name(),
+        }
+    }
+
+    fn image(&self) -> String {
+        match self {
+            Self::Material(m) => m.image(),
+            Self::Fluid(f) => f.image(),
+        }
+    }
+}
+
 impl Node {
     /// The speed for this output
-    fn output_speed(&self, snarl: &Snarl<Node>, remote_node: NodeId) -> f32 {
+    fn output_speed(
+        &self,
+        snarl: &Snarl<Node>,
+        remote_node: NodeId,
+        remote_node_output: usize,
+    ) -> f32 {
         match self {
             Node::Building(b) => match b {
                 Building::Miner(remote_m) => remote_m.output_speed(),
                 Building::WaterExtractor(w) => w.output_speed(),
                 Building::StorageContainer(s) => s.output_speed(),
+                Building::Packager(p) => {
+                    let input_wire_fluid = snarl
+                        .wires()
+                        .find(|(_output, input)| input.node == remote_node && input.input == 0);
+
+                    let input_wire_material = snarl
+                        .wires()
+                        .find(|(_output, input)| input.node == remote_node && input.input == 1);
+
+                    let input_fluid_speed = input_wire_fluid
+                        .map(|(output, _input)| {
+                            snarl[output.node].output_speed(snarl, output.node, output.output)
+                        })
+                        .unwrap_or_default();
+
+                    let input_material_speed = input_wire_material
+                        .map(|(output, _input)| {
+                            snarl[output.node].output_speed(snarl, output.node, output.output)
+                        })
+                        .unwrap_or_default();
+
+                    match remote_node_output {
+                        0 => p.output_fluid_speed(input_material_speed, input_fluid_speed),
+                        1 => p.output_material_speed(input_material_speed, input_fluid_speed),
+                        _ => unreachable!("only two outputs"),
+                    }
+                }
                 Building::Splitter(_remote_s) => {
                     let input_wire = snarl
                         .wires()
@@ -39,7 +98,8 @@ impl Node {
                                 .filter(|(o, _i)| o.node == remote_node)
                                 .count() as f32;
 
-                            let base_speed = snarl[output.node].output_speed(snarl, output.node);
+                            let base_speed =
+                                snarl[output.node].output_speed(snarl, output.node, output.output);
 
                             base_speed / num_connections
                         }
@@ -52,7 +112,9 @@ impl Node {
                         .find(|(_output, input)| input.node == remote_node);
 
                     let input_speed = input_wire
-                        .map(|(output, _input)| snarl[output.node].output_speed(snarl, output.node))
+                        .map(|(output, _input)| {
+                            snarl[output.node].output_speed(snarl, output.node, output.output)
+                        })
                         .unwrap_or_default();
                     remote_s.output_speed(input_speed)
                 }
@@ -62,7 +124,9 @@ impl Node {
                         .find(|(_output, input)| input.node == remote_node);
 
                     let input_speed = input_wire
-                        .map(|(output, _input)| snarl[output.node].output_speed(snarl, output.node))
+                        .map(|(output, _input)| {
+                            snarl[output.node].output_speed(snarl, output.node, output.output)
+                        })
                         .unwrap_or_default();
                     remote_s.output_speed(input_speed)
                 }
@@ -80,7 +144,8 @@ impl Node {
                             .filter(|(o, _i)| o.node == remote_node)
                             .count() as f32;
 
-                        let base_speed = snarl[output.node].output_speed(snarl, output.node);
+                        let base_speed =
+                            snarl[output.node].output_speed(snarl, output.node, output.output);
 
                         speed += base_speed / num_connections;
                     }
@@ -91,16 +156,33 @@ impl Node {
     }
 
     /// The output material
-    fn output_material(&self, snarl: &Snarl<Node>, remote_node: NodeId) -> Option<Material> {
+    fn output_material(
+        &self,
+        snarl: &Snarl<Node>,
+        remote_node: NodeId,
+        remote_node_output: usize,
+    ) -> Option<Resource> {
         match self {
             Node::Building(b) => match b {
-                Building::Miner(remote_m) => {
-                    remote_m.resource.as_ref().map(|r| r.output_material())
-                }
-                Building::WaterExtractor(_) => {
-                    unreachable!("no output material");
-                }
-                Building::StorageContainer(s) => s.output_material(),
+                Building::Miner(remote_m) => remote_m
+                    .resource
+                    .as_ref()
+                    .map(|r| Resource::Material(r.output_material())),
+                Building::WaterExtractor(w) => Some(Resource::Fluid(w.output_fluid())),
+                Building::Packager(p) => match remote_node_output {
+                    0 => p
+                        .recipie
+                        .as_ref()
+                        .and_then(|r| r.output_fluid())
+                        .map(Resource::Fluid),
+                    1 => p
+                        .recipie
+                        .as_ref()
+                        .and_then(|r| r.output_material())
+                        .map(Resource::Material),
+                    _ => unreachable!("only two outputs"),
+                },
+                Building::StorageContainer(s) => s.output_material().map(Resource::Material),
                 Building::Splitter(_remote_s) => {
                     let input_wire = snarl
                         .wires()
@@ -108,17 +190,19 @@ impl Node {
 
                     match input_wire {
                         Some((output, _input)) => {
-                            snarl[output.node].output_material(snarl, output.node)
+                            snarl[output.node].output_material(snarl, output.node, output.output)
                         }
                         None => None,
                     }
                 }
-                Building::Smelter(remote_s) => {
-                    remote_s.recipie.as_ref().map(|r| r.output_material())
-                }
-                Building::Constructor(remote_s) => {
-                    remote_s.recipie.as_ref().map(|r| r.output_material())
-                }
+                Building::Smelter(remote_s) => remote_s
+                    .recipie
+                    .as_ref()
+                    .map(|r| Resource::Material(r.output_material())),
+                Building::Constructor(remote_s) => remote_s
+                    .recipie
+                    .as_ref()
+                    .map(|r| Resource::Material(r.output_material())),
                 Building::Merger(_remote_m) => {
                     // For now we just grab the first one, as we don't support sushi belts (yet)
                     let input_wire = snarl
@@ -127,7 +211,7 @@ impl Node {
 
                     match input_wire {
                         Some((output, _input)) => {
-                            snarl[output.node].output_material(snarl, output.node)
+                            snarl[output.node].output_material(snarl, output.node, output.output)
                         }
                         None => None,
                     }
@@ -143,8 +227,8 @@ impl SnarlViewer<Node> for Viewer {
     fn show_body(
         &mut self,
         node: NodeId,
-        inputs: &[InPin],
-        outputs: &[OutPin],
+        _inputs: &[InPin],
+        _outputs: &[OutPin],
         ui: &mut Ui,
         scale: f32,
         snarl: &mut Snarl<Node>,
@@ -209,6 +293,69 @@ impl SnarlViewer<Node> for Viewer {
                             });
                         ui.add_space(10.0 * scale);
                         add_speed_ui(ui, &mut m.speed);
+                    }
+                    Building::Packager(p) => {
+                        ui.horizontal(|ui| {
+                            let x = 20. * scale;
+                            if let Some(ref recipie) = p.recipie {
+                                let images = recipie.image();
+                                if let Some(image) = images.0 {
+                                    let image = egui::Image::new(image)
+                                        .fit_to_exact_size(vec2(x, x))
+                                        .show_loading_spinner(true);
+                                    ui.add(image);
+                                } else {
+                                    ui.add_space(x);
+                                }
+                                if let Some(image) = images.1 {
+                                    let image = egui::Image::new(image)
+                                        .fit_to_exact_size(vec2(x, x))
+                                        .show_loading_spinner(true);
+                                    ui.add(image);
+                                } else {
+                                    ui.add_space(x);
+                                }
+                            } else {
+                                ui.add_space(x * 2.);
+                            }
+
+                            let text = match &p.recipie {
+                                Some(r) => r.name(),
+                                None => "Select Recipie".to_string(),
+                            };
+                            egui::ComboBox::from_id_source(egui::Id::new("packager_recipie"))
+                                .selected_text(text)
+                                .show_ui(ui, |ui| {
+                                    for recipie in p.available_recipies() {
+                                        let name = recipie.name();
+                                        ui.horizontal(|ui| {
+                                            let image = match recipie.image() {
+                                                (Some(_image), Some(image)) => image,
+                                                (Some(image), None) => image,
+                                                (None, Some(image)) => image,
+                                                (None, None) => {
+                                                    unreachable!("have at least one output")
+                                                }
+                                            };
+                                            let image = egui::Image::new(image)
+                                                .fit_to_exact_size(vec2(20., 20.))
+                                                .show_loading_spinner(true);
+                                            ui.add(image);
+                                            ui.selectable_value(
+                                                &mut p.recipie,
+                                                Some(*recipie),
+                                                name,
+                                            );
+                                        });
+                                    }
+                                });
+                        });
+
+                        ui.add_space(10.0 * scale);
+                        add_speed_ui(ui, &mut p.speed);
+
+                        ui.add_space(10.0 * scale);
+                        ui.checkbox(&mut p.amplified, "Sommersloop");
                     }
                     Building::WaterExtractor(m) => {
                         let text = match &m.output_pipe {
@@ -375,15 +522,14 @@ impl SnarlViewer<Node> for Viewer {
     fn has_body(&mut self, node: &Node) -> bool {
         match node {
             Node::Building(_) => true,
-            _ => false,
         }
     }
 
     fn show_header(
         &mut self,
         node: NodeId,
-        inputs: &[InPin],
-        outputs: &[OutPin],
+        _inputs: &[InPin],
+        _outputs: &[OutPin],
         ui: &mut Ui,
         scale: f32,
         snarl: &mut Snarl<Node>,
@@ -468,33 +614,91 @@ impl SnarlViewer<Node> for Viewer {
                 Building::StorageContainer(_) => {
                     unreachable!("Storage Container has no inputs")
                 }
+                Building::Packager(p) => {
+                    let (actual_input_speed, resource) = match &*pin.remotes {
+                        [] => (0., None),
+                        [remote] => {
+                            let speed =
+                                snarl[remote.node].output_speed(snarl, remote.node, remote.output);
+                            let material = snarl[remote.node].output_material(
+                                snarl,
+                                remote.node,
+                                remote.output,
+                            );
+                            (speed, material)
+                        }
+                        _ => unreachable!("only one output"),
+                    };
+
+                    let color = resource
+                        .as_ref()
+                        .map(|m| m.color())
+                        .unwrap_or(BUILDING_COLOR);
+
+                    if pin.id.input == 0 {
+                        let max_input_speed = p
+                            .recipie
+                            .map(|r| r.max_output_speed_fluid())
+                            .unwrap_or_default();
+                        ui.horizontal(|ui| {
+                            add_resource_image(ui, scale, &resource);
+                            ui.label(format!(
+                                "{}/m^3 ({}/m^3)",
+                                actual_input_speed, max_input_speed
+                            ));
+                        });
+
+                        PinInfo::circle().with_fill(color)
+                    } else if pin.id.input == 1 {
+                        let max_input_speed = p
+                            .recipie
+                            .map(|r| r.max_output_speed_fluid())
+                            .unwrap_or_default();
+                        ui.horizontal(|ui| {
+                            add_resource_image(ui, scale, &resource);
+                            ui.label(format!(
+                                "{}/min ({}/min)",
+                                actual_input_speed, max_input_speed
+                            ));
+                        });
+
+                        PinInfo::square().with_fill(color)
+                    } else {
+                        unreachable!("only two inputs");
+                    }
+                }
                 Building::Smelter(ref s) => {
                     assert_eq!(pin.id.input, 0, "Smelter node has only one input");
 
-                    let (actual_input_speed, material) = match &*pin.remotes {
+                    let (actual_input_speed, resource) = match &*pin.remotes {
                         [] => (0., None),
                         [remote] => {
-                            let speed = snarl[remote.node].output_speed(snarl, remote.node);
-                            let material = snarl[remote.node].output_material(snarl, remote.node);
+                            let speed =
+                                snarl[remote.node].output_speed(snarl, remote.node, remote.output);
+                            let material = snarl[remote.node].output_material(
+                                snarl,
+                                remote.node,
+                                remote.output,
+                            );
                             (speed, material)
                         }
                         _ => unreachable!("only one output"),
                     };
 
                     let max_input_speed = s.input_speed();
-                    let color = material
+                    let color = resource
                         .as_ref()
                         .map(|m| m.color())
                         .unwrap_or(BUILDING_COLOR);
 
                     ui.horizontal(|ui| {
-                        add_material_image(ui, scale, &material);
+                        add_resource_image(ui, scale, &resource);
                         ui.label(format!(
                             "{}/min ({}/min)",
                             actual_input_speed, max_input_speed
                         ));
                     });
-                    PinInfo::circle().with_fill(color)
+                    PinInfo::square().with_fill(color)
                 }
                 Building::Splitter(_) => {
                     assert_eq!(pin.id.input, 0, "Splitter node has only one input");
@@ -502,8 +706,13 @@ impl SnarlViewer<Node> for Viewer {
                     let (actual_input_speed, material) = match &*pin.remotes {
                         [] => (0., None),
                         [remote] => {
-                            let speed = snarl[remote.node].output_speed(snarl, remote.node);
-                            let material = snarl[remote.node].output_material(snarl, remote.node);
+                            let speed =
+                                snarl[remote.node].output_speed(snarl, remote.node, remote.output);
+                            let material = snarl[remote.node].output_material(
+                                snarl,
+                                remote.node,
+                                remote.output,
+                            );
                             (speed, material)
                         }
                         _ => unreachable!("only one output"),
@@ -515,19 +724,24 @@ impl SnarlViewer<Node> for Viewer {
                         .unwrap_or(BUILDING_COLOR);
 
                     ui.horizontal(|ui| {
-                        add_material_image(ui, scale, &material);
+                        add_resource_image(ui, scale, &material);
                         ui.label(format!("{}/min", actual_input_speed,));
                     });
 
-                    PinInfo::circle().with_fill(color)
+                    PinInfo::square().with_fill(color)
                 }
                 Building::Merger(_) => {
                     // 3 inputs
                     let (actual_input_speed, material) = match &*pin.remotes {
                         [] => (0., None),
                         [remote] => {
-                            let speed = snarl[remote.node].output_speed(snarl, remote.node);
-                            let material = snarl[remote.node].output_material(snarl, remote.node);
+                            let speed =
+                                snarl[remote.node].output_speed(snarl, remote.node, remote.output);
+                            let material = snarl[remote.node].output_material(
+                                snarl,
+                                remote.node,
+                                remote.output,
+                            );
                             (speed, material)
                         }
                         _ => unreachable!("only one output"),
@@ -539,11 +753,11 @@ impl SnarlViewer<Node> for Viewer {
                         .unwrap_or(BUILDING_COLOR);
 
                     ui.horizontal(|ui| {
-                        add_material_image(ui, scale, &material);
+                        add_resource_image(ui, scale, &material);
                         ui.label(format!("{}/min", actual_input_speed,));
                     });
 
-                    PinInfo::circle().with_fill(color)
+                    PinInfo::square().with_fill(color)
                 }
                 Building::Constructor(ref s) => {
                     assert_eq!(pin.id.input, 0, "Constructor node has only one input");
@@ -551,8 +765,13 @@ impl SnarlViewer<Node> for Viewer {
                     let (actual_input_speed, material) = match &*pin.remotes {
                         [] => (0., None),
                         [remote] => {
-                            let speed = snarl[remote.node].output_speed(snarl, remote.node);
-                            let material = snarl[remote.node].output_material(snarl, remote.node);
+                            let speed =
+                                snarl[remote.node].output_speed(snarl, remote.node, remote.output);
+                            let material = snarl[remote.node].output_material(
+                                snarl,
+                                remote.node,
+                                remote.output,
+                            );
                             (speed, material)
                         }
                         _ => unreachable!("only one output"),
@@ -565,14 +784,14 @@ impl SnarlViewer<Node> for Viewer {
                         .unwrap_or(BUILDING_COLOR);
 
                     ui.horizontal(|ui| {
-                        add_material_image(ui, scale, &material);
+                        add_resource_image(ui, scale, &material);
                         ui.label(format!(
                             "{}/min ({}/min)",
                             actual_input_speed, max_input_speed
                         ));
                     });
 
-                    PinInfo::circle().with_fill(color)
+                    PinInfo::square().with_fill(color)
                 }
             },
         }
@@ -589,28 +808,75 @@ impl SnarlViewer<Node> for Viewer {
             Node::Building(ref b) => match b {
                 Building::Miner(_) => {
                     assert_eq!(pin.id.output, 0, "Miner has only one output");
-                    let speed = snarl[pin.id.node].output_speed(snarl, pin.id.node);
-                    let material = snarl[pin.id.node].output_material(snarl, pin.id.node);
+                    let speed = snarl[pin.id.node].output_speed(snarl, pin.id.node, pin.id.output);
+                    let material =
+                        snarl[pin.id.node].output_material(snarl, pin.id.node, pin.id.output);
                     let color = material
                         .as_ref()
                         .map(|m| m.color())
                         .unwrap_or(BUILDING_COLOR);
 
                     ui.horizontal(|ui| {
-                        add_material_image(ui, scale, &material);
+                        add_resource_image(ui, scale, &material);
                         ui.label(format!("{}/min", speed));
                     });
 
-                    PinInfo::circle().with_fill(color)
+                    PinInfo::square().with_fill(color)
+                }
+                Building::Packager(p) => {
+                    let speed = snarl[pin.id.node].output_speed(snarl, pin.id.node, pin.id.output);
+                    let material =
+                        snarl[pin.id.node].output_material(snarl, pin.id.node, pin.id.output);
+                    let color = material
+                        .as_ref()
+                        .map(|m| m.color())
+                        .unwrap_or(BUILDING_COLOR);
+
+                    if pin.id.output == 0 {
+                        // Fluid
+                        if p.recipie.as_ref().and_then(|r| r.output_fluid()).is_some() {
+                            let max_speed = p
+                                .recipie
+                                .as_ref()
+                                .map(|r| r.max_output_speed_fluid())
+                                .unwrap_or_default();
+                            ui.horizontal(|ui| {
+                                add_resource_image(ui, scale, &material);
+                                ui.label(format!("{}/m^3 ({}/m^3)", speed, max_speed));
+                            });
+                        }
+
+                        PinInfo::circle().with_fill(color)
+                    } else if pin.id.output == 1 {
+                        // Material
+                        if p.recipie
+                            .as_ref()
+                            .and_then(|r| r.output_material())
+                            .is_some()
+                        {
+                            let max_speed = p
+                                .recipie
+                                .as_ref()
+                                .map(|r| r.max_output_speed_material())
+                                .unwrap_or_default();
+                            ui.horizontal(|ui| {
+                                add_resource_image(ui, scale, &material);
+                                ui.label(format!("{}/min ({}/min)", speed, max_speed));
+                            });
+                        }
+                        PinInfo::square().with_fill(color)
+                    } else {
+                        unreachable!("only two outputs");
+                    }
                 }
                 Building::WaterExtractor(w) => {
                     assert_eq!(pin.id.output, 0, "Water Extractor has only one output");
                     let speed = w.output_speed();
-                    let fluid = w.output_fluid();
+                    let fluid = Resource::Fluid(w.output_fluid());
                     let color = fluid.color();
 
                     ui.horizontal(|ui| {
-                        add_fluid_image(ui, scale, &fluid);
+                        add_resource_image(ui, scale, &Some(fluid));
                         ui.label(format!("{}/m^3", speed));
                     });
 
@@ -619,23 +885,24 @@ impl SnarlViewer<Node> for Viewer {
                 Building::StorageContainer(s) => {
                     assert_eq!(pin.id.output, 0, "Storage Container has only one output");
                     let speed = s.output_speed();
-                    let material = s.output_material();
+                    let material = s.output_material().map(Resource::Material);
                     let color = material
                         .as_ref()
                         .map(|m| m.color())
                         .unwrap_or(BUILDING_COLOR);
 
                     ui.horizontal(|ui| {
-                        add_material_image(ui, scale, &material);
+                        add_resource_image(ui, scale, &material);
                         ui.label(format!("{}/min", speed));
                     });
 
-                    PinInfo::circle().with_fill(color)
+                    PinInfo::square().with_fill(color)
                 }
                 Building::Smelter(s) => {
                     assert_eq!(pin.id.output, 0, "Smelter node has only one output");
-                    let speed = snarl[pin.id.node].output_speed(snarl, pin.id.node);
-                    let material = snarl[pin.id.node].output_material(snarl, pin.id.node);
+                    let speed = snarl[pin.id.node].output_speed(snarl, pin.id.node, pin.id.output);
+                    let material =
+                        snarl[pin.id.node].output_material(snarl, pin.id.node, pin.id.output);
 
                     let max_speed = s
                         .recipie
@@ -644,51 +911,56 @@ impl SnarlViewer<Node> for Viewer {
                         .unwrap_or_default();
 
                     ui.horizontal(|ui| {
-                        add_material_image(ui, scale, &material);
+                        add_resource_image(ui, scale, &material);
                         ui.label(format!("{}/min ({}/min)", speed, max_speed));
                     });
 
                     let color = material.map(|m| m.color()).unwrap_or(BUILDING_COLOR);
-                    PinInfo::circle().with_fill(color)
+                    PinInfo::square().with_fill(color)
                 }
                 Building::Splitter(_s) => {
                     let (speed, material) = if !pin.remotes.is_empty() {
-                        let speed = snarl[pin.id.node].output_speed(snarl, pin.id.node);
-                        let material = snarl[pin.id.node].output_material(snarl, pin.id.node);
+                        let speed =
+                            snarl[pin.id.node].output_speed(snarl, pin.id.node, pin.id.output);
+                        let material =
+                            snarl[pin.id.node].output_material(snarl, pin.id.node, pin.id.output);
                         (speed, material)
                     } else {
                         (0., None)
                     };
 
                     ui.horizontal(|ui| {
-                        add_material_image(ui, scale, &material);
+                        add_resource_image(ui, scale, &material);
                         ui.label(format!("{}/min", speed));
                     });
 
                     let color = material.map(|m| m.color()).unwrap_or(BUILDING_COLOR);
-                    PinInfo::circle().with_fill(color)
+                    PinInfo::square().with_fill(color)
                 }
                 Building::Merger(_m) => {
                     let (speed, material) = if !pin.remotes.is_empty() {
-                        let speed = snarl[pin.id.node].output_speed(snarl, pin.id.node);
-                        let material = snarl[pin.id.node].output_material(snarl, pin.id.node);
+                        let speed =
+                            snarl[pin.id.node].output_speed(snarl, pin.id.node, pin.id.output);
+                        let material =
+                            snarl[pin.id.node].output_material(snarl, pin.id.node, pin.id.output);
                         (speed, material)
                     } else {
                         (0., None)
                     };
 
                     ui.horizontal(|ui| {
-                        add_material_image(ui, scale, &material);
+                        add_resource_image(ui, scale, &material);
                         ui.label(format!("{}/min", speed));
                     });
 
                     let color = material.map(|m| m.color()).unwrap_or(BUILDING_COLOR);
-                    PinInfo::circle().with_fill(color)
+                    PinInfo::square().with_fill(color)
                 }
                 Building::Constructor(s) => {
                     assert_eq!(pin.id.output, 0, "Constructor node has only one output");
-                    let speed = snarl[pin.id.node].output_speed(snarl, pin.id.node);
-                    let material = snarl[pin.id.node].output_material(snarl, pin.id.node);
+                    let speed = snarl[pin.id.node].output_speed(snarl, pin.id.node, pin.id.output);
+                    let material =
+                        snarl[pin.id.node].output_material(snarl, pin.id.node, pin.id.output);
                     let max_speed = s
                         .recipie
                         .as_ref()
@@ -696,12 +968,12 @@ impl SnarlViewer<Node> for Viewer {
                         .unwrap_or_default();
 
                     ui.horizontal(|ui| {
-                        add_material_image(ui, scale, &material);
+                        add_resource_image(ui, scale, &material);
                         ui.label(format!("{}/min ({}/min)", speed, max_speed));
                     });
 
                     let color = material.map(|m| m.color()).unwrap_or(BUILDING_COLOR);
-                    PinInfo::circle().with_fill(color)
+                    PinInfo::square().with_fill(color)
                 }
             },
         }
@@ -747,6 +1019,12 @@ impl SnarlViewer<Node> for Viewer {
         }
 
         ui.separator();
+        if ui.button("Packager").clicked() {
+            snarl.insert_node(pos, Node::Building(Building::Packager(Packager::default())));
+            ui.close_menu();
+        }
+
+        ui.separator();
 
         if ui.button("Splitter").clicked() {
             snarl.insert_node(pos, Node::Building(Building::Splitter(Splitter::default())));
@@ -773,11 +1051,11 @@ impl SnarlViewer<Node> for Viewer {
 
     fn show_dropped_wire_menu(
         &mut self,
-        pos: egui::Pos2,
+        _pos: egui::Pos2,
         ui: &mut Ui,
         _scale: f32,
-        src_pins: AnyPins,
-        snarl: &mut Snarl<Node>,
+        _src_pins: AnyPins,
+        _snarl: &mut Snarl<Node>,
     ) {
         ui.label("Add node");
         // TODO:
@@ -807,297 +1085,6 @@ impl SnarlViewer<Node> for Viewer {
         if ui.button("Remove").clicked() {
             snarl.remove_node(node);
             ui.close_menu();
-        }
-    }
-}
-
-#[derive(Clone, serde::Serialize, serde::Deserialize)]
-struct ExprNode {
-    text: String,
-    bindings: Vec<String>,
-    values: Vec<f64>,
-    expr: Expr,
-}
-
-impl ExprNode {
-    fn new() -> Self {
-        ExprNode {
-            text: "0".to_string(),
-            bindings: Vec::new(),
-            values: Vec::new(),
-            expr: Expr::Val(0.0),
-        }
-    }
-
-    fn eval(&self) -> f64 {
-        self.expr.eval(&self.bindings, &self.values)
-    }
-}
-
-#[derive(Clone, Copy, serde::Serialize, serde::Deserialize)]
-enum UnOp {
-    Pos,
-    Neg,
-}
-
-#[derive(Clone, Copy, serde::Serialize, serde::Deserialize)]
-enum BinOp {
-    Add,
-    Sub,
-    Mul,
-    Div,
-}
-
-#[derive(Clone, serde::Serialize, serde::Deserialize)]
-enum Expr {
-    Var(String),
-    Val(f64),
-    UnOp {
-        op: UnOp,
-        expr: Box<Expr>,
-    },
-    BinOp {
-        lhs: Box<Expr>,
-        op: BinOp,
-        rhs: Box<Expr>,
-    },
-}
-
-impl Expr {
-    fn eval(&self, bindings: &[String], args: &[f64]) -> f64 {
-        let binding_index =
-            |name: &str| bindings.iter().position(|binding| binding == name).unwrap();
-
-        match self {
-            Expr::Var(ref name) => args[binding_index(name)],
-            Expr::Val(value) => *value,
-            Expr::UnOp { op, ref expr } => match op {
-                UnOp::Pos => expr.eval(bindings, args),
-                UnOp::Neg => -expr.eval(bindings, args),
-            },
-            Expr::BinOp {
-                ref lhs,
-                op,
-                ref rhs,
-            } => match op {
-                BinOp::Add => lhs.eval(bindings, args) + rhs.eval(bindings, args),
-                BinOp::Sub => lhs.eval(bindings, args) - rhs.eval(bindings, args),
-                BinOp::Mul => lhs.eval(bindings, args) * rhs.eval(bindings, args),
-                BinOp::Div => lhs.eval(bindings, args) / rhs.eval(bindings, args),
-            },
-        }
-    }
-
-    fn extend_bindings(&self, bindings: &mut Vec<String>) {
-        match self {
-            Expr::Var(name) => {
-                if !bindings.contains(name) {
-                    bindings.push(name.clone());
-                }
-            }
-            Expr::Val(_) => {}
-            Expr::UnOp { expr, .. } => {
-                expr.extend_bindings(bindings);
-            }
-            Expr::BinOp { lhs, rhs, .. } => {
-                lhs.extend_bindings(bindings);
-                rhs.extend_bindings(bindings);
-            }
-        }
-    }
-}
-
-impl syn::parse::Parse for UnOp {
-    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-        let lookahead = input.lookahead1();
-        if lookahead.peek(syn::Token![+]) {
-            input.parse::<syn::Token![+]>()?;
-            Ok(UnOp::Pos)
-        } else if lookahead.peek(syn::Token![-]) {
-            input.parse::<syn::Token![-]>()?;
-            Ok(UnOp::Neg)
-        } else {
-            Err(lookahead.error())
-        }
-    }
-}
-
-impl syn::parse::Parse for BinOp {
-    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-        let lookahead = input.lookahead1();
-        if lookahead.peek(syn::Token![+]) {
-            input.parse::<syn::Token![+]>()?;
-            Ok(BinOp::Add)
-        } else if lookahead.peek(syn::Token![-]) {
-            input.parse::<syn::Token![-]>()?;
-            Ok(BinOp::Sub)
-        } else if lookahead.peek(syn::Token![*]) {
-            input.parse::<syn::Token![*]>()?;
-            Ok(BinOp::Mul)
-        } else if lookahead.peek(syn::Token![/]) {
-            input.parse::<syn::Token![/]>()?;
-            Ok(BinOp::Div)
-        } else {
-            Err(lookahead.error())
-        }
-    }
-}
-
-impl syn::parse::Parse for Expr {
-    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-        let lookahead = input.lookahead1();
-
-        let lhs;
-        if lookahead.peek(syn::token::Paren) {
-            let content;
-            syn::parenthesized!(content in input);
-            let expr = content.parse::<Expr>()?;
-            if input.is_empty() {
-                return Ok(expr);
-            }
-            lhs = expr;
-        // } else if lookahead.peek(syn::LitFloat) {
-        //     let lit = input.parse::<syn::LitFloat>()?;
-        //     let value = lit.base10_parse::<f64>()?;
-        //     let expr = Expr::Val(value);
-        //     if input.is_empty() {
-        //         return Ok(expr);
-        //     }
-        //     lhs = expr;
-        } else if lookahead.peek(syn::LitInt) {
-            let lit = input.parse::<syn::LitInt>()?;
-            let value = lit.base10_parse::<f64>()?;
-            let expr = Expr::Val(value);
-            if input.is_empty() {
-                return Ok(expr);
-            }
-            lhs = expr;
-        } else if lookahead.peek(syn::Ident) {
-            let ident = input.parse::<syn::Ident>()?;
-            let expr = Expr::Var(ident.to_string());
-            if input.is_empty() {
-                return Ok(expr);
-            }
-            lhs = expr;
-        } else {
-            let unop = input.parse::<UnOp>()?;
-
-            return Self::parse_with_unop(unop, input);
-        }
-
-        let binop = input.parse::<BinOp>()?;
-
-        Self::parse_binop(Box::new(lhs), binop, input)
-    }
-}
-
-impl Expr {
-    fn parse_with_unop(op: UnOp, input: syn::parse::ParseStream) -> syn::Result<Self> {
-        let lookahead = input.lookahead1();
-
-        let lhs;
-        if lookahead.peek(syn::token::Paren) {
-            let content;
-            syn::parenthesized!(content in input);
-            let expr = Expr::UnOp {
-                op,
-                expr: Box::new(content.parse::<Expr>()?),
-            };
-            if input.is_empty() {
-                return Ok(expr);
-            }
-            lhs = expr;
-        } else if lookahead.peek(syn::LitFloat) {
-            let lit = input.parse::<syn::LitFloat>()?;
-            let value = lit.base10_parse::<f64>()?;
-            let expr = Expr::UnOp {
-                op,
-                expr: Box::new(Expr::Val(value)),
-            };
-            if input.is_empty() {
-                return Ok(expr);
-            }
-            lhs = expr;
-        } else if lookahead.peek(syn::LitInt) {
-            let lit = input.parse::<syn::LitInt>()?;
-            let value = lit.base10_parse::<f64>()?;
-            let expr = Expr::UnOp {
-                op,
-                expr: Box::new(Expr::Val(value)),
-            };
-            if input.is_empty() {
-                return Ok(expr);
-            }
-            lhs = expr;
-        } else if lookahead.peek(syn::Ident) {
-            let ident = input.parse::<syn::Ident>()?;
-            let expr = Expr::UnOp {
-                op,
-                expr: Box::new(Expr::Var(ident.to_string())),
-            };
-            if input.is_empty() {
-                return Ok(expr);
-            }
-            lhs = expr;
-        } else {
-            return Err(lookahead.error());
-        }
-
-        let op = input.parse::<BinOp>()?;
-
-        Self::parse_binop(Box::new(lhs), op, input)
-    }
-
-    fn parse_binop(lhs: Box<Expr>, op: BinOp, input: syn::parse::ParseStream) -> syn::Result<Self> {
-        let lookahead = input.lookahead1();
-
-        let rhs;
-        if lookahead.peek(syn::token::Paren) {
-            let content;
-            syn::parenthesized!(content in input);
-            rhs = Box::new(content.parse::<Expr>()?);
-            if input.is_empty() {
-                return Ok(Expr::BinOp { lhs, op, rhs });
-            }
-        } else if lookahead.peek(syn::LitFloat) {
-            let lit = input.parse::<syn::LitFloat>()?;
-            let value = lit.base10_parse::<f64>()?;
-            rhs = Box::new(Expr::Val(value));
-            if input.is_empty() {
-                return Ok(Expr::BinOp { lhs, op, rhs });
-            }
-        } else if lookahead.peek(syn::LitInt) {
-            let lit = input.parse::<syn::LitInt>()?;
-            let value = lit.base10_parse::<f64>()?;
-            rhs = Box::new(Expr::Val(value));
-            if input.is_empty() {
-                return Ok(Expr::BinOp { lhs, op, rhs });
-            }
-        } else if lookahead.peek(syn::Ident) {
-            let ident = input.parse::<syn::Ident>()?;
-            rhs = Box::new(Expr::Var(ident.to_string()));
-            if input.is_empty() {
-                return Ok(Expr::BinOp { lhs, op, rhs });
-            }
-        } else {
-            return Err(lookahead.error());
-        }
-
-        let next_op = input.parse::<BinOp>()?;
-
-        match (op, next_op) {
-            (BinOp::Add | BinOp::Sub, BinOp::Mul | BinOp::Div) => {
-                let rhs = Self::parse_binop(rhs, next_op, input)?;
-                Ok(Expr::BinOp {
-                    lhs,
-                    op,
-                    rhs: Box::new(rhs),
-                })
-            }
-            _ => {
-                let lhs = Expr::BinOp { lhs, op, rhs };
-                Self::parse_binop(Box::new(lhs), next_op, input)
-            }
         }
     }
 }
@@ -1252,7 +1239,7 @@ fn main() {
     });
 }
 
-fn add_material_image(ui: &mut Ui, scale: f32, material: &Option<Material>) {
+fn add_resource_image(ui: &mut Ui, scale: f32, material: &Option<Resource>) {
     if let Some(material) = material {
         let image = egui::Image::new(material.image())
             .max_height(20. * scale)
@@ -1272,16 +1259,5 @@ fn add_speed_ui(ui: &mut Ui, value: &mut f32) {
         let overclock = egui::DragValue::new(value).range(0.0..=250.0).suffix("%");
         ui.add(overclock);
         ui.label("Speed");
-    });
-}
-
-fn add_fluid_image(ui: &mut Ui, scale: f32, fluid: &Fluid) {
-    let image = egui::Image::new(fluid.image())
-        .max_height(20. * scale)
-        .maintain_aspect_ratio(true)
-        .show_loading_spinner(true);
-    ui.add(image).on_hover_ui(|ui| {
-        ui.style_mut().interaction.selectable_labels = true;
-        ui.label(fluid.name());
     });
 }

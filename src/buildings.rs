@@ -3,6 +3,7 @@ use egui::Color32;
 mod constructor;
 mod merger;
 mod miner;
+mod packager;
 mod smelter;
 mod splitter;
 mod storage_container;
@@ -10,8 +11,9 @@ mod water_extractor;
 
 pub use self::constructor::Constructor;
 pub use self::merger::Merger;
-pub use self::miner::{Miner, MinerLevel, ResourcePurity};
-pub use self::smelter::{Smelter, SmelterRecipie};
+pub use self::miner::Miner;
+pub use self::packager::Packager;
+pub use self::smelter::Smelter;
 pub use self::splitter::Splitter;
 pub use self::storage_container::StorageContainer;
 pub use self::water_extractor::WaterExtractor;
@@ -25,6 +27,7 @@ pub enum Building {
     Constructor(Constructor),
     StorageContainer(StorageContainer),
     WaterExtractor(WaterExtractor),
+    Packager(Packager),
 }
 
 #[derive(
@@ -191,6 +194,30 @@ pub enum Material {
     Coal,
     #[strum(to_string = "Quickwire")]
     Quickwire,
+    #[strum(to_string = "Packaged Alumnia Solution")]
+    PackagedAluminaSolution,
+    #[strum(to_string = "Packaged Fuel")]
+    PackagedFuel,
+    #[strum(to_string = "Packaged HeavyOil Residue")]
+    PackagedHeavyOilResidue,
+    #[strum(to_string = "Packaged Ionized Fuel")]
+    PackagedIonizedFuel,
+    #[strum(to_string = "Packaged Liquid Biofuel")]
+    PackagedLiquidBiofuel,
+    #[strum(to_string = "Packaged Nitric Acid")]
+    PackagedNitricAcid,
+    #[strum(to_string = "Packaged Nitrogen Gas")]
+    PackagedNitrogenGas,
+    #[strum(to_string = "Packaged Oil")]
+    PackagedOil,
+    #[strum(to_string = "Packaged Rocket Fuel")]
+    PackagedRocketFuel,
+    #[strum(to_string = "Packaged Sulfuric Acid")]
+    PackagedSulfuricAcid,
+    #[strum(to_string = "Packaged Turbofuel")]
+    PackagedTurbofuel,
+    #[strum(to_string = "Packaged Water")]
+    PackagedWater,
 }
 
 impl Material {
@@ -274,6 +301,18 @@ impl Material {
             Self::SteelPipe => "40px-Steel_Pipe.png",
             Self::Coal => "40px-Coal.png",
             Self::Quickwire => "40px-Quickwire.png",
+            Self::PackagedAluminaSolution => "40px-Packaged_Alumina_Solution.png",
+            Self::PackagedFuel => "40px-Packaged_Fuel.png",
+            Self::PackagedHeavyOilResidue => "40px-Packaged_Heavy_Oil_Residue.png",
+            Self::PackagedIonizedFuel => "40px-Packaged_Ionized_Fuel.png",
+            Self::PackagedLiquidBiofuel => "40px-Packaged_Liquid_Biofuel.png",
+            Self::PackagedNitricAcid => "40px-Packaged_Nitric_Acid.png",
+            Self::PackagedNitrogenGas => "40px-Packaged_Nitrogen_Gas.png",
+            Self::PackagedOil => "40px-Packaged_Oil.png",
+            Self::PackagedRocketFuel => "40px-Packaged_Rocket_Fuel.png",
+            Self::PackagedSulfuricAcid => "40px-Packaged_Sulfuric_Acid.png",
+            Self::PackagedTurbofuel => "40px-Packaged_Turbofuel.png",
+            Self::PackagedWater => "40px-Packaged_Water.png",
         };
         format!("file://assets/img/{}", name)
     }
@@ -290,6 +329,28 @@ impl Material {
     strum::VariantArray,
 )]
 pub enum Fluid {
+    #[strum(to_string = "Alumina Solution")]
+    AluminaSolution,
+    #[strum(to_string = "Fuel")]
+    Fuel,
+    #[strum(to_string = "Heavy Oil Residue")]
+    HeavyOilResidue,
+    #[strum(to_string = "Ionized Fuel")]
+    IonizedFuel,
+    #[strum(to_string = "Liquid Biofuel")]
+    LiquidBiofuel,
+    #[strum(to_string = "Nitric Acid")]
+    NitricAcid,
+    #[strum(to_string = "Nitrogen Gas")]
+    NitrogenGas,
+    #[strum(to_string = "Crude Oil")]
+    CrudeOil,
+    #[strum(to_string = "Rocket Fuel")]
+    RocketFuel,
+    #[strum(to_string = "Sulfuric Acid")]
+    SulfuricAcid,
+    #[strum(to_string = "Turbofuel")]
+    Turbofuel,
     #[strum(to_string = "Water")]
     Water,
 }
@@ -301,6 +362,17 @@ impl Fluid {
 
     pub fn color(&self) -> Color32 {
         let code = match self {
+            Self::AluminaSolution => "#DDDEDF",
+            Self::Fuel => "#D47615",
+            Self::HeavyOilResidue => "#AE1CD7",
+            Self::IonizedFuel => "#fdf1cf",
+            Self::LiquidBiofuel => "#70b846",
+            Self::NitricAcid => "#F7FAD7",
+            Self::NitrogenGas => "#898990",
+            Self::CrudeOil => "#0A090F",
+            Self::RocketFuel => "#ea3928",
+            Self::SulfuricAcid => "#f5ff17",
+            Self::Turbofuel => "#A10000",
             Self::Water => "#1662AD",
         };
         Color32::from_hex(code).unwrap()
@@ -308,6 +380,17 @@ impl Fluid {
 
     pub fn image(&self) -> String {
         let name = match self {
+            Self::AluminaSolution => "40px-Alumina_Solution.png",
+            Self::Fuel => "40px-Fuel.png",
+            Self::HeavyOilResidue => "40px-Heavy_Oil_Residue.png",
+            Self::IonizedFuel => "40px-Ionized_Fuel.png",
+            Self::LiquidBiofuel => "40px-Liquid_Biofuel.png",
+            Self::NitricAcid => "40px-Nitric_Acid.png",
+            Self::NitrogenGas => "40px-Nitrogen_Gas.png",
+            Self::CrudeOil => "40px-Crude_Oil.png",
+            Self::RocketFuel => "40px-Rocket_Fuel.png",
+            Self::SulfuricAcid => "40px-Sulfuric_Acid.png",
+            Self::Turbofuel => "40px-Turbofuel.png",
             Self::Water => "40px-Water.png",
         };
         format!("file://assets/img/{}", name)
@@ -324,6 +407,7 @@ impl Building {
             Self::Constructor(s) => s.header_image(),
             Self::StorageContainer(s) => s.header_image(),
             Self::WaterExtractor(s) => s.header_image(),
+            Self::Packager(s) => s.header_image(),
         }
     }
 
@@ -336,6 +420,7 @@ impl Building {
             Self::Constructor(s) => s.num_outputs(),
             Self::StorageContainer(s) => s.num_outputs(),
             Self::WaterExtractor(s) => s.num_outputs(),
+            Self::Packager(s) => s.num_outputs(),
         }
     }
 
@@ -348,6 +433,7 @@ impl Building {
             Self::Constructor(s) => s.num_inputs(),
             Self::StorageContainer(s) => s.num_inputs(),
             Self::WaterExtractor(s) => s.num_inputs(),
+            Self::Packager(s) => s.num_inputs(),
         }
     }
 
@@ -360,6 +446,7 @@ impl Building {
             Self::Constructor(s) => s.name(),
             Self::StorageContainer(s) => s.name(),
             Self::WaterExtractor(s) => s.name(),
+            Self::Packager(s) => s.name(),
         }
     }
 
@@ -372,6 +459,7 @@ impl Building {
             Self::Constructor(s) => s.description(),
             Self::StorageContainer(s) => s.description(),
             Self::WaterExtractor(s) => s.description(),
+            Self::Packager(s) => s.description(),
         }
     }
 }
@@ -386,6 +474,44 @@ fn calc_output(input_size: Option<f32>, duration: f32, output_size: f32, input_b
                 input_size / input_base
             } else {
                 1.
+            }
+        }
+        None => 1.,
+    };
+
+    // 60/4 * 1 = 15
+    let b = (60. / duration) * a * output_size;
+    b.round()
+}
+
+fn calc_output2(
+    input_size: Option<(f32, f32)>,
+    duration: f32,
+    output_size: f32,
+    input_base_a: f32,
+    input_base_b: f32,
+) -> f32 {
+    let a = match input_size {
+        Some((input_size_a, input_size_b)) => {
+            let input_size_a = (input_size_a / 60.) * duration;
+            let input_size_b = (input_size_b / 60.) * duration;
+
+            // 45/60 * 4secs = 3
+            let a = if input_size_a < input_base_a {
+                input_size_a / input_base_a
+            } else {
+                1.
+            };
+            let b = if input_size_a < input_base_b {
+                input_size_b / input_base_b
+            } else {
+                1.
+            };
+            // restrict to the minimum
+            if a < b {
+                a
+            } else {
+                b
             }
         }
         None => 1.,
