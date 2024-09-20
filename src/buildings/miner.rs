@@ -1,3 +1,5 @@
+use strum::VariantArray;
+
 use super::{Material, ResourceType};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq)]
@@ -61,7 +63,7 @@ impl Miner {
                 r.name(),
                 self.resource_purity.name()
             ),
-            None => "Resource Node".to_string(),
+            None => "Miner".to_string(),
         }
     }
 
@@ -69,12 +71,8 @@ impl Miner {
         "Mines things".to_string()
     }
 
-    pub fn available_purities(&self) -> Vec<ResourcePurity> {
-        vec![
-            ResourcePurity::Impure,
-            ResourcePurity::Normal,
-            ResourcePurity::Pure,
-        ]
+    pub fn available_purities(&self) -> &'static [ResourcePurity] {
+        ResourcePurity::VARIANTS
     }
 
     pub fn available_levels(&self) -> Vec<MinerLevel> {
@@ -126,7 +124,9 @@ impl Miner {
     }
 }
 
-#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize, PartialEq)]
+#[derive(
+    Debug, Clone, Copy, serde::Serialize, serde::Deserialize, PartialEq, strum::VariantArray,
+)]
 pub enum ResourcePurity {
     Impure,
     Normal,

@@ -9,7 +9,7 @@
 #### Extractors
   - [x] Miner
   - [x] Water Extractor
-  - [ ] Oil Extractor
+  - [x] Oil Extractor
   - [ ] Resource Well Pressurizer
 
 #### Smelters
@@ -17,7 +17,7 @@
 - [ ] Foundary
 
 #### Manufacturers
-- [ ] Constructor
+- [x] Constructor
 - [ ] Assembler
 - [ ] Manufactorer
 - [x] Packager

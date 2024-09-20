@@ -3,6 +3,7 @@ use egui::Color32;
 mod constructor;
 mod merger;
 mod miner;
+mod oil_extractor;
 mod packager;
 mod smelter;
 mod splitter;
@@ -12,6 +13,7 @@ mod water_extractor;
 pub use self::constructor::Constructor;
 pub use self::merger::Merger;
 pub use self::miner::Miner;
+pub use self::oil_extractor::OilExtractor;
 pub use self::packager::Packager;
 pub use self::smelter::Smelter;
 pub use self::splitter::Splitter;
@@ -27,6 +29,7 @@ pub enum Building {
     Constructor(Constructor),
     StorageContainer(StorageContainer),
     WaterExtractor(WaterExtractor),
+    OilExtractor(OilExtractor),
     Packager(Packager),
 }
 
@@ -407,6 +410,7 @@ impl Building {
             Self::Constructor(s) => s.header_image(),
             Self::StorageContainer(s) => s.header_image(),
             Self::WaterExtractor(s) => s.header_image(),
+            Self::OilExtractor(s) => s.header_image(),
             Self::Packager(s) => s.header_image(),
         }
     }
@@ -420,6 +424,7 @@ impl Building {
             Self::Constructor(s) => s.num_outputs(),
             Self::StorageContainer(s) => s.num_outputs(),
             Self::WaterExtractor(s) => s.num_outputs(),
+            Self::OilExtractor(s) => s.num_outputs(),
             Self::Packager(s) => s.num_outputs(),
         }
     }
@@ -433,6 +438,7 @@ impl Building {
             Self::Constructor(s) => s.num_inputs(),
             Self::StorageContainer(s) => s.num_inputs(),
             Self::WaterExtractor(s) => s.num_inputs(),
+            Self::OilExtractor(s) => s.num_inputs(),
             Self::Packager(s) => s.num_inputs(),
         }
     }
@@ -446,6 +452,7 @@ impl Building {
             Self::Constructor(s) => s.name(),
             Self::StorageContainer(s) => s.name(),
             Self::WaterExtractor(s) => s.name(),
+            Self::OilExtractor(s) => s.name(),
             Self::Packager(s) => s.name(),
         }
     }
@@ -459,6 +466,7 @@ impl Building {
             Self::Constructor(s) => s.description(),
             Self::StorageContainer(s) => s.description(),
             Self::WaterExtractor(s) => s.description(),
+            Self::OilExtractor(s) => s.description(),
             Self::Packager(s) => s.description(),
         }
     }

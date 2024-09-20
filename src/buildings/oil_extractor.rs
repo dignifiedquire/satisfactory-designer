@@ -1,37 +1,43 @@
 use strum::VariantArray;
 
-use super::{Fluid, Pipe};
+use super::{miner::ResourcePurity, Fluid, Pipe};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq)]
-pub struct WaterExtractor {
+pub struct OilExtractor {
     pub output_pipe: Option<Pipe>,
+    pub resource_purity: ResourcePurity,
     pub speed: f32,
 }
 
-impl Default for WaterExtractor {
+impl Default for OilExtractor {
     fn default() -> Self {
         Self {
             output_pipe: None,
+            resource_purity: ResourcePurity::Normal,
             speed: 100.,
         }
     }
 }
 
-impl WaterExtractor {
+impl OilExtractor {
     pub fn header_image(&self) -> &'static str {
-        "file://assets/img/Water_Extractor.png"
+        "file://assets/img/Oil_Extractor.png"
     }
 
     pub fn name(&self) -> String {
-        "Water Extractor".to_string()
+        "Oil Extractor".to_string()
     }
 
     pub fn description(&self) -> String {
-        "Extracts water".to_string()
+        "Extracts oil".to_string()
     }
 
     pub fn available_pipes(&self) -> &'static [Pipe] {
         Pipe::VARIANTS
+    }
+
+    pub fn available_purities(&self) -> &'static [ResourcePurity] {
+        ResourcePurity::VARIANTS
     }
 
     pub fn num_inputs(&self) -> usize {
@@ -44,7 +50,7 @@ impl WaterExtractor {
 
     pub fn output_speed(&self) -> f32 {
         let max = self.output_pipe.map(|p| p.speed()).unwrap_or_default();
-        let val = (120. * (self.speed / 100.)).round();
+        let val = (120. * self.resource_purity.modifier() * (self.speed / 100.)).round();
 
         if val > max {
             max
@@ -54,6 +60,6 @@ impl WaterExtractor {
     }
 
     pub fn output_fluid(&self) -> Fluid {
-        Fluid::Water
+        Fluid::CrudeOil
     }
 }
