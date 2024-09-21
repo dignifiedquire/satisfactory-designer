@@ -54,7 +54,7 @@ impl Viewer<'_> {
             Building::Packager(p) => {
                 if pin.id.input == 0 {
                     let max_input_speed =
-                        p.recipie.map(|r| r.input_fluid_speed()).unwrap_or_default();
+                        p.recipe.map(|r| r.input_fluid_speed()).unwrap_or_default();
                     let fluid = p.input_fluid().map(Resource::Fluid);
                     single_input(
                         fluid,
@@ -67,7 +67,7 @@ impl Viewer<'_> {
                     )
                 } else if pin.id.input == 1 {
                     let max_input_speed = p
-                        .recipie
+                        .recipe
                         .map(|r| r.input_material_speed())
                         .unwrap_or_default();
                     let material = p.input_material().map(Resource::Material);
@@ -87,7 +87,7 @@ impl Viewer<'_> {
             Building::Refinery(p) => {
                 if pin.id.input == 0 {
                     let max_input_speed =
-                        p.recipie.map(|r| r.input_fluid_speed()).unwrap_or_default();
+                        p.recipe.map(|r| r.input_fluid_speed()).unwrap_or_default();
                     let fluid = p.input_fluid().map(Resource::Fluid);
                     single_input(
                         fluid,
@@ -100,7 +100,7 @@ impl Viewer<'_> {
                     )
                 } else if pin.id.input == 1 {
                     let max_input_speed = p
-                        .recipie
+                        .recipe
                         .map(|r| r.input_material_speed())
                         .unwrap_or_default();
                     let material = p.input_material().map(Resource::Material);
@@ -325,8 +325,8 @@ impl SnarlViewer<Node> for Viewer<'_> {
                     Building::Packager(p) => {
                         ui.horizontal(|ui| {
                             let x = 20. * scale;
-                            if let Some(ref recipie) = p.recipie {
-                                let images = recipie.image();
+                            if let Some(ref recipe) = p.recipe {
+                                let images = recipe.image();
                                 if let Some(image) = images.0 {
                                     let image = egui::Image::new(image)
                                         .fit_to_exact_size(vec2(x, x))
@@ -347,17 +347,17 @@ impl SnarlViewer<Node> for Viewer<'_> {
                                 ui.add_space(x * 2.);
                             }
 
-                            let text = match &p.recipie {
+                            let text = match &p.recipe {
                                 Some(r) => r.name(),
-                                None => "Select Recipie".to_string(),
+                                None => "Select Recipe".to_string(),
                             };
-                            egui::ComboBox::from_id_source(egui::Id::new("packager_recipie"))
+                            egui::ComboBox::from_id_source(egui::Id::new("packager_recipe"))
                                 .selected_text(text)
                                 .show_ui(ui, |ui| {
-                                    for recipie in p.available_recipies() {
-                                        let name = recipie.name();
+                                    for recipe in p.available_recipes() {
+                                        let name = recipe.name();
                                         ui.horizontal(|ui| {
-                                            let image = match recipie.image() {
+                                            let image = match recipe.image() {
                                                 (Some(_image), Some(image)) => image,
                                                 (Some(image), None) => image,
                                                 (None, Some(image)) => image,
@@ -369,11 +369,7 @@ impl SnarlViewer<Node> for Viewer<'_> {
                                                 .fit_to_exact_size(vec2(20., 20.))
                                                 .show_loading_spinner(true);
                                             ui.add(image);
-                                            ui.selectable_value(
-                                                &mut p.recipie,
-                                                Some(*recipie),
-                                                name,
-                                            );
+                                            ui.selectable_value(&mut p.recipe, Some(*recipe), name);
                                         });
                                     }
                                 });
@@ -388,8 +384,8 @@ impl SnarlViewer<Node> for Viewer<'_> {
                     Building::Refinery(p) => {
                         ui.horizontal(|ui| {
                             let x = 20. * scale;
-                            if let Some(ref recipie) = p.recipie {
-                                let images = recipie.image();
+                            if let Some(ref recipe) = p.recipe {
+                                let images = recipe.image();
                                 if let Some(image) = images.0 {
                                     let image = egui::Image::new(image)
                                         .fit_to_exact_size(vec2(x, x))
@@ -410,17 +406,17 @@ impl SnarlViewer<Node> for Viewer<'_> {
                                 ui.add_space(x * 2.);
                             }
 
-                            let text = match &p.recipie {
+                            let text = match &p.recipe {
                                 Some(r) => r.name(),
-                                None => "Select Recipie".to_string(),
+                                None => "Select Recipe".to_string(),
                             };
-                            egui::ComboBox::from_id_source(egui::Id::new("refinery_recipie"))
+                            egui::ComboBox::from_id_source(egui::Id::new("refinery_recipe"))
                                 .selected_text(text)
                                 .show_ui(ui, |ui| {
-                                    for recipie in p.available_recipies() {
-                                        let name = recipie.name();
+                                    for recipe in p.available_recipes() {
+                                        let name = recipe.name();
                                         ui.horizontal(|ui| {
-                                            let image = match recipie.image() {
+                                            let image = match recipe.image() {
                                                 (Some(_image), Some(image)) => image,
                                                 (Some(image), None) => image,
                                                 (None, Some(image)) => image,
@@ -432,11 +428,7 @@ impl SnarlViewer<Node> for Viewer<'_> {
                                                 .fit_to_exact_size(vec2(20., 20.))
                                                 .show_loading_spinner(true);
                                             ui.add(image);
-                                            ui.selectable_value(
-                                                &mut p.recipie,
-                                                Some(*recipie),
-                                                name,
-                                            );
+                                            ui.selectable_value(&mut p.recipe, Some(*recipe), name);
                                         });
                                     }
                                 });
@@ -518,8 +510,8 @@ impl SnarlViewer<Node> for Viewer<'_> {
                     Building::Smelter(s) => {
                         ui.horizontal(|ui| {
                             let x = 20. * scale;
-                            if let Some(ref recipie) = s.recipie {
-                                let image = egui::Image::new(recipie.image())
+                            if let Some(ref recipe) = s.recipe {
+                                let image = egui::Image::new(recipe.image())
                                     .fit_to_exact_size(vec2(x, x))
                                     .show_loading_spinner(true);
                                 ui.add(image);
@@ -527,25 +519,21 @@ impl SnarlViewer<Node> for Viewer<'_> {
                                 ui.add_space(x);
                             }
 
-                            let text = match &s.recipie {
+                            let text = match &s.recipe {
                                 Some(r) => r.name(),
-                                None => "Select Recipie".to_string(),
+                                None => "Select Recipe".to_string(),
                             };
-                            egui::ComboBox::from_id_source(egui::Id::new("smelter_recipie"))
+                            egui::ComboBox::from_id_source(egui::Id::new("smelter_recipe"))
                                 .selected_text(text)
                                 .show_ui(ui, |ui| {
-                                    for recipie in s.available_recipies() {
-                                        let name = recipie.name();
+                                    for recipe in s.available_recipes() {
+                                        let name = recipe.name();
                                         ui.horizontal(|ui| {
-                                            let image = egui::Image::new(recipie.image())
+                                            let image = egui::Image::new(recipe.image())
                                                 .fit_to_exact_size(vec2(20., 20.))
                                                 .show_loading_spinner(true);
                                             ui.add(image);
-                                            ui.selectable_value(
-                                                &mut s.recipie,
-                                                Some(*recipie),
-                                                name,
-                                            );
+                                            ui.selectable_value(&mut s.recipe, Some(*recipe), name);
                                         });
                                     }
                                 });
@@ -562,8 +550,8 @@ impl SnarlViewer<Node> for Viewer<'_> {
                     Building::Constructor(s) => {
                         ui.horizontal(|ui| {
                             let x = 20. * scale;
-                            if let Some(ref recipie) = s.recipie {
-                                let image = egui::Image::new(recipie.image())
+                            if let Some(ref recipe) = s.recipe {
+                                let image = egui::Image::new(recipe.image())
                                     .fit_to_exact_size(vec2(x, x))
                                     .show_loading_spinner(true);
                                 ui.add(image);
@@ -571,27 +559,23 @@ impl SnarlViewer<Node> for Viewer<'_> {
                                 ui.add_space(x);
                             }
 
-                            let text = match &s.recipie {
+                            let text = match &s.recipe {
                                 Some(r) => r.name(),
-                                None => "Select Recipie".to_string(),
+                                None => "Select Recipe".to_string(),
                             };
 
-                            egui::ComboBox::from_id_source(egui::Id::new("constructor_recipie"))
+                            egui::ComboBox::from_id_source(egui::Id::new("constructor_recipe"))
                                 .selected_text(text)
                                 .show_ui(ui, |ui| {
-                                    for recipie in s.available_recipies() {
-                                        let name = recipie.name();
+                                    for recipe in s.available_recipes() {
+                                        let name = recipe.name();
 
                                         ui.horizontal(|ui| {
-                                            let image = egui::Image::new(recipie.image())
+                                            let image = egui::Image::new(recipe.image())
                                                 .fit_to_exact_size(vec2(20., 20.))
                                                 .show_loading_spinner(true);
                                             ui.add(image);
-                                            ui.selectable_value(
-                                                &mut s.recipie,
-                                                Some(*recipie),
-                                                name,
-                                            );
+                                            ui.selectable_value(&mut s.recipe, Some(*recipe), name);
                                         });
                                     }
                                 });
@@ -749,7 +733,7 @@ impl SnarlViewer<Node> for Viewer<'_> {
                         // Fluid
                         let fluid = p.output_fluid();
                         let max_speed = p
-                            .recipie
+                            .recipe
                             .as_ref()
                             .map(|r| r.max_output_speed_fluid())
                             .unwrap_or_default();
@@ -759,7 +743,7 @@ impl SnarlViewer<Node> for Viewer<'_> {
                         // Material
                         let material = p.output_material();
                         let max_speed = p
-                            .recipie
+                            .recipe
                             .as_ref()
                             .map(|r| r.max_output_speed_material())
                             .unwrap_or_default();
@@ -774,7 +758,7 @@ impl SnarlViewer<Node> for Viewer<'_> {
                         // Fluid
                         let fluid = p.output_fluid();
                         let max_speed = p
-                            .recipie
+                            .recipe
                             .as_ref()
                             .map(|r| r.max_output_speed_fluid())
                             .unwrap_or_default();
@@ -784,7 +768,7 @@ impl SnarlViewer<Node> for Viewer<'_> {
                         // Material
                         let material = p.output_material();
                         let max_speed = p
-                            .recipie
+                            .recipe
                             .as_ref()
                             .map(|r| r.max_output_speed_material())
                             .unwrap_or_default();
@@ -841,7 +825,7 @@ impl SnarlViewer<Node> for Viewer<'_> {
 
                     let material = s.output_material();
                     let max_speed = s
-                        .recipie
+                        .recipe
                         .as_ref()
                         .map(|r| r.max_output_speed())
                         .unwrap_or_default();
@@ -890,7 +874,7 @@ impl SnarlViewer<Node> for Viewer<'_> {
                     assert_eq!(pin.id.output, 0, "Constructor node has only one output");
                     let material = s.output_material();
                     let max_speed = s
-                        .recipie
+                        .recipe
                         .as_ref()
                         .map(|r| r.max_output_speed())
                         .unwrap_or_default();

@@ -305,12 +305,12 @@ impl Node {
                 Building::WaterExtractor(w) => Some(Resource::Fluid(w.output_fluid())),
                 Building::Packager(p) => match remote_node_output {
                     0 => p
-                        .recipie
+                        .recipe
                         .as_ref()
                         .and_then(|r| r.output_fluid())
                         .map(Resource::Fluid),
                     1 => p
-                        .recipie
+                        .recipe
                         .as_ref()
                         .and_then(|r| r.output_material())
                         .map(Resource::Material),
@@ -318,12 +318,12 @@ impl Node {
                 },
                 Building::Refinery(p) => match remote_node_output {
                     0 => p
-                        .recipie
+                        .recipe
                         .as_ref()
                         .and_then(|r| r.output_fluid())
                         .map(Resource::Fluid),
                     1 => p
-                        .recipie
+                        .recipe
                         .as_ref()
                         .and_then(|r| r.output_material())
                         .map(Resource::Material),
@@ -343,11 +343,11 @@ impl Node {
                     }
                 }
                 Building::Smelter(remote_s) => remote_s
-                    .recipie
+                    .recipe
                     .as_ref()
                     .map(|r| Resource::Material(r.output_material())),
                 Building::Constructor(remote_s) => remote_s
-                    .recipie
+                    .recipe
                     .as_ref()
                     .map(|r| Resource::Material(r.output_material())),
                 Building::Merger(_remote_m) => {

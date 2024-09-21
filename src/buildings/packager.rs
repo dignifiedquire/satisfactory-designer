@@ -14,7 +14,7 @@ use super::{calc_output, calc_output2, Fluid, Material};
     strum::Display,
     strum::VariantArray,
 )]
-pub enum PackagerRecipie {
+pub enum PackagerRecipe {
     #[strum(to_string = "Packaged Alumina Solution")]
     PackagedAluminaSolution,
     #[strum(to_string = "Packaged Fuel")]
@@ -65,7 +65,7 @@ pub enum PackagerRecipie {
     UnpackageWater,
 }
 
-impl PackagerRecipie {
+impl PackagerRecipe {
     pub fn name(&self) -> String {
         self.to_string()
     }
@@ -373,7 +373,7 @@ impl PackagerRecipie {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Packager {
-    pub recipie: Option<PackagerRecipie>,
+    pub recipe: Option<PackagerRecipe>,
     pub speed: f32,
     pub amplified: bool,
 }
@@ -381,7 +381,7 @@ pub struct Packager {
 impl Default for Packager {
     fn default() -> Self {
         Self {
-            recipie: None,
+            recipe: None,
             speed: 100.,
             amplified: false,
         }
@@ -393,12 +393,12 @@ impl Packager {
         load_img("Packager.png")
     }
 
-    pub fn available_recipies(&self) -> &'static [PackagerRecipie] {
-        PackagerRecipie::VARIANTS
+    pub fn available_recipes(&self) -> &'static [PackagerRecipe] {
+        PackagerRecipe::VARIANTS
     }
 
     pub fn name(&self) -> String {
-        match &self.recipie {
+        match &self.recipe {
             Some(r) => format!("Packager ({})", r.name()),
             None => "Packager".to_string(),
         }
@@ -418,7 +418,7 @@ impl Packager {
 
     pub fn input_material_speed(&self) -> f32 {
         let base = self
-            .recipie
+            .recipe
             .as_ref()
             .map(|r| r.input_material_speed())
             .unwrap_or_default();
@@ -427,7 +427,7 @@ impl Packager {
 
     pub fn input_fluid_speed(&self) -> f32 {
         let base = self
-            .recipie
+            .recipe
             .as_ref()
             .map(|r| r.input_fluid_speed())
             .unwrap_or_default();
@@ -435,16 +435,16 @@ impl Packager {
     }
 
     pub fn output_material(&self) -> Option<Material> {
-        self.recipie.as_ref().and_then(|r| r.output_material())
+        self.recipe.as_ref().and_then(|r| r.output_material())
     }
 
     pub fn output_fluid(&self) -> Option<Fluid> {
-        self.recipie.as_ref().and_then(|r| r.output_fluid())
+        self.recipe.as_ref().and_then(|r| r.output_fluid())
     }
 
     pub fn output_material_speed(&self, input_material_size: f32, input_fluid_size: f32) -> f32 {
         let base = self
-            .recipie
+            .recipe
             .as_ref()
             .map(|r| r.output_speed_material(input_material_size, input_fluid_size))
             .unwrap_or_default();
@@ -457,7 +457,7 @@ impl Packager {
 
     pub fn output_fluid_speed(&self, input_material_size: f32, input_fluid_size: f32) -> f32 {
         let base = self
-            .recipie
+            .recipe
             .as_ref()
             .map(|r| r.output_speed_fluid(input_material_size, input_fluid_size))
             .unwrap_or_default();
@@ -469,14 +469,14 @@ impl Packager {
     }
 
     pub fn input_material(&self) -> Option<Material> {
-        match self.recipie {
+        match self.recipe {
             Some(ref r) => r.input_material(),
             None => None,
         }
     }
 
     pub fn input_fluid(&self) -> Option<Fluid> {
-        match self.recipie {
+        match self.recipe {
             Some(ref r) => r.input_fluid(),
             None => None,
         }
@@ -490,19 +490,16 @@ mod tests {
     #[test]
     fn test_output_speed_packaged_water() {
         assert_eq!(
-            PackagerRecipie::PackagedWater.output_speed_material(0., 0.),
+            PackagerRecipe::PackagedWater.output_speed_material(0., 0.),
             0.
         );
+        assert_eq!(PackagerRecipe::PackagedWater.output_speed_fluid(0., 0.), 0.);
         assert_eq!(
-            PackagerRecipie::PackagedWater.output_speed_fluid(0., 0.),
-            0.
-        );
-        assert_eq!(
-            PackagerRecipie::PackagedWater.output_speed_material(60., 60.),
+            PackagerRecipe::PackagedWater.output_speed_material(60., 60.),
             60.
         );
         assert_eq!(
-            PackagerRecipie::PackagedWater.output_speed_fluid(60., 60.),
+            PackagerRecipe::PackagedWater.output_speed_fluid(60., 60.),
             0.
         );
     }
@@ -510,30 +507,30 @@ mod tests {
     #[test]
     fn test_output_speed_unpackage_water() {
         assert_eq!(
-            PackagerRecipie::UnpackageWater.output_speed_material(0., 0.),
+            PackagerRecipe::UnpackageWater.output_speed_material(0., 0.),
             0.
         );
         assert_eq!(
-            PackagerRecipie::UnpackageWater.output_speed_fluid(0., 0.),
+            PackagerRecipe::UnpackageWater.output_speed_fluid(0., 0.),
             0.
         );
 
         assert_eq!(
-            PackagerRecipie::UnpackageWater.output_speed_material(120., 0.),
+            PackagerRecipe::UnpackageWater.output_speed_material(120., 0.),
             120.
         );
         assert_eq!(
-            PackagerRecipie::UnpackageWater.output_speed_fluid(120., 0.),
+            PackagerRecipe::UnpackageWater.output_speed_fluid(120., 0.),
             120.
         );
 
         assert_eq!(
-            PackagerRecipie::UnpackageWater.output_speed_material(60., 0.),
+            PackagerRecipe::UnpackageWater.output_speed_material(60., 0.),
             60.,
             "material",
         );
         assert_eq!(
-            PackagerRecipie::UnpackageWater.output_speed_fluid(60., 0.),
+            PackagerRecipe::UnpackageWater.output_speed_fluid(60., 0.),
             60.,
             "fluid"
         );

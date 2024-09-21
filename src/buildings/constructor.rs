@@ -14,7 +14,7 @@ use super::{calc_output, Material};
     strum::Display,
     strum::VariantArray,
 )]
-pub enum ConstructorRecipie {
+pub enum ConstructorRecipe {
     #[strum(to_string = "Alien DNA Capsule")]
     AlienDnaCapsule,
     #[strum(to_string = "Aluminum Casing")]
@@ -103,7 +103,7 @@ pub enum ConstructorRecipie {
     SteelScrew,
 }
 
-impl ConstructorRecipie {
+impl ConstructorRecipe {
     pub fn name(&self) -> String {
         self.to_string()
     }
@@ -321,7 +321,7 @@ impl ConstructorRecipie {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Constructor {
-    pub recipie: Option<ConstructorRecipie>,
+    pub recipe: Option<ConstructorRecipe>,
     pub speed: f32,
     pub amplified: bool,
 }
@@ -329,7 +329,7 @@ pub struct Constructor {
 impl Default for Constructor {
     fn default() -> Self {
         Self {
-            recipie: None,
+            recipe: None,
             speed: 100.,
             amplified: false,
         }
@@ -341,12 +341,12 @@ impl Constructor {
         load_img("Constructor.png")
     }
 
-    pub fn available_recipies(&self) -> &'static [ConstructorRecipie] {
-        ConstructorRecipie::VARIANTS
+    pub fn available_recipes(&self) -> &'static [ConstructorRecipe] {
+        ConstructorRecipe::VARIANTS
     }
 
     pub fn name(&self) -> String {
-        match &self.recipie {
+        match &self.recipe {
             Some(r) => format!("Constructor ({})", r.name()),
             None => "Constructor".to_string(),
         }
@@ -366,7 +366,7 @@ impl Constructor {
 
     pub fn input_speed(&self) -> f32 {
         let base = self
-            .recipie
+            .recipe
             .as_ref()
             .map(|r| r.input_speed())
             .unwrap_or_default();
@@ -375,7 +375,7 @@ impl Constructor {
 
     pub fn output_speed(&self, input_size: f32) -> f32 {
         let base = self
-            .recipie
+            .recipe
             .as_ref()
             .map(|r| r.output_speed(input_size))
             .unwrap_or_default();
@@ -387,11 +387,11 @@ impl Constructor {
     }
 
     pub fn input_material(&self) -> Option<Material> {
-        self.recipie.as_ref().map(|r| r.input_material())
+        self.recipe.as_ref().map(|r| r.input_material())
     }
 
     pub fn output_material(&self) -> Option<Material> {
-        self.recipie.as_ref().map(|r| r.output_material())
+        self.recipe.as_ref().map(|r| r.output_material())
     }
 }
 
@@ -401,11 +401,11 @@ mod tests {
 
     #[test]
     fn test_output_speed() {
-        assert_eq!(ConstructorRecipie::SteelPipe.output_speed(0.), 0.);
-        assert_eq!(ConstructorRecipie::SteelPipe.output_speed(15.), 10.);
-        assert_eq!(ConstructorRecipie::SteelPipe.output_speed(30.), 20.);
-        assert_eq!(ConstructorRecipie::SteelPipe.output_speed(60.), 20.);
+        assert_eq!(ConstructorRecipe::SteelPipe.output_speed(0.), 0.);
+        assert_eq!(ConstructorRecipe::SteelPipe.output_speed(15.), 10.);
+        assert_eq!(ConstructorRecipe::SteelPipe.output_speed(30.), 20.);
+        assert_eq!(ConstructorRecipe::SteelPipe.output_speed(60.), 20.);
 
-        assert_eq!(ConstructorRecipie::SteelPipe.max_output_speed(), 20.);
+        assert_eq!(ConstructorRecipe::SteelPipe.max_output_speed(), 20.);
     }
 }

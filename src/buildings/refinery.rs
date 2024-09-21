@@ -14,7 +14,7 @@ use super::{calc_output, calc_output2, round, Fluid, Material};
     strum::Display,
     strum::VariantArray,
 )]
-pub enum RefineryRecipie {
+pub enum RefineryRecipe {
     #[strum(to_string = "Alumina Solution")]
     AluminaSolution,
     #[strum(to_string = "Aluminum Scrap")]
@@ -85,7 +85,7 @@ pub enum RefineryRecipie {
     WetConcrete,
 }
 
-impl RefineryRecipie {
+impl RefineryRecipe {
     pub fn name(&self) -> String {
         self.to_string()
     }
@@ -463,7 +463,7 @@ impl RefineryRecipie {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Refinery {
-    pub recipie: Option<RefineryRecipie>,
+    pub recipe: Option<RefineryRecipe>,
     pub speed: f32,
     pub amplified: bool,
 }
@@ -471,7 +471,7 @@ pub struct Refinery {
 impl Default for Refinery {
     fn default() -> Self {
         Self {
-            recipie: None,
+            recipe: None,
             speed: 100.,
             amplified: false,
         }
@@ -483,12 +483,12 @@ impl Refinery {
         load_img("Refinery.png")
     }
 
-    pub fn available_recipies(&self) -> &'static [RefineryRecipie] {
-        RefineryRecipie::VARIANTS
+    pub fn available_recipes(&self) -> &'static [RefineryRecipe] {
+        RefineryRecipe::VARIANTS
     }
 
     pub fn name(&self) -> String {
-        match &self.recipie {
+        match &self.recipe {
             Some(r) => format!("Refinery ({})", r.name()),
             None => "Refinery".to_string(),
         }
@@ -508,7 +508,7 @@ impl Refinery {
 
     pub fn output_material_speed(&self, input_material_size: f32, input_fluid_size: f32) -> f32 {
         let base = self
-            .recipie
+            .recipe
             .as_ref()
             .map(|r| r.output_speed_material(input_material_size, input_fluid_size))
             .unwrap_or_default();
@@ -521,7 +521,7 @@ impl Refinery {
 
     pub fn output_fluid_speed(&self, input_material_size: f32, input_fluid_size: f32) -> f32 {
         let base = self
-            .recipie
+            .recipe
             .as_ref()
             .map(|r| r.output_speed_fluid(input_material_size, input_fluid_size))
             .unwrap_or_default();
@@ -533,18 +533,18 @@ impl Refinery {
     }
 
     pub fn output_material(&self) -> Option<Material> {
-        self.recipie.as_ref().and_then(|r| r.output_material())
+        self.recipe.as_ref().and_then(|r| r.output_material())
     }
 
     pub fn output_fluid(&self) -> Option<Fluid> {
-        self.recipie.as_ref().and_then(|r| r.output_fluid())
+        self.recipe.as_ref().and_then(|r| r.output_fluid())
     }
 
     pub fn input_material(&self) -> Option<Material> {
-        self.recipie.as_ref().and_then(|r| r.input_material())
+        self.recipe.as_ref().and_then(|r| r.input_material())
     }
     pub fn input_fluid(&self) -> Option<Fluid> {
-        self.recipie.as_ref().and_then(|r| r.input_fluid())
+        self.recipe.as_ref().and_then(|r| r.input_fluid())
     }
 }
 
@@ -555,19 +555,19 @@ mod tests {
     #[test]
     fn test_output_speed_steamed_copper_sheet() {
         assert_eq!(
-            RefineryRecipie::SteamedCopperSheet.output_speed_material(0., 0.),
+            RefineryRecipe::SteamedCopperSheet.output_speed_material(0., 0.),
             0.
         );
         assert_eq!(
-            RefineryRecipie::SteamedCopperSheet.output_speed_fluid(0., 0.),
+            RefineryRecipe::SteamedCopperSheet.output_speed_fluid(0., 0.),
             0.
         );
         assert_eq!(
-            RefineryRecipie::SteamedCopperSheet.output_speed_material(22.5, 22.5),
+            RefineryRecipe::SteamedCopperSheet.output_speed_material(22.5, 22.5),
             22.5
         );
         assert_eq!(
-            RefineryRecipie::SteamedCopperSheet.output_speed_fluid(22.5, 22.5),
+            RefineryRecipe::SteamedCopperSheet.output_speed_fluid(22.5, 22.5),
             0.
         );
     }

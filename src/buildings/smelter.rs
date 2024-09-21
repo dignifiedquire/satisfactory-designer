@@ -15,7 +15,7 @@ use super::{calc_output, Material};
     strum::Display,
     strum::VariantArray,
 )]
-pub enum SmelterRecipie {
+pub enum SmelterRecipe {
     #[strum(to_string = "Caterium Ingot")]
     CateriumIngot,
     #[strum(to_string = "Copper Ingot")]
@@ -26,7 +26,7 @@ pub enum SmelterRecipie {
     PureAluminumIngot,
 }
 
-impl SmelterRecipie {
+impl SmelterRecipe {
     pub fn name(&self) -> String {
         self.to_string()
     }
@@ -92,7 +92,7 @@ impl SmelterRecipie {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Smelter {
-    pub recipie: Option<SmelterRecipie>,
+    pub recipe: Option<SmelterRecipe>,
     pub speed: f32,
     pub amplified: bool,
 }
@@ -100,7 +100,7 @@ pub struct Smelter {
 impl Default for Smelter {
     fn default() -> Self {
         Self {
-            recipie: None,
+            recipe: None,
             speed: 100.,
             amplified: false,
         }
@@ -112,12 +112,12 @@ impl Smelter {
         load_img("Smelter.png")
     }
 
-    pub fn available_recipies(&self) -> &'static [SmelterRecipie] {
-        SmelterRecipie::VARIANTS
+    pub fn available_recipes(&self) -> &'static [SmelterRecipe] {
+        SmelterRecipe::VARIANTS
     }
 
     pub fn name(&self) -> String {
-        match &self.recipie {
+        match &self.recipe {
             Some(r) => format!("Smelter ({})", r.name()),
             None => "Smelter".to_string(),
         }
@@ -137,7 +137,7 @@ impl Smelter {
 
     pub fn input_speed(&self) -> f32 {
         let base = self
-            .recipie
+            .recipe
             .as_ref()
             .map(|r| r.input_speed())
             .unwrap_or_default();
@@ -146,7 +146,7 @@ impl Smelter {
 
     pub fn output_speed(&self, input_size: f32) -> f32 {
         let base = self
-            .recipie
+            .recipe
             .as_ref()
             .map(|r| r.output_speed(input_size))
             .unwrap_or_default();
@@ -158,11 +158,11 @@ impl Smelter {
     }
 
     pub fn input_material(&self) -> Option<Material> {
-        self.recipie.as_ref().map(|r| r.input_material())
+        self.recipe.as_ref().map(|r| r.input_material())
     }
 
     pub fn output_material(&self) -> Option<Material> {
-        self.recipie.as_ref().map(|r| r.output_material())
+        self.recipe.as_ref().map(|r| r.output_material())
     }
 }
 
@@ -172,20 +172,20 @@ mod tests {
 
     #[test]
     fn test_output_speed() {
-        assert_eq!(SmelterRecipie::CateriumIngot.output_speed(0.), 0.);
-        assert_eq!(SmelterRecipie::CateriumIngot.output_speed(15.), 5.);
-        assert_eq!(SmelterRecipie::CateriumIngot.output_speed(45.), 15.);
-        assert_eq!(SmelterRecipie::CateriumIngot.output_speed(60.), 15.);
+        assert_eq!(SmelterRecipe::CateriumIngot.output_speed(0.), 0.);
+        assert_eq!(SmelterRecipe::CateriumIngot.output_speed(15.), 5.);
+        assert_eq!(SmelterRecipe::CateriumIngot.output_speed(45.), 15.);
+        assert_eq!(SmelterRecipe::CateriumIngot.output_speed(60.), 15.);
 
-        assert_eq!(SmelterRecipie::IronIngot.output_speed(0.), 0.);
-        assert_eq!(SmelterRecipie::IronIngot.output_speed(10.), 10.);
-        assert_eq!(SmelterRecipie::IronIngot.output_speed(30.), 30.);
-        assert_eq!(SmelterRecipie::IronIngot.output_speed(60.), 30.);
+        assert_eq!(SmelterRecipe::IronIngot.output_speed(0.), 0.);
+        assert_eq!(SmelterRecipe::IronIngot.output_speed(10.), 10.);
+        assert_eq!(SmelterRecipe::IronIngot.output_speed(30.), 30.);
+        assert_eq!(SmelterRecipe::IronIngot.output_speed(60.), 30.);
 
-        assert_eq!(SmelterRecipie::PureAluminumIngot.output_speed(0.), 0.);
-        assert_eq!(SmelterRecipie::PureAluminumIngot.output_speed(10.), 5.);
-        assert_eq!(SmelterRecipie::PureAluminumIngot.output_speed(30.), 15.);
-        assert_eq!(SmelterRecipie::PureAluminumIngot.output_speed(60.), 30.);
-        assert_eq!(SmelterRecipie::PureAluminumIngot.output_speed(120.), 30.);
+        assert_eq!(SmelterRecipe::PureAluminumIngot.output_speed(0.), 0.);
+        assert_eq!(SmelterRecipe::PureAluminumIngot.output_speed(10.), 5.);
+        assert_eq!(SmelterRecipe::PureAluminumIngot.output_speed(30.), 15.);
+        assert_eq!(SmelterRecipe::PureAluminumIngot.output_speed(60.), 30.);
+        assert_eq!(SmelterRecipe::PureAluminumIngot.output_speed(120.), 30.);
     }
 }
