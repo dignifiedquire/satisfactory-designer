@@ -10,6 +10,9 @@
 - Click and drag buildings to move them
 - Hold Shift to select multiple buildings
 - Right click buildings to duplicate or remove them
+- Groups (highly experimental)
+  - Select multiple buildings and use the right click menu to `Group` them
+  - Right click a group to edit it again, when the tab is closed it is saved and updatedx
 
 
 ## Supported Buildings

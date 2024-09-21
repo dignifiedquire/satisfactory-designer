@@ -18,3 +18,6 @@ egui_dock = { version = "0.13.0", features = ["serde"] }
 
 [profile.release]
 debug = true
+
+[patch.crates-io]
+egui-snarl = { git = "https://github.com/zakarumych/egui-snarl" }

@@ -24,7 +24,7 @@ pub use self::splitter::Splitter;
 pub use self::storage_container::StorageContainer;
 pub use self::water_extractor::WaterExtractor;
 
-#[derive(Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, serde::Serialize, serde::Deserialize, Debug)]
 pub enum Building {
     Miner(Miner),
     Smelter(Smelter),

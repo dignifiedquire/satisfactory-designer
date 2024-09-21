@@ -6,6 +6,43 @@ use crate::buildings::{Building, Fluid, Material};
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
 pub enum Node {
     Building(Building),
+    Group {
+        snarl: Snarl<Node>,
+        /// Number of open inputs
+        num_inputs: usize,
+        /// Number of open outputs
+        num_outputs: usize,
+    },
+}
+
+impl Node {
+    pub fn name(&self) -> String {
+        match self {
+            Self::Building(b) => b.name(),
+            Self::Group { snarl, .. } => format!("Group ({})", snarl.nodes().count()),
+        }
+    }
+
+    pub fn header_image(&self) -> Option<String> {
+        match self {
+            Self::Building(b) => Some(b.header_image()),
+            Self::Group { .. } => None,
+        }
+    }
+
+    pub fn inputs(&self) -> usize {
+        match self {
+            Self::Building(b) => b.inputs(),
+            Self::Group { num_inputs, .. } => *num_inputs,
+        }
+    }
+
+    pub fn outputs(&self) -> usize {
+        match self {
+            Self::Building(b) => b.outputs(),
+            Self::Group { num_outputs, .. } => *num_outputs,
+        }
+    }
 }
 
 pub enum Resource {
@@ -44,6 +81,10 @@ impl Node {
         remote_node_output: usize,
     ) -> f32 {
         match self {
+            Node::Group { .. } => {
+                // TODO
+                0.
+            }
             Node::Building(b) => match b {
                 Building::Miner(remote_m) => remote_m.output_speed(),
                 Building::OilExtractor(m) => m.output_speed(),
@@ -181,6 +222,10 @@ impl Node {
         remote_node_output: usize,
     ) -> Option<Resource> {
         match self {
+            Node::Group { .. } => {
+                // TODO
+                None
+            }
             Node::Building(b) => match b {
                 Building::Miner(remote_m) => remote_m
                     .resource
