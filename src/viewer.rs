@@ -1,18 +1,18 @@
-use egui::{vec2, FontId, RichText, Ui, Vec2};
+use egui::{vec2, Color32, FontId, RichText, Ui, Vec2};
 use egui_snarl::{
     ui::{AnyPins, PinInfo, SnarlViewer},
     InPin, NodeId, OutPin, Snarl,
 };
 
 use crate::{
-    add_resource_image, add_speed_ui,
     buildings::{
         Building, Constructor, Merger, Miner, OilExtractor, Packager, Refinery, Smelter, Splitter,
         StorageContainer, WaterExtractor,
     },
     node::{Node, Resource},
-    BUILDING_COLOR,
 };
+
+const BUILDING_COLOR: Color32 = Color32::from_rgb(0xb0, 0xb0, 0xb0);
 
 pub struct Viewer;
 
@@ -1098,4 +1098,27 @@ impl SnarlViewer<Node> for Viewer {
             ui.close_menu();
         }
     }
+}
+
+fn add_resource_image(ui: &mut Ui, scale: f32, material: &Option<Resource>) {
+    if let Some(material) = material {
+        let image = egui::Image::new(material.image())
+            .max_height(20. * scale)
+            .maintain_aspect_ratio(true)
+            .show_loading_spinner(true);
+        ui.add(image).on_hover_ui(|ui| {
+            ui.style_mut().interaction.selectable_labels = true;
+            ui.label(material.name());
+        });
+    } else {
+        ui.add_space(20. * scale);
+    }
+}
+
+fn add_speed_ui(ui: &mut Ui, value: &mut f32) {
+    ui.horizontal(|ui| {
+        let overclock = egui::DragValue::new(value).range(0.0..=250.0).suffix("%");
+        ui.add(overclock);
+        ui.label("Speed");
+    });
 }
