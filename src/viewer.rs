@@ -14,6 +14,7 @@ use crate::{
 };
 
 const BUILDING_COLOR: Color32 = Color32::from_rgb(0xb0, 0xb0, 0xb0);
+const INVALID_COLOR: Color32 = Color32::from_rgb(144, 20, 0);
 
 pub struct Viewer<'a> {
     pub snarl_id_source: String,
@@ -51,101 +52,67 @@ impl Viewer<'_> {
                 unreachable!("Storage Container has no inputs")
             }
             Building::Packager(p) => {
-                let (actual_input_speed, resource) = match &*pin.remotes {
-                    [] => (0., None),
-                    [remote] => {
-                        let speed =
-                            snarl[remote.node].output_speed(snarl, remote.node, remote.output);
-                        let material =
-                            snarl[remote.node].output_material(snarl, remote.node, remote.output);
-                        (speed, material)
-                    }
-                    _ => unreachable!("only one output"),
-                };
-
-                let color = resource
-                    .as_ref()
-                    .map(|m| m.color())
-                    .unwrap_or(BUILDING_COLOR);
-
                 if pin.id.input == 0 {
-                    let max_input_speed = p
-                        .recipie
-                        .map(|r| r.max_output_speed_fluid())
-                        .unwrap_or_default();
-                    ui.horizontal(|ui| {
-                        add_resource_image(ui, scale, &resource);
-                        ui.label(format!(
-                            "{}/m^3 ({}/m^3)",
-                            actual_input_speed, max_input_speed
-                        ));
-                    });
-
-                    PinInfo::circle().with_fill(color)
+                    let max_input_speed =
+                        p.recipie.map(|r| r.input_fluid_speed()).unwrap_or_default();
+                    let fluid = p.input_fluid().map(Resource::Fluid);
+                    single_input(
+                        fluid,
+                        max_input_speed,
+                        ui,
+                        pin,
+                        scale,
+                        snarl,
+                        PinInfo::circle(),
+                    )
                 } else if pin.id.input == 1 {
                     let max_input_speed = p
                         .recipie
-                        .map(|r| r.max_output_speed_fluid())
+                        .map(|r| r.input_material_speed())
                         .unwrap_or_default();
-                    ui.horizontal(|ui| {
-                        add_resource_image(ui, scale, &resource);
-                        ui.label(format!(
-                            "{}/min ({}/min)",
-                            actual_input_speed, max_input_speed
-                        ));
-                    });
-
-                    PinInfo::square().with_fill(color)
+                    let material = p.input_material().map(Resource::Material);
+                    single_input(
+                        material,
+                        max_input_speed,
+                        ui,
+                        pin,
+                        scale,
+                        snarl,
+                        PinInfo::square(),
+                    )
                 } else {
                     unreachable!("only two inputs");
                 }
             }
             Building::Refinery(p) => {
-                let (actual_input_speed, resource) = match &*pin.remotes {
-                    [] => (0., None),
-                    [remote] => {
-                        let speed =
-                            snarl[remote.node].output_speed(snarl, remote.node, remote.output);
-                        let material =
-                            snarl[remote.node].output_material(snarl, remote.node, remote.output);
-                        (speed, material)
-                    }
-                    _ => unreachable!("only one output"),
-                };
-
-                let color = resource
-                    .as_ref()
-                    .map(|m| m.color())
-                    .unwrap_or(BUILDING_COLOR);
-
                 if pin.id.input == 0 {
-                    let max_input_speed = p
-                        .recipie
-                        .map(|r| r.max_output_speed_fluid())
-                        .unwrap_or_default();
-                    ui.horizontal(|ui| {
-                        add_resource_image(ui, scale, &resource);
-                        ui.label(format!(
-                            "{}/m^3 ({}/m^3)",
-                            actual_input_speed, max_input_speed
-                        ));
-                    });
-
-                    PinInfo::circle().with_fill(color)
+                    let max_input_speed =
+                        p.recipie.map(|r| r.input_fluid_speed()).unwrap_or_default();
+                    let fluid = p.input_fluid().map(Resource::Fluid);
+                    single_input(
+                        fluid,
+                        max_input_speed,
+                        ui,
+                        pin,
+                        scale,
+                        snarl,
+                        PinInfo::circle(),
+                    )
                 } else if pin.id.input == 1 {
                     let max_input_speed = p
                         .recipie
-                        .map(|r| r.max_output_speed_fluid())
+                        .map(|r| r.input_material_speed())
                         .unwrap_or_default();
-                    ui.horizontal(|ui| {
-                        add_resource_image(ui, scale, &resource);
-                        ui.label(format!(
-                            "{}/min ({}/min)",
-                            actual_input_speed, max_input_speed
-                        ));
-                    });
-
-                    PinInfo::square().with_fill(color)
+                    let material = p.input_material().map(Resource::Material);
+                    single_input(
+                        material,
+                        max_input_speed,
+                        ui,
+                        pin,
+                        scale,
+                        snarl,
+                        PinInfo::square(),
+                    )
                 } else {
                     unreachable!("only two inputs");
                 }
@@ -153,32 +120,18 @@ impl Viewer<'_> {
             Building::Smelter(ref s) => {
                 assert_eq!(pin.id.input, 0, "Smelter node has only one input");
 
-                let (actual_input_speed, resource) = match &*pin.remotes {
-                    [] => (0., None),
-                    [remote] => {
-                        let speed =
-                            snarl[remote.node].output_speed(snarl, remote.node, remote.output);
-                        let material =
-                            snarl[remote.node].output_material(snarl, remote.node, remote.output);
-                        (speed, material)
-                    }
-                    _ => unreachable!("only one output"),
-                };
-
+                let material = s.input_material().map(Resource::Material);
                 let max_input_speed = s.input_speed();
-                let color = resource
-                    .as_ref()
-                    .map(|m| m.color())
-                    .unwrap_or(BUILDING_COLOR);
 
-                ui.horizontal(|ui| {
-                    add_resource_image(ui, scale, &resource);
-                    ui.label(format!(
-                        "{}/min ({}/min)",
-                        actual_input_speed, max_input_speed
-                    ));
-                });
-                PinInfo::square().with_fill(color)
+                single_input(
+                    material,
+                    max_input_speed,
+                    ui,
+                    pin,
+                    scale,
+                    snarl,
+                    PinInfo::square(),
+                )
             }
             Building::Splitter(_) => {
                 assert_eq!(pin.id.input, 0, "Splitter node has only one input");
@@ -236,33 +189,18 @@ impl Viewer<'_> {
             Building::Constructor(ref s) => {
                 assert_eq!(pin.id.input, 0, "Constructor node has only one input");
 
-                let (actual_input_speed, material) = match &*pin.remotes {
-                    [] => (0., None),
-                    [remote] => {
-                        let speed =
-                            snarl[remote.node].output_speed(snarl, remote.node, remote.output);
-                        let material =
-                            snarl[remote.node].output_material(snarl, remote.node, remote.output);
-                        (speed, material)
-                    }
-                    _ => unreachable!("only one output"),
-                };
-
+                let material = s.input_material().map(Resource::Material);
                 let max_input_speed = s.input_speed();
-                let color = material
-                    .as_ref()
-                    .map(|m| m.color())
-                    .unwrap_or(BUILDING_COLOR);
 
-                ui.horizontal(|ui| {
-                    add_resource_image(ui, scale, &material);
-                    ui.label(format!(
-                        "{}/min ({}/min)",
-                        actual_input_speed, max_input_speed
-                    ));
-                });
-
-                PinInfo::square().with_fill(color)
+                single_input(
+                    material,
+                    max_input_speed,
+                    ui,
+                    pin,
+                    scale,
+                    snarl,
+                    PinInfo::square(),
+                )
             }
         }
     }
@@ -1245,4 +1183,60 @@ fn add_speed_ui(ui: &mut Ui, value: &mut f32) {
         ui.add(overclock);
         ui.label("Speed");
     });
+}
+
+fn single_input(
+    resource: Option<Resource>,
+    max_input_speed: f32,
+    ui: &mut Ui,
+    pin: &InPin,
+    scale: f32,
+    snarl: &Snarl<Node>,
+    pin_info: PinInfo,
+) -> PinInfo {
+    let (actual_input_speed, actual_input_material) = match &*pin.remotes {
+        [] => (0., None),
+        [remote] => {
+            let speed = snarl[remote.node].output_speed(snarl, remote.node, remote.output);
+            let material = snarl[remote.node].output_material(snarl, remote.node, remote.output);
+            (speed, material)
+        }
+        _ => unreachable!("only one output"),
+    };
+
+    let color = match (resource, actual_input_material) {
+        (Some(resource), Some(actual_input_material)) => {
+            let (actual_input_speed, color) = if resource == actual_input_material {
+                let v = format!("{}/min", actual_input_speed);
+                let color = resource.color();
+
+                (v, color)
+            } else {
+                ("NA".to_string(), INVALID_COLOR)
+            };
+            ui.horizontal(|ui| {
+                add_resource_image(ui, scale, &Some(resource));
+                ui.label(format!("{} ({}/min)", actual_input_speed, max_input_speed));
+            });
+            color
+        }
+        (Some(resource), None) => {
+            ui.horizontal(|ui| {
+                add_resource_image(ui, scale, &Some(resource));
+                ui.label(format!("NA ({}/min)", max_input_speed));
+            });
+            INVALID_COLOR
+        }
+        (None, Some(_actual_input_material)) => {
+            ui.horizontal(|ui| {
+                add_resource_image(ui, scale, &None);
+                ui.label(format!("{}/min (NA)", actual_input_speed));
+            });
+
+            INVALID_COLOR
+        }
+        (None, None) => BUILDING_COLOR,
+    };
+
+    pin_info.with_fill(color)
 }

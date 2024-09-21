@@ -158,10 +158,7 @@ impl Smelter {
     }
 
     pub fn input_material(&self) -> Option<Material> {
-        match self.recipie {
-            Some(ref r) => Some(r.input_material()),
-            None => None,
-        }
+        self.recipie.as_ref().map(|r| r.input_material())
     }
 }
 

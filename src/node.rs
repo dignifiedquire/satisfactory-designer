@@ -45,6 +45,7 @@ impl Node {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Resource {
     Material(Material),
     Fluid(Fluid),

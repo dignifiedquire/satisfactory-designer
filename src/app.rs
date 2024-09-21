@@ -182,7 +182,7 @@ impl eframe::App for App {
                         let tab = &mut self.tree[surface][node_index];
                         match tab {
                             egui_dock::Node::Leaf { tabs, .. } => {
-                                if let Some((id, node)) = tabs[tab_index]
+                                if let Some((_id, node)) = tabs[tab_index]
                                     .snarl
                                     .nodes_ids_mut()
                                     .find(|(id, _)| id == &group_id)

@@ -94,6 +94,7 @@ impl ResourceType {
     serde::Serialize,
     serde::Deserialize,
     PartialEq,
+    Eq,
     strum::Display,
     strum::VariantArray,
 )]
@@ -354,6 +355,7 @@ impl Material {
     serde::Serialize,
     serde::Deserialize,
     PartialEq,
+    Eq,
     strum::Display,
     strum::VariantArray,
 )]
