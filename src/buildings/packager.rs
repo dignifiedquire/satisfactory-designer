@@ -434,6 +434,14 @@ impl Packager {
         (base as f32 * (self.speed / 100.)).round()
     }
 
+    pub fn output_material(&self) -> Option<Material> {
+        self.recipie.as_ref().and_then(|r| r.output_material())
+    }
+
+    pub fn output_fluid(&self) -> Option<Fluid> {
+        self.recipie.as_ref().and_then(|r| r.output_fluid())
+    }
+
     pub fn output_material_speed(&self, input_material_size: f32, input_fluid_size: f32) -> f32 {
         let base = self
             .recipie

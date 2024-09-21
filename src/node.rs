@@ -112,6 +112,27 @@ impl Node {
                         })
                         .unwrap_or_default();
 
+                    let input_fluid = input_wire_fluid
+                        .map(|(output, _input)| {
+                            snarl[output.node].output_resource(snarl, output.node, output.output)
+                        })
+                        .unwrap_or_default();
+
+                    let input_material = input_wire_material
+                        .map(|(output, _input)| {
+                            snarl[output.node].output_resource(snarl, output.node, output.output)
+                        })
+                        .unwrap_or_default();
+
+                    let expected_input_fluid = p.input_fluid().map(Resource::Fluid);
+                    let expected_input_material = p.input_material().map(Resource::Material);
+
+                    let is_valid = expected_input_fluid == input_fluid
+                        && expected_input_material == input_material;
+                    if !is_valid {
+                        return 0.;
+                    }
+
                     match remote_node_output {
                         0 => p.output_fluid_speed(input_material_speed, input_fluid_speed),
                         1 => p.output_material_speed(input_material_speed, input_fluid_speed),
@@ -138,6 +159,28 @@ impl Node {
                             snarl[output.node].output_speed(snarl, output.node, output.output)
                         })
                         .unwrap_or_default();
+
+                    let input_fluid = input_wire_fluid
+                        .map(|(output, _input)| {
+                            snarl[output.node].output_resource(snarl, output.node, output.output)
+                        })
+                        .unwrap_or_default();
+
+                    let input_material = input_wire_material
+                        .map(|(output, _input)| {
+                            snarl[output.node].output_resource(snarl, output.node, output.output)
+                        })
+                        .unwrap_or_default();
+
+                    let expected_input_fluid = p.input_fluid().map(Resource::Fluid);
+                    let expected_input_material = p.input_material().map(Resource::Material);
+
+                    let is_valid = expected_input_fluid == input_fluid
+                        && expected_input_material == input_material;
+
+                    if !is_valid {
+                        return 0.;
+                    }
 
                     match remote_node_output {
                         0 => p.output_fluid_speed(input_material_speed, input_fluid_speed),
@@ -166,7 +209,7 @@ impl Node {
                         None => 0.,
                     }
                 }
-                Building::Smelter(remote_s) => {
+                Building::Smelter(s) => {
                     let input_wire = snarl
                         .wires()
                         .find(|(_output, input)| input.node == remote_node);
@@ -176,9 +219,23 @@ impl Node {
                             snarl[output.node].output_speed(snarl, output.node, output.output)
                         })
                         .unwrap_or_default();
-                    remote_s.output_speed(input_speed)
+
+                    let input_material = input_wire
+                        .map(|(output, _input)| {
+                            snarl[output.node].output_resource(snarl, output.node, output.output)
+                        })
+                        .unwrap_or_default();
+
+                    let expected_input_material = s.input_material().map(Resource::Material);
+
+                    let is_valid = expected_input_material == input_material;
+                    if !is_valid {
+                        return 0.;
+                    }
+
+                    s.output_speed(input_speed)
                 }
-                Building::Constructor(remote_s) => {
+                Building::Constructor(c) => {
                     let input_wire = snarl
                         .wires()
                         .find(|(_output, input)| input.node == remote_node);
@@ -188,9 +245,21 @@ impl Node {
                             snarl[output.node].output_speed(snarl, output.node, output.output)
                         })
                         .unwrap_or_default();
-                    remote_s.output_speed(input_speed)
-                }
 
+                    let input_material = input_wire
+                        .map(|(output, _input)| {
+                            snarl[output.node].output_resource(snarl, output.node, output.output)
+                        })
+                        .unwrap_or_default();
+
+                    let expected_input_material = c.input_material().map(Resource::Material);
+
+                    let is_valid = expected_input_material == input_material;
+                    if !is_valid {
+                        return 0.;
+                    }
+                    c.output_speed(input_speed)
+                }
                 Building::Merger(_remote_m) => {
                     let wires = snarl
                         .wires()
@@ -216,7 +285,7 @@ impl Node {
     }
 
     /// The output material
-    pub fn output_material(
+    pub fn output_resource(
         &self,
         snarl: &Snarl<Node>,
         remote_node: NodeId,
@@ -268,7 +337,7 @@ impl Node {
 
                     match input_wire {
                         Some((output, _input)) => {
-                            snarl[output.node].output_material(snarl, output.node, output.output)
+                            snarl[output.node].output_resource(snarl, output.node, output.output)
                         }
                         None => None,
                     }
@@ -289,7 +358,7 @@ impl Node {
 
                     match input_wire {
                         Some((output, _input)) => {
-                            snarl[output.node].output_material(snarl, output.node, output.output)
+                            snarl[output.node].output_resource(snarl, output.node, output.output)
                         }
                         None => None,
                     }

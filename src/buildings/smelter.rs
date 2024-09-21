@@ -160,6 +160,10 @@ impl Smelter {
     pub fn input_material(&self) -> Option<Material> {
         self.recipie.as_ref().map(|r| r.input_material())
     }
+
+    pub fn output_material(&self) -> Option<Material> {
+        self.recipie.as_ref().map(|r| r.output_material())
+    }
 }
 
 #[cfg(test)]

@@ -532,6 +532,14 @@ impl Refinery {
         round(base as f32 * (self.speed / 100.) * amplification)
     }
 
+    pub fn output_material(&self) -> Option<Material> {
+        self.recipie.as_ref().and_then(|r| r.output_material())
+    }
+
+    pub fn output_fluid(&self) -> Option<Fluid> {
+        self.recipie.as_ref().and_then(|r| r.output_fluid())
+    }
+
     pub fn input_material(&self) -> Option<Material> {
         self.recipie.as_ref().and_then(|r| r.input_material())
     }

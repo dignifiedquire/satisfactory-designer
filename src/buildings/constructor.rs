@@ -387,10 +387,11 @@ impl Constructor {
     }
 
     pub fn input_material(&self) -> Option<Material> {
-        match self.recipie {
-            Some(ref r) => Some(r.input_material()),
-            None => None,
-        }
+        self.recipie.as_ref().map(|r| r.input_material())
+    }
+
+    pub fn output_material(&self) -> Option<Material> {
+        self.recipie.as_ref().map(|r| r.output_material())
     }
 }
 
