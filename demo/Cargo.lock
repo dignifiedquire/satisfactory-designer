@@ -1121,6 +1121,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "egui-modal"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4d3bc636d5ddc0c4a90d7a24c7d84db10fb2f789298e9c50cdddd28832e83f1e"
+dependencies = [
+ "egui",
+]
+
+[[package]]
 name = "egui-probe"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3138,6 +3147,7 @@ version = "0.1.0"
 dependencies = [
  "eframe",
  "egui",
+ "egui-modal",
  "egui-probe",
  "egui-snarl",
  "egui_extras",

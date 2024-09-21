@@ -4,6 +4,7 @@ use buildings::{
 };
 use eframe::{App, CreationContext};
 use egui::{emath::Rot2, vec2, Color32, FontId, Id, Rect, RichText, Ui, Vec2};
+use egui_modal::Modal;
 use egui_snarl::{
     ui::{AnyPins, BackgroundPattern, PinInfo, SnarlStyle, SnarlViewer},
     InPin, NodeId, OutPin, Snarl,
@@ -1354,6 +1355,7 @@ pub struct DemoApp {
     snarl: Snarl<Node>,
     style: SnarlStyle,
     snarl_ui_id: Option<Id>,
+    show_about: bool,
 }
 
 impl DemoApp {
@@ -1422,6 +1424,7 @@ impl DemoApp {
             snarl,
             style,
             snarl_ui_id: None,
+            show_about: false,
         }
     }
 }
@@ -1432,15 +1435,18 @@ impl App for DemoApp {
             // The top panel is often a good place for a menu bar:
 
             egui::menu::bar(ui, |ui| {
-                #[cfg(not(target_arch = "wasm32"))]
-                {
-                    ui.menu_button("File", |ui| {
-                        if ui.button("Quit").clicked() {
-                            ctx.send_viewport_cmd(egui::ViewportCommand::Close)
-                        }
-                    });
-                    ui.add_space(16.0);
-                }
+                ui.menu_button("File", |ui| {
+                    if ui.button("About").clicked() {
+                        self.show_about = true;
+                        ui.close_menu();
+                    }
+
+                    #[cfg(not(target_arch = "wasm32"))]
+                    if ui.button("Quit").clicked() {
+                        ctx.send_viewport_cmd(egui::ViewportCommand::Close)
+                    }
+                });
+                ui.add_space(16.0);
 
                 egui::widgets::global_dark_light_mode_switch(ui);
 
@@ -1454,6 +1460,26 @@ impl App for DemoApp {
             self.snarl_ui_id = Some(ui.id());
 
             self.snarl.show(&mut Viewer, &self.style, "snarl", ui);
+            if self.show_about {
+                let modal = Modal::new(ctx, "About");
+                modal.show(|ui| {
+                    modal.title(ui, "About");
+                    modal.frame(ui, |ui| {
+                        ui.add_space(20.);
+                        ui.hyperlink(
+                            "https://github.com/dignifiedquire/satisfactory-designer",
+                        );
+                        ui.add_space(20.);
+                    });
+                    modal.buttons(ui, |ui| {
+                        // After clicking, the modal is automatically closed
+                        if modal.button(ui, "Ok").clicked() {
+                            self.show_about = false;
+                        }
+                    });
+                });
+                modal.open();
+            }
         });
     }
 
