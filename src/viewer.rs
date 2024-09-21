@@ -988,21 +988,18 @@ impl SnarlViewer<Node> for Viewer {
         _scale: f32,
         snarl: &mut Snarl<Node>,
     ) {
-        ui.label("Add building");
-        ui.separator();
-
-        if ui.button("Miner").clicked() {
+        if ui.button("Add Miner").clicked() {
             snarl.insert_node(pos, Node::Building(Building::Miner(Miner::default())));
             ui.close_menu();
         }
-        if ui.button("Water Extractor").clicked() {
+        if ui.button("Add Water Extractor").clicked() {
             snarl.insert_node(
                 pos,
                 Node::Building(Building::WaterExtractor(WaterExtractor::default())),
             );
             ui.close_menu();
         }
-        if ui.button("Oil Extractor").clicked() {
+        if ui.button("Add Oil Extractor").clicked() {
             snarl.insert_node(
                 pos,
                 Node::Building(Building::OilExtractor(OilExtractor::default())),
@@ -1011,13 +1008,13 @@ impl SnarlViewer<Node> for Viewer {
         }
         ui.separator();
 
-        if ui.button("Smelter").clicked() {
+        if ui.button("Add Smelter").clicked() {
             snarl.insert_node(pos, Node::Building(Building::Smelter(Smelter::default())));
             ui.close_menu();
         }
 
         ui.separator();
-        if ui.button("Constructor").clicked() {
+        if ui.button("Add Constructor").clicked() {
             snarl.insert_node(
                 pos,
                 Node::Building(Building::Constructor(Constructor::default())),
@@ -1025,33 +1022,40 @@ impl SnarlViewer<Node> for Viewer {
             ui.close_menu();
         }
 
-        if ui.button("Packager").clicked() {
+        if ui.button("Add Packager").clicked() {
             snarl.insert_node(pos, Node::Building(Building::Packager(Packager::default())));
             ui.close_menu();
         }
 
-        if ui.button("Refinery").clicked() {
+        if ui.button("Add Refinery").clicked() {
             snarl.insert_node(pos, Node::Building(Building::Refinery(Refinery::default())));
             ui.close_menu();
         }
 
         ui.separator();
 
-        if ui.button("Splitter").clicked() {
+        if ui.button("Add Splitter").clicked() {
             snarl.insert_node(pos, Node::Building(Building::Splitter(Splitter::default())));
             ui.close_menu();
         }
-        if ui.button("Merger").clicked() {
+        if ui.button("Add Merger").clicked() {
             snarl.insert_node(pos, Node::Building(Building::Merger(Merger::default())));
             ui.close_menu();
         }
 
         ui.separator();
-        if ui.button("Storage Container").clicked() {
+        if ui.button("Add Storage Container").clicked() {
             snarl.insert_node(
                 pos,
                 Node::Building(Building::StorageContainer(StorageContainer::default())),
             );
+            ui.close_menu();
+        }
+
+        ui.separator();
+        if ui.button("Clear All").clicked() {
+            // TODO: add warning
+            *snarl = Snarl::default();
             ui.close_menu();
         }
     }
