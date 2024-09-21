@@ -1,6 +1,6 @@
 use buildings::{
-    Building, Constructor, Fluid, Material, Merger, Miner, OilExtractor, Packager, Smelter,
-    Splitter, StorageContainer, WaterExtractor,
+    Building, Constructor, Fluid, Material, Merger, Miner, OilExtractor, Packager, Refinery,
+    Smelter, Splitter, StorageContainer, WaterExtractor,
 };
 use eframe::{App, CreationContext};
 use egui::{emath::Rot2, vec2, Color32, FontId, Id, Rect, RichText, Ui, Vec2};
@@ -12,6 +12,7 @@ use egui_snarl::{
 const BUILDING_COLOR: Color32 = Color32::from_rgb(0xb0, 0xb0, 0xb0);
 
 mod buildings;
+mod util;
 
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
 enum Node {
@@ -60,6 +61,33 @@ impl Node {
                 Building::WaterExtractor(w) => w.output_speed(),
                 Building::StorageContainer(s) => s.output_speed(),
                 Building::Packager(p) => {
+                    let input_wire_fluid = snarl
+                        .wires()
+                        .find(|(_output, input)| input.node == remote_node && input.input == 0);
+
+                    let input_wire_material = snarl
+                        .wires()
+                        .find(|(_output, input)| input.node == remote_node && input.input == 1);
+
+                    let input_fluid_speed = input_wire_fluid
+                        .map(|(output, _input)| {
+                            snarl[output.node].output_speed(snarl, output.node, output.output)
+                        })
+                        .unwrap_or_default();
+
+                    let input_material_speed = input_wire_material
+                        .map(|(output, _input)| {
+                            snarl[output.node].output_speed(snarl, output.node, output.output)
+                        })
+                        .unwrap_or_default();
+
+                    match remote_node_output {
+                        0 => p.output_fluid_speed(input_material_speed, input_fluid_speed),
+                        1 => p.output_material_speed(input_material_speed, input_fluid_speed),
+                        _ => unreachable!("only two outputs"),
+                    }
+                }
+                Building::Refinery(p) => {
                     let input_wire_fluid = snarl
                         .wires()
                         .find(|(_output, input)| input.node == remote_node && input.input == 0);
@@ -172,6 +200,19 @@ impl Node {
                 Building::OilExtractor(m) => Some(Resource::Fluid(m.output_fluid())),
                 Building::WaterExtractor(w) => Some(Resource::Fluid(w.output_fluid())),
                 Building::Packager(p) => match remote_node_output {
+                    0 => p
+                        .recipie
+                        .as_ref()
+                        .and_then(|r| r.output_fluid())
+                        .map(Resource::Fluid),
+                    1 => p
+                        .recipie
+                        .as_ref()
+                        .and_then(|r| r.output_material())
+                        .map(Resource::Material),
+                    _ => unreachable!("only two outputs"),
+                },
+                Building::Refinery(p) => match remote_node_output {
                     0 => p
                         .recipie
                         .as_ref()
@@ -353,6 +394,69 @@ impl SnarlViewer<Node> for Viewer {
                                 None => "Select Recipie".to_string(),
                             };
                             egui::ComboBox::from_id_source(egui::Id::new("packager_recipie"))
+                                .selected_text(text)
+                                .show_ui(ui, |ui| {
+                                    for recipie in p.available_recipies() {
+                                        let name = recipie.name();
+                                        ui.horizontal(|ui| {
+                                            let image = match recipie.image() {
+                                                (Some(_image), Some(image)) => image,
+                                                (Some(image), None) => image,
+                                                (None, Some(image)) => image,
+                                                (None, None) => {
+                                                    unreachable!("have at least one output")
+                                                }
+                                            };
+                                            let image = egui::Image::new(image)
+                                                .fit_to_exact_size(vec2(20., 20.))
+                                                .show_loading_spinner(true);
+                                            ui.add(image);
+                                            ui.selectable_value(
+                                                &mut p.recipie,
+                                                Some(*recipie),
+                                                name,
+                                            );
+                                        });
+                                    }
+                                });
+                        });
+
+                        ui.add_space(10.0 * scale);
+                        add_speed_ui(ui, &mut p.speed);
+
+                        ui.add_space(10.0 * scale);
+                        ui.checkbox(&mut p.amplified, "Sommersloop");
+                    }
+                    Building::Refinery(p) => {
+                        ui.horizontal(|ui| {
+                            let x = 20. * scale;
+                            if let Some(ref recipie) = p.recipie {
+                                let images = recipie.image();
+                                if let Some(image) = images.0 {
+                                    let image = egui::Image::new(image)
+                                        .fit_to_exact_size(vec2(x, x))
+                                        .show_loading_spinner(true);
+                                    ui.add(image);
+                                } else {
+                                    ui.add_space(x);
+                                }
+                                if let Some(image) = images.1 {
+                                    let image = egui::Image::new(image)
+                                        .fit_to_exact_size(vec2(x, x))
+                                        .show_loading_spinner(true);
+                                    ui.add(image);
+                                } else {
+                                    ui.add_space(x);
+                                }
+                            } else {
+                                ui.add_space(x * 2.);
+                            }
+
+                            let text = match &p.recipie {
+                                Some(r) => r.name(),
+                                None => "Select Recipie".to_string(),
+                            };
+                            egui::ComboBox::from_id_source(egui::Id::new("refinery_recipie"))
                                 .selected_text(text)
                                 .show_ui(ui, |ui| {
                                     for recipie in p.available_recipies() {
@@ -699,6 +803,59 @@ impl SnarlViewer<Node> for Viewer {
                         unreachable!("only two inputs");
                     }
                 }
+                Building::Refinery(p) => {
+                    let (actual_input_speed, resource) = match &*pin.remotes {
+                        [] => (0., None),
+                        [remote] => {
+                            let speed =
+                                snarl[remote.node].output_speed(snarl, remote.node, remote.output);
+                            let material = snarl[remote.node].output_material(
+                                snarl,
+                                remote.node,
+                                remote.output,
+                            );
+                            (speed, material)
+                        }
+                        _ => unreachable!("only one output"),
+                    };
+
+                    let color = resource
+                        .as_ref()
+                        .map(|m| m.color())
+                        .unwrap_or(BUILDING_COLOR);
+
+                    if pin.id.input == 0 {
+                        let max_input_speed = p
+                            .recipie
+                            .map(|r| r.max_output_speed_fluid())
+                            .unwrap_or_default();
+                        ui.horizontal(|ui| {
+                            add_resource_image(ui, scale, &resource);
+                            ui.label(format!(
+                                "{}/m^3 ({}/m^3)",
+                                actual_input_speed, max_input_speed
+                            ));
+                        });
+
+                        PinInfo::circle().with_fill(color)
+                    } else if pin.id.input == 1 {
+                        let max_input_speed = p
+                            .recipie
+                            .map(|r| r.max_output_speed_fluid())
+                            .unwrap_or_default();
+                        ui.horizontal(|ui| {
+                            add_resource_image(ui, scale, &resource);
+                            ui.label(format!(
+                                "{}/min ({}/min)",
+                                actual_input_speed, max_input_speed
+                            ));
+                        });
+
+                        PinInfo::square().with_fill(color)
+                    } else {
+                        unreachable!("only two inputs");
+                    }
+                }
                 Building::Smelter(ref s) => {
                     assert_eq!(pin.id.input, 0, "Smelter node has only one input");
 
@@ -856,6 +1013,52 @@ impl SnarlViewer<Node> for Viewer {
                     PinInfo::square().with_fill(color)
                 }
                 Building::Packager(p) => {
+                    let speed = snarl[pin.id.node].output_speed(snarl, pin.id.node, pin.id.output);
+                    let material =
+                        snarl[pin.id.node].output_material(snarl, pin.id.node, pin.id.output);
+                    let color = material
+                        .as_ref()
+                        .map(|m| m.color())
+                        .unwrap_or(BUILDING_COLOR);
+
+                    if pin.id.output == 0 {
+                        // Fluid
+                        if p.recipie.as_ref().and_then(|r| r.output_fluid()).is_some() {
+                            let max_speed = p
+                                .recipie
+                                .as_ref()
+                                .map(|r| r.max_output_speed_fluid())
+                                .unwrap_or_default();
+                            ui.horizontal(|ui| {
+                                add_resource_image(ui, scale, &material);
+                                ui.label(format!("{}/m^3 ({}/m^3)", speed, max_speed));
+                            });
+                        }
+
+                        PinInfo::circle().with_fill(color)
+                    } else if pin.id.output == 1 {
+                        // Material
+                        if p.recipie
+                            .as_ref()
+                            .and_then(|r| r.output_material())
+                            .is_some()
+                        {
+                            let max_speed = p
+                                .recipie
+                                .as_ref()
+                                .map(|r| r.max_output_speed_material())
+                                .unwrap_or_default();
+                            ui.horizontal(|ui| {
+                                add_resource_image(ui, scale, &material);
+                                ui.label(format!("{}/min ({}/min)", speed, max_speed));
+                            });
+                        }
+                        PinInfo::square().with_fill(color)
+                    } else {
+                        unreachable!("only two outputs");
+                    }
+                }
+                Building::Refinery(p) => {
                     let speed = snarl[pin.id.node].output_speed(snarl, pin.id.node, pin.id.output);
                     let material =
                         snarl[pin.id.node].output_material(snarl, pin.id.node, pin.id.output);
@@ -1074,6 +1277,11 @@ impl SnarlViewer<Node> for Viewer {
 
         if ui.button("Packager").clicked() {
             snarl.insert_node(pos, Node::Building(Building::Packager(Packager::default())));
+            ui.close_menu();
+        }
+
+        if ui.button("Refinery").clicked() {
+            snarl.insert_node(pos, Node::Building(Building::Refinery(Refinery::default())));
             ui.close_menu();
         }
 

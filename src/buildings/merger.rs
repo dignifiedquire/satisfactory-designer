@@ -1,11 +1,13 @@
+use crate::util::load_img;
+
 use super::Material;
 
 #[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize, PartialEq)]
 pub struct Merger {}
 
 impl Merger {
-    pub fn header_image(&self) -> &'static str {
-        "file://assets/img/Conveyor_Merger.png"
+    pub fn header_image(&self) -> String {
+        load_img("Conveyor_Merger.png")
     }
 
     pub fn name(&self) -> String {

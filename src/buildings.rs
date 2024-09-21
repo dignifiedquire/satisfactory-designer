@@ -5,16 +5,20 @@ mod merger;
 mod miner;
 mod oil_extractor;
 mod packager;
+mod refinery;
 mod smelter;
 mod splitter;
 mod storage_container;
 mod water_extractor;
+
+use crate::util::load_img;
 
 pub use self::constructor::Constructor;
 pub use self::merger::Merger;
 pub use self::miner::Miner;
 pub use self::oil_extractor::OilExtractor;
 pub use self::packager::Packager;
+pub use self::refinery::Refinery;
 pub use self::smelter::Smelter;
 pub use self::splitter::Splitter;
 pub use self::storage_container::StorageContainer;
@@ -31,6 +35,7 @@ pub enum Building {
     WaterExtractor(WaterExtractor),
     OilExtractor(OilExtractor),
     Packager(Packager),
+    Refinery(Refinery),
 }
 
 #[derive(
@@ -221,6 +226,20 @@ pub enum Material {
     PackagedTurbofuel,
     #[strum(to_string = "Packaged Water")]
     PackagedWater,
+    #[strum(to_string = "Polymer Resin")]
+    PolymerResin,
+    #[strum(to_string = "Black Powder")]
+    BlackPowder,
+    #[strum(to_string = "Petroleum Coke")]
+    PetroleumCoke,
+    #[strum(to_string = "Rubber")]
+    Rubber,
+    #[strum(to_string = "Compacted Coal")]
+    CompactedCoal,
+    #[strum(to_string = "Smokeless Powder")]
+    SmokelessPowder,
+    #[strum(to_string = "Fabric")]
+    Fabric,
 }
 
 impl Material {
@@ -316,8 +335,15 @@ impl Material {
             Self::PackagedSulfuricAcid => "40px-Packaged_Sulfuric_Acid.png",
             Self::PackagedTurbofuel => "40px-Packaged_Turbofuel.png",
             Self::PackagedWater => "40px-Packaged_Water.png",
+            Self::PolymerResin => "40px-Polymer_Resin.png",
+            Self::BlackPowder => "40px-Black_Powder.png",
+            Self::PetroleumCoke => "40px-Petroleum_Coke.png",
+            Self::Rubber => "40px-Rubber.png",
+            Self::CompactedCoal => "40px-Compacted_Coal.png",
+            Self::SmokelessPowder => "40px-Smokeless_Powder.png",
+            Self::Fabric => "40px-Fabric.png",
         };
-        format!("file://assets/img/{}", name)
+        load_img(name)
     }
 }
 
@@ -356,6 +382,8 @@ pub enum Fluid {
     Turbofuel,
     #[strum(to_string = "Water")]
     Water,
+    #[strum(to_string = "Dissolved Silica")]
+    DissolvedSilica,
 }
 
 impl Fluid {
@@ -377,6 +405,7 @@ impl Fluid {
             Self::SulfuricAcid => "#f5ff17",
             Self::Turbofuel => "#A10000",
             Self::Water => "#1662AD",
+            Self::DissolvedSilica => "#eac9e3",
         };
         Color32::from_hex(code).unwrap()
     }
@@ -395,13 +424,14 @@ impl Fluid {
             Self::SulfuricAcid => "40px-Sulfuric_Acid.png",
             Self::Turbofuel => "40px-Turbofuel.png",
             Self::Water => "40px-Water.png",
+            Self::DissolvedSilica => "40px-Dissolved_Silica.png",
         };
-        format!("file://assets/img/{}", name)
+        load_img(name)
     }
 }
 
 impl Building {
-    pub fn header_image(&self) -> &'static str {
+    pub fn header_image(&self) -> String {
         match self {
             Self::Miner(m) => m.header_image(),
             Self::Smelter(s) => s.header_image(),
@@ -412,6 +442,7 @@ impl Building {
             Self::WaterExtractor(s) => s.header_image(),
             Self::OilExtractor(s) => s.header_image(),
             Self::Packager(s) => s.header_image(),
+            Self::Refinery(s) => s.header_image(),
         }
     }
 
@@ -426,6 +457,7 @@ impl Building {
             Self::WaterExtractor(s) => s.num_outputs(),
             Self::OilExtractor(s) => s.num_outputs(),
             Self::Packager(s) => s.num_outputs(),
+            Self::Refinery(s) => s.num_outputs(),
         }
     }
 
@@ -440,6 +472,7 @@ impl Building {
             Self::WaterExtractor(s) => s.num_inputs(),
             Self::OilExtractor(s) => s.num_inputs(),
             Self::Packager(s) => s.num_inputs(),
+            Self::Refinery(s) => s.num_inputs(),
         }
     }
 
@@ -454,6 +487,7 @@ impl Building {
             Self::WaterExtractor(s) => s.name(),
             Self::OilExtractor(s) => s.name(),
             Self::Packager(s) => s.name(),
+            Self::Refinery(s) => s.name(),
         }
     }
 
@@ -468,6 +502,7 @@ impl Building {
             Self::WaterExtractor(s) => s.description(),
             Self::OilExtractor(s) => s.description(),
             Self::Packager(s) => s.description(),
+            Self::Refinery(s) => s.description(),
         }
     }
 }
@@ -489,7 +524,12 @@ fn calc_output(input_size: Option<f32>, duration: f32, output_size: f32, input_b
 
     // 60/4 * 1 = 15
     let b = (60. / duration) * a * output_size;
-    b.round()
+    round(b)
+}
+
+/// Round by satisfactory precision of 6 digits
+fn round(x: f32) -> f32 {
+    (x * 1_000_000.).round() / 1_000_000.
 }
 
 fn calc_output2(
@@ -527,7 +567,7 @@ fn calc_output2(
 
     // 60/4 * 1 = 15
     let b = (60. / duration) * a * output_size;
-    b.round()
+    round(b)
 }
 
 #[derive(

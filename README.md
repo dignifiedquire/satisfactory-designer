@@ -21,7 +21,7 @@
 - [ ] Assembler
 - [ ] Manufactorer
 - [x] Packager
-- [ ] Refinery
+- [x] Refinery
 - [ ] Blender
 - [ ] Particle Accelerator
 - [ ] Quantom Encoder

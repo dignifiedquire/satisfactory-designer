@@ -1,5 +1,7 @@
 use strum::VariantArray;
 
+use crate::util::load_img;
+
 use super::{Fluid, Pipe};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq)]
@@ -18,8 +20,8 @@ impl Default for WaterExtractor {
 }
 
 impl WaterExtractor {
-    pub fn header_image(&self) -> &'static str {
-        "file://assets/img/Water_Extractor.png"
+    pub fn header_image(&self) -> String {
+        load_img("Water_Extractor.png")
     }
 
     pub fn name(&self) -> String {

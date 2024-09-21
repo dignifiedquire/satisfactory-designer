@@ -1,11 +1,13 @@
+use crate::util::load_img;
+
 use super::Material;
 
 #[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize, PartialEq)]
 pub struct Splitter {}
 
 impl Splitter {
-    pub fn header_image(&self) -> &'static str {
-        "file://assets/img/Conveyor_Splitter.png"
+    pub fn header_image(&self) -> String {
+        load_img("Conveyor_Splitter.png")
     }
 
     pub fn name(&self) -> String {

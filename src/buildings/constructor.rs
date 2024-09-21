@@ -1,5 +1,7 @@
 use strum::VariantArray;
 
+use crate::util::load_img;
+
 use super::{calc_output, Material};
 
 #[derive(
@@ -335,8 +337,8 @@ impl Default for Constructor {
 }
 
 impl Constructor {
-    pub fn header_image(&self) -> &'static str {
-        "file://assets/img/Constructor.png"
+    pub fn header_image(&self) -> String {
+        load_img("Constructor.png")
     }
 
     pub fn available_recipies(&self) -> &'static [ConstructorRecipie] {

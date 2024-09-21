@@ -1,5 +1,7 @@
 use strum::VariantArray;
 
+use crate::util::load_img;
+
 use super::{Belt, Material};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq)]
@@ -17,8 +19,8 @@ impl Default for StorageContainer {
     }
 }
 impl StorageContainer {
-    pub fn header_image(&self) -> &'static str {
-        "file://assets/img/Storage_Container.png"
+    pub fn header_image(&self) -> String {
+        load_img("Storage_Container.png")
     }
 
     pub fn name(&self) -> String {

@@ -1,5 +1,7 @@
 use strum::VariantArray;
 
+use crate::util::load_img;
+
 use super::{miner::ResourcePurity, Fluid, Pipe};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq)]
@@ -20,8 +22,8 @@ impl Default for OilExtractor {
 }
 
 impl OilExtractor {
-    pub fn header_image(&self) -> &'static str {
-        "file://assets/img/Oil_Extractor.png"
+    pub fn header_image(&self) -> String {
+        load_img("Oil_Extractor.png")
     }
 
     pub fn name(&self) -> String {

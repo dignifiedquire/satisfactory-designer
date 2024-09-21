@@ -1,5 +1,7 @@
 use strum::VariantArray;
 
+use crate::util::load_img;
+
 use super::{Material, ResourceType};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq)]
@@ -47,12 +49,13 @@ impl MinerLevel {
 }
 
 impl Miner {
-    pub fn header_image(&self) -> &'static str {
-        match self.level {
-            MinerLevel::Mk1 => "file://assets/img/Miner_Mk.1.png",
-            MinerLevel::Mk2 => "file://assets/img/Miner_Mk.2.png",
-            MinerLevel::Mk3 => "file://assets/img/Miner_Mk.3.png",
-        }
+    pub fn header_image(&self) -> String {
+        let name = match self.level {
+            MinerLevel::Mk1 => "Miner_Mk.1.png",
+            MinerLevel::Mk2 => "Miner_Mk.2.png",
+            MinerLevel::Mk3 => "Miner_Mk.3.png",
+        };
+        load_img(name)
     }
 
     pub fn name(&self) -> String {

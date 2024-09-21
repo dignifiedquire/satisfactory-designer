@@ -1,6 +1,8 @@
 use egui::Color32;
 use strum::VariantArray;
 
+use crate::util::load_img;
+
 use super::{calc_output, Material};
 
 #[derive(
@@ -106,8 +108,8 @@ impl Default for Smelter {
 }
 
 impl Smelter {
-    pub fn header_image(&self) -> &'static str {
-        "file://assets/img/Smelter.png"
+    pub fn header_image(&self) -> String {
+        load_img("Smelter.png")
     }
 
     pub fn available_recipies(&self) -> &'static [SmelterRecipie] {
@@ -170,7 +172,7 @@ mod tests {
     #[test]
     fn test_output_speed() {
         assert_eq!(SmelterRecipie::CateriumIngot.output_speed(0.), 0.);
-        assert_eq!(SmelterRecipie::CateriumIngot.output_speed(10.), 3.);
+        assert_eq!(SmelterRecipie::CateriumIngot.output_speed(15.), 5.);
         assert_eq!(SmelterRecipie::CateriumIngot.output_speed(45.), 15.);
         assert_eq!(SmelterRecipie::CateriumIngot.output_speed(60.), 15.);
 

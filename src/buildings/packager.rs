@@ -1,5 +1,7 @@
 use strum::VariantArray;
 
+use crate::util::load_img;
+
 use super::{calc_output, calc_output2, Fluid, Material};
 
 #[derive(
@@ -387,8 +389,8 @@ impl Default for Packager {
 }
 
 impl Packager {
-    pub fn header_image(&self) -> &'static str {
-        "file://assets/img/Packager.png"
+    pub fn header_image(&self) -> String {
+        load_img("Packager.png")
     }
 
     pub fn available_recipies(&self) -> &'static [PackagerRecipie] {
