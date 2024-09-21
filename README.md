@@ -2,6 +2,15 @@
 
 > Design your factory with ease, because we are all spoons deep down.
 
+## Basic Instructions
+
+- Right Click to add Buildings
+- Drag connections between buildings to connect them
+- Scroll wheel zooms
+- Click and drag buildings to move them
+- Hold Shift to select multiple buildings
+- Right click buildings to duplicate or remove them
+
 
 ## Supported Buildings
 
