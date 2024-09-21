@@ -251,7 +251,7 @@ impl SnarlViewer<Node> for Viewer<'_> {
 
                             let text = match &m.resource {
                                 Some(r) => r.name(),
-                                None => "Select Resource",
+                                None => "Select Resource".to_string(),
                             };
                             egui::ComboBox::from_id_source(egui::Id::new("miner_resource"))
                                 .selected_text(text)
@@ -265,7 +265,7 @@ impl SnarlViewer<Node> for Viewer<'_> {
                                             ui.add(image);
                                             ui.selectable_value(
                                                 &mut m.resource,
-                                                Some(resource),
+                                                Some(*resource),
                                                 name,
                                             );
                                         });
@@ -279,7 +279,7 @@ impl SnarlViewer<Node> for Viewer<'_> {
                             .show_ui(ui, |ui| {
                                 for level in m.available_levels() {
                                     let name = level.name();
-                                    ui.selectable_value(&mut m.level, level, name);
+                                    ui.selectable_value(&mut m.level, *level, name);
                                 }
                             });
 

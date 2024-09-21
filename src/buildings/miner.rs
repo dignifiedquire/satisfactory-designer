@@ -23,7 +23,9 @@ impl Default for Miner {
     }
 }
 
-#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize, PartialEq)]
+#[derive(
+    Debug, Clone, Copy, serde::Serialize, serde::Deserialize, PartialEq, strum::VariantArray,
+)]
 pub enum MinerLevel {
     Mk1,
     Mk2,
@@ -78,23 +80,12 @@ impl Miner {
         ResourcePurity::VARIANTS
     }
 
-    pub fn available_levels(&self) -> Vec<MinerLevel> {
-        vec![MinerLevel::Mk1, MinerLevel::Mk2, MinerLevel::Mk3]
+    pub fn available_levels(&self) -> &'static [MinerLevel] {
+        MinerLevel::VARIANTS
     }
 
-    pub fn available_resources(&self) -> Vec<ResourceType> {
-        use ResourceType::*;
-        vec![
-            Bauxite,
-            CateriumOre,
-            CopperOre,
-            IronOre,
-            Limestone,
-            RawQuartz,
-            Sam,
-            Sulfur,
-            Uranium,
-        ]
+    pub fn available_resources(&self) -> &'static [ResourceType] {
+        ResourceType::VARIANTS
     }
 
     pub fn num_inputs(&self) -> usize {

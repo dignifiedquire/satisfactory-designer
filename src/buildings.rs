@@ -39,33 +39,41 @@ pub enum Building {
 }
 
 #[derive(
-    Debug, Clone, Copy, serde::Serialize, serde::Deserialize, PartialEq, strum::VariantArray,
+    Debug,
+    Clone,
+    Copy,
+    serde::Serialize,
+    serde::Deserialize,
+    PartialEq,
+    strum::VariantArray,
+    strum::Display,
 )]
 pub enum ResourceType {
+    #[strum(to_string = "Bauxite")]
     Bauxite,
+    #[strum(to_string = "Caterium Ore")]
     CateriumOre,
+    #[strum(to_string = "Copper Ore")]
     CopperOre,
+    #[strum(to_string = "Iron Ore")]
     IronOre,
+    #[strum(to_string = "Limestone")]
     Limestone,
+    #[strum(to_string = "Raw Quartz")]
     RawQuartz,
+    #[strum(to_string = "SAM")]
     Sam,
+    #[strum(to_string = "Sulfur")]
     Sulfur,
+    #[strum(to_string = "Uranium")]
     Uranium,
+    #[strum(to_string = "Coal")]
+    Coal,
 }
 
 impl ResourceType {
-    pub fn name(&self) -> &'static str {
-        match self {
-            Self::Bauxite => "Bauxite",
-            Self::CateriumOre => "Caterium Ore",
-            Self::CopperOre => "Copper Ore",
-            Self::IronOre => "Iron Ore",
-            Self::Limestone => "Limestone",
-            Self::RawQuartz => "Raw Quartz",
-            Self::Sam => "SAM",
-            Self::Sulfur => "Sulfur",
-            Self::Uranium => "Uranium",
-        }
+    pub fn name(&self) -> String {
+        self.to_string()
     }
 
     pub fn image(&self) -> String {
@@ -83,6 +91,7 @@ impl ResourceType {
             Self::Sam => Material::Sam,
             Self::Sulfur => Material::Sulfur,
             Self::Uranium => Material::Uranium,
+            Self::Coal => Material::Coal,
         }
     }
 }
