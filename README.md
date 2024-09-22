@@ -26,11 +26,11 @@
 
 #### Smelters
 - [x] Smelter
-- [x] Foundary
+- [x] Foundry
 
 #### Manufacturers
 - [x] Constructor
-- [ ] Assembler
+- [x] Assembler
 - [ ] Manufactorer
 - [x] Packager
 - [x] Refinery

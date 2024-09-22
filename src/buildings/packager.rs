@@ -375,7 +375,6 @@ impl PackagerRecipe {
 pub struct Packager {
     pub recipe: Option<PackagerRecipe>,
     pub speed: f32,
-    pub amplified: bool,
 }
 
 impl Default for Packager {
@@ -383,7 +382,6 @@ impl Default for Packager {
         Self {
             recipe: None,
             speed: 100.,
-            amplified: false,
         }
     }
 }
@@ -448,11 +446,10 @@ impl Packager {
             .as_ref()
             .map(|r| r.output_speed_material(input_material_size, input_fluid_size))
             .unwrap_or_default();
-        let amplification = if self.amplified { 2. } else { 1. };
 
         // TODO: take speed into account for input_size
 
-        (base as f32 * (self.speed / 100.) * amplification).round()
+        (base as f32 * (self.speed / 100.)).round()
     }
 
     pub fn output_fluid_speed(&self, input_material_size: f32, input_fluid_size: f32) -> f32 {
@@ -461,11 +458,10 @@ impl Packager {
             .as_ref()
             .map(|r| r.output_speed_fluid(input_material_size, input_fluid_size))
             .unwrap_or_default();
-        let amplification = if self.amplified { 2. } else { 1. };
 
         // TODO: take speed into account for input_size
 
-        (base as f32 * (self.speed / 100.) * amplification).round()
+        (base as f32 * (self.speed / 100.)).round()
     }
 
     pub fn input_material(&self) -> Option<Material> {

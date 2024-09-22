@@ -1,5 +1,6 @@
 use egui::Color32;
 
+mod assembler;
 mod constructor;
 mod foundry;
 mod merger;
@@ -14,6 +15,7 @@ mod water_extractor;
 
 use crate::util::load_img;
 
+pub use self::assembler::Assembler;
 pub use self::constructor::Constructor;
 pub use self::foundry::Foundry;
 pub use self::merger::Merger;
@@ -39,6 +41,7 @@ pub enum Building {
     Packager(Packager),
     Refinery(Refinery),
     Foundry(Foundry),
+    Assembler(Assembler),
 }
 
 #[derive(
@@ -253,6 +256,78 @@ pub enum Material {
     SmokelessPowder,
     #[strum(to_string = "Fabric")]
     Fabric,
+    #[strum(to_string = "AI Limiter")]
+    AILimiter,
+    #[strum(to_string = "Adaptive Control Unit")]
+    AdaptiveControlUnit,
+    #[strum(to_string = "Alclad Aluminum Sheet")]
+    AlcladAluminumSheet,
+    #[strum(to_string = "Supercomputer")]
+    Supercomputer,
+    #[strum(to_string = "Assembly Director System")]
+    AssemblyDirectorSystem,
+    #[strum(to_string = "Stator")]
+    Stator,
+    #[strum(to_string = "Automated Wiring")]
+    AutomatedWiring,
+    #[strum(to_string = "Circuit Board")]
+    CircuitBoard,
+    #[strum(to_string = "Cluster Nobelisk")]
+    ClusterNobelisk,
+    #[strum(to_string = "Nobelisk")]
+    Nobelisk,
+    #[strum(to_string = "Electromagnetic Control Rod")]
+    ElectromagneticControlRod,
+    #[strum(to_string = "EncasedIndustrial Beam")]
+    EncasedIndustrialBeam,
+    #[strum(to_string = "Plutonium Pellet")]
+    PlutoniumPellet,
+    #[strum(to_string = "Gas Nobelisk")]
+    GasNobelisk,
+    #[strum(to_string = "Encased Plutonium Cell")]
+    EncasedPlutoniumCell,
+    #[strum(to_string = "Rifle Ammo")]
+    RifleAmmo,
+    #[strum(to_string = "Heat Sink")]
+    HeatSink,
+    #[strum(to_string = "Homing Rifle Ammo")]
+    HomingRifleAmmo,
+    #[strum(to_string = "High-Speed Connector")]
+    HighSpeedConnector,
+    #[strum(to_string = "Versatile Framework")]
+    VersatileFramework,
+    #[strum(to_string = "Magnetic Field Generator")]
+    MagneticFieldGenerator,
+    #[strum(to_string = "Rotor")]
+    Rotor,
+    #[strum(to_string = "Crystal Oscillator")]
+    CrystalOscillator,
+    #[strum(to_string = "Computer")]
+    Computer,
+    #[strum(to_string = "Motor")]
+    Motor,
+    #[strum(to_string = "Cooling System")]
+    CoolingSystem,
+    #[strum(to_string = "Pressure Conversion Cube")]
+    PressureConversionCube,
+    #[strum(to_string = "Radio Control Unit")]
+    RadioControlUnit,
+    #[strum(to_string = "Plutonium Fuel Rod")]
+    PlutoniumFuelRod,
+    #[strum(to_string = "Modular Frame")]
+    ModularFrame,
+    #[strum(to_string = "Reinforced Iron Plate")]
+    ReinforcedIronPlate,
+    #[strum(to_string = "Pulse Nobelisk")]
+    PulseNobelisk,
+    #[strum(to_string = "Shatter Rebar")]
+    ShatterRebar,
+    #[strum(to_string = "Smart Plating")]
+    SmartPlating,
+    #[strum(to_string = "Stun Rebar")]
+    StunRebar,
+    #[strum(to_string = "Portable Miner")]
+    PortableMiner,
 }
 
 impl Material {
@@ -355,6 +430,42 @@ impl Material {
             Self::CompactedCoal => "40px-Compacted_Coal.png",
             Self::SmokelessPowder => "40px-Smokeless_Powder.png",
             Self::Fabric => "40px-Fabric.png",
+            Self::AILimiter => "40px-AI_Limiter.png",
+            Self::AdaptiveControlUnit => "40px-Adaptive_Control_Unit.png",
+            Self::AlcladAluminumSheet => "40px-Alclad_Aluminum_Sheet.png",
+            Self::Supercomputer => "40px-Supercomputer.png",
+            Self::AssemblyDirectorSystem => "40px-Assembly_Director_System.png",
+            Self::Stator => "40px-Stator.png",
+            Self::AutomatedWiring => "40px-Automated_Wiring.png",
+            Self::CircuitBoard => "40px-Circuit_Board.png",
+            Self::ClusterNobelisk => "40px-Cluster_Nobelisk.png",
+            Self::Nobelisk => "40px-Nobelisk.png",
+            Self::ElectromagneticControlRod => "40px-Electromagnetic_Control_Rod.png",
+            Self::EncasedIndustrialBeam => "40px-Encased_Industrial_Beam.png",
+            Self::PlutoniumPellet => "40px-Plutonium_Pellet.png",
+            Self::GasNobelisk => "40px-Gas_Nobelisk.png",
+            Self::EncasedPlutoniumCell => "40px-Encased_Plutonium_Cell.png",
+            Self::RifleAmmo => "40px-Rifle_Ammo.png",
+            Self::HeatSink => "40px-Heat_Sink.png",
+            Self::HomingRifleAmmo => "40px-Homing_Rifle_Ammo.png",
+            Self::HighSpeedConnector => "40px-High_Speed_Connector.png",
+            Self::VersatileFramework => "40px-Versatile_Framework.png",
+            Self::MagneticFieldGenerator => "40px-Magnetic_Field_Generator.png",
+            Self::Rotor => "40px-Rotor.png",
+            Self::CrystalOscillator => "40px-Crystal_Oscillator.png",
+            Self::Computer => "40px-Computer.png",
+            Self::Motor => "40px-Motor.png",
+            Self::CoolingSystem => "40px-Cooling_System.png",
+            Self::PressureConversionCube => "40px-Pressure_Conversion_Cube.png",
+            Self::RadioControlUnit => "40px-Radio_Control_Unit.png",
+            Self::PlutoniumFuelRod => "40px-Plutonium_Fuel_Rod.png",
+            Self::ModularFrame => "40px-Modular_Frame.png",
+            Self::ReinforcedIronPlate => "40px-Reinforced_Iron_Plate.png",
+            Self::PulseNobelisk => "40px-Pulse_Nobelisk.png",
+            Self::ShatterRebar => "40px-Shatter_Rebar.png",
+            Self::SmartPlating => "40px-Smart_Plating.png",
+            Self::StunRebar => "40px-Stun_Rebar.png",
+            Self::PortableMiner => "40px-Portable_Miner.png",
         };
         load_img(name)
     }
@@ -458,6 +569,7 @@ impl Building {
             Self::Packager(s) => s.header_image(),
             Self::Refinery(s) => s.header_image(),
             Self::Foundry(s) => s.header_image(),
+            Self::Assembler(s) => s.header_image(),
         }
     }
 
@@ -474,6 +586,7 @@ impl Building {
             Self::Packager(s) => s.num_outputs(),
             Self::Refinery(s) => s.num_outputs(),
             Self::Foundry(s) => s.num_outputs(),
+            Self::Assembler(s) => s.num_outputs(),
         }
     }
 
@@ -490,6 +603,7 @@ impl Building {
             Self::Packager(s) => s.num_inputs(),
             Self::Refinery(s) => s.num_inputs(),
             Self::Foundry(s) => s.num_inputs(),
+            Self::Assembler(s) => s.num_inputs(),
         }
     }
 
@@ -506,6 +620,7 @@ impl Building {
             Self::Packager(s) => s.name(),
             Self::Refinery(s) => s.name(),
             Self::Foundry(s) => s.name(),
+            Self::Assembler(s) => s.name(),
         }
     }
 
@@ -522,6 +637,7 @@ impl Building {
             Self::Packager(s) => s.description(),
             Self::Refinery(s) => s.description(),
             Self::Foundry(s) => s.description(),
+            Self::Assembler(s) => s.description(),
         }
     }
 }
@@ -672,12 +788,43 @@ impl Pipe {
     strum::VariantArray,
     strum::Display,
 )]
-pub enum SomersloopSlot2 {
-    #[strum(to_string = "None")]
+pub enum SomersloopSlot1 {
+    #[strum(to_string = "No Somersloop")]
     Empty,
-    #[strum(to_string = "1")]
+    #[strum(to_string = "1 Somersloop")]
     One,
-    #[strum(to_string = "2")]
+}
+
+impl SomersloopSlot1 {
+    pub fn factor(&self) -> f32 {
+        match self {
+            Self::Empty => 1.,
+            Self::One => 2.,
+        }
+    }
+
+    pub fn name(&self) -> String {
+        self.to_string()
+    }
+}
+
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    serde::Serialize,
+    serde::Deserialize,
+    PartialEq,
+    Eq,
+    strum::VariantArray,
+    strum::Display,
+)]
+pub enum SomersloopSlot2 {
+    #[strum(to_string = "No Somersloop")]
+    Empty,
+    #[strum(to_string = "1 Somersloop")]
+    One,
+    #[strum(to_string = "2 Somersloops")]
     Two,
 }
 

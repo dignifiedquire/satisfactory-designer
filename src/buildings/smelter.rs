@@ -3,7 +3,7 @@ use strum::VariantArray;
 
 use crate::util::load_img;
 
-use super::{calc_output, Material};
+use super::{calc_output, Material, SomersloopSlot1};
 
 #[derive(
     Debug,
@@ -94,7 +94,7 @@ impl SmelterRecipe {
 pub struct Smelter {
     pub recipe: Option<SmelterRecipe>,
     pub speed: f32,
-    pub amplified: bool,
+    pub amplified: SomersloopSlot1,
 }
 
 impl Default for Smelter {
@@ -102,7 +102,7 @@ impl Default for Smelter {
         Self {
             recipe: None,
             speed: 100.,
-            amplified: false,
+            amplified: SomersloopSlot1::Empty,
         }
     }
 }
@@ -150,7 +150,7 @@ impl Smelter {
             .as_ref()
             .map(|r| r.output_speed(input_size))
             .unwrap_or_default();
-        let amplification = if self.amplified { 2. } else { 1. };
+        let amplification = self.amplified.factor();
 
         // TODO: take speed into account for input_size
 

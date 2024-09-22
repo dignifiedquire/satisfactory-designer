@@ -2,7 +2,7 @@ use strum::VariantArray;
 
 use crate::util::load_img;
 
-use super::{calc_output, calc_output2, round, Fluid, Material};
+use super::{calc_output, calc_output2, round, Fluid, Material, SomersloopSlot2};
 
 #[derive(
     Debug,
@@ -465,7 +465,7 @@ impl RefineryRecipe {
 pub struct Refinery {
     pub recipe: Option<RefineryRecipe>,
     pub speed: f32,
-    pub amplified: bool,
+    pub amplified: SomersloopSlot2,
 }
 
 impl Default for Refinery {
@@ -473,7 +473,7 @@ impl Default for Refinery {
         Self {
             recipe: None,
             speed: 100.,
-            amplified: false,
+            amplified: SomersloopSlot2::Empty,
         }
     }
 }
@@ -512,7 +512,7 @@ impl Refinery {
             .as_ref()
             .map(|r| r.output_speed_material(input_material_size, input_fluid_size))
             .unwrap_or_default();
-        let amplification = if self.amplified { 2. } else { 1. };
+        let amplification = self.amplified.factor();
 
         // TODO: take speed into account for input_size
 
@@ -525,7 +525,7 @@ impl Refinery {
             .as_ref()
             .map(|r| r.output_speed_fluid(input_material_size, input_fluid_size))
             .unwrap_or_default();
-        let amplification = if self.amplified { 2. } else { 1. };
+        let amplification = self.amplified.factor();
 
         // TODO: take speed into account for input_size
 
