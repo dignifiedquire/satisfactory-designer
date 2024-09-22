@@ -10,6 +10,7 @@ pub struct Miner {
     pub resource_purity: ResourcePurity,
     pub level: MinerLevel,
     pub speed: f32,
+    pub buffer: String,
 }
 
 impl Default for Miner {
@@ -19,6 +20,7 @@ impl Default for Miner {
             resource_purity: ResourcePurity::Normal,
             level: MinerLevel::Mk1,
             speed: 100.,
+            buffer: String::new(),
         }
     }
 }
@@ -61,13 +63,15 @@ impl Miner {
     }
 
     pub fn name(&self) -> String {
-        match &self.resource {
-            Some(r) => format!(
-                "Miner {:?} ({} {})",
-                self.level,
-                r.name(),
-                self.resource_purity.name()
-            ),
+        match self.resource {
+            Some(resource) => {
+                format!(
+                    "Miner {:?} ({} {})",
+                    self.level,
+                    resource.name(),
+                    self.resource_purity.name()
+                )
+            }
             None => "Miner".to_string(),
         }
     }
@@ -101,16 +105,14 @@ impl Miner {
     }
 
     pub fn output_speed(&self) -> f32 {
-        match self.resource {
-            Some(_) => {
-                // (Mining Speed) in items/min = (Purity Modifier) * (Overclock percentage) / 100 * (Default Mining Speed) items/min
-                let val = self.resource_purity.modifier()
-                    * (self.speed / 100.)
-                    * self.level.mining_speed() as f32;
-                val.round()
-            }
-            None => 0.,
+        if self.resource.is_none() {
+            return 0.;
         }
+        // (Mining Speed) in items/min = (Purity Modifier) * (Overclock percentage) / 100 * (Default Mining Speed) items/min
+        let val = self.resource_purity.modifier()
+            * (self.speed / 100.)
+            * self.level.mining_speed() as f32;
+        val.round()
     }
 
     pub fn input_material(&self) -> Option<Material> {

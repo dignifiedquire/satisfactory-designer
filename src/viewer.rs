@@ -9,8 +9,8 @@ use strum::VariantArray;
 use crate::{
     buildings::{
         Assembler, Building, Constructor, Fluid, Foundry, Material, Merger, Miner, OilExtractor,
-        Packager, PipelineJunction, Refinery, Smelter, SomersloopSlot1, SomersloopSlot2, Splitter,
-        StorageContainer, WaterExtractor,
+        Packager, PipelineJunction, Refinery, ResourceType, Smelter, SomersloopSlot1,
+        SomersloopSlot2, Splitter, StorageContainer, WaterExtractor,
     },
     node::{Node, Resource},
 };
@@ -338,8 +338,8 @@ impl SnarlViewer<Node> for Viewer<'_> {
                     Building::Miner(m) => {
                         ui.horizontal(|ui| {
                             let x = 20. * scale;
-                            if let Some(ref resource) = m.resource {
-                                let image = egui::Image::new(resource.image())
+                            if let Some(image) = m.resource.map(|r| r.image()) {
+                                let image = egui::Image::new(image)
                                     .fit_to_exact_size(vec2(x, x))
                                     .show_loading_spinner(true);
                                 ui.add(image);
@@ -347,28 +347,36 @@ impl SnarlViewer<Node> for Viewer<'_> {
                                 ui.add_space(x);
                             }
 
-                            let text = match &m.resource {
-                                Some(r) => r.name(),
-                                None => "Select Resource".to_string(),
-                            };
-                            egui::ComboBox::from_id_source(egui::Id::new("miner_resource"))
-                                .selected_text(text)
-                                .show_ui(ui, |ui| {
-                                    for resource in m.available_resources() {
-                                        let name = resource.name();
-                                        ui.horizontal(|ui| {
-                                            let image = egui::Image::new(resource.image())
-                                                .fit_to_exact_size(vec2(20., 20.))
-                                                .show_loading_spinner(true);
-                                            ui.add(image);
-                                            ui.selectable_value(
-                                                &mut m.resource,
-                                                Some(*resource),
-                                                name,
-                                            );
-                                        });
-                                    }
-                                });
+                            let b = crate::dropdown::DropDownBox::from_iter(
+                                m.available_resources().into_iter().copied(),
+                                format!("miner_resource_{}_{}", ui.id().value(), node.0),
+                                &mut m.buffer,
+                                |ui, resource, text| {
+                                    ui.horizontal(|ui| {
+                                        let image = egui::Image::new(resource.image())
+                                            .fit_to_exact_size(vec2(20., 20.))
+                                            .show_loading_spinner(true);
+                                        ui.add(image);
+                                        ui.selectable_label(false, text)
+                                    })
+                                    .inner
+                                },
+                            )
+                            // .max_height(ui.available_height())
+                            .filter_by_input(true)
+                            .select_on_focus(true);
+
+                            if ui.add(b).changed() {
+                                if let Some(resource) = m
+                                    .available_resources()
+                                    .iter()
+                                    .find(|r| r.as_ref() == m.buffer)
+                                {
+                                    m.resource.replace(*resource);
+                                } else {
+                                    m.resource = None;
+                                }
+                            }
                         });
 
                         ui.add_space(10.0 * scale);

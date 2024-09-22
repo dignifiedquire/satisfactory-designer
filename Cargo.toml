@@ -16,6 +16,7 @@ strum = { version = "0.26.3", features = ["derive"] }
 egui-modal = "0.4.0"
 egui_dock = { version = "0.13.0", features = ["serde"] }
 image = { version = "0.25", features = ["png"] }
+egui-dropdown = "0.10.0"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen-futures = "0.4"

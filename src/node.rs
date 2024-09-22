@@ -409,7 +409,6 @@ impl Node {
             Node::Building(b) => match b {
                 Building::Miner(remote_m) => remote_m
                     .resource
-                    .as_ref()
                     .map(|r| Resource::Material(r.output_material())),
                 Building::OilExtractor(m) => Some(Resource::Fluid(m.output_fluid())),
                 Building::WaterExtractor(w) => Some(Resource::Fluid(w.output_fluid())),

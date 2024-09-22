@@ -1,5 +1,6 @@
 mod app;
 mod buildings;
+mod dropdown;
 mod node;
 mod util;
 mod viewer;

@@ -1131,6 +1131,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "egui-dropdown"
+version = "0.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "983323df439c4353979e32ef5f8120b1510cc3e496c36bcb226a37fd7315d3dd"
+dependencies = [
+ "egui",
+]
+
+[[package]]
 name = "egui-modal"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3196,6 +3205,7 @@ version = "0.1.0"
 dependencies = [
  "eframe",
  "egui",
+ "egui-dropdown",
  "egui-modal",
  "egui-probe",
  "egui-snarl",

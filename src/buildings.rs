@@ -56,6 +56,7 @@ pub enum Building {
     PartialEq,
     strum::VariantArray,
     strum::Display,
+    strum::AsRefStr,
 )]
 pub enum ResourceType {
     #[strum(to_string = "Bauxite")]
