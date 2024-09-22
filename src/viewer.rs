@@ -1413,7 +1413,7 @@ fn material_output(
             Some(_output_material) => {
                 ui.horizontal(|ui| {
                     add_resource_image(ui, scale, &Some(material));
-                    ui.label(format!("{}/m^3 ({}/min)", output_speed, max_speed));
+                    ui.label(format!("{}/min ({}/min)", output_speed, max_speed));
                 });
             }
             None => {
