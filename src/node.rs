@@ -139,6 +139,51 @@ impl Node {
                         _ => unreachable!("only two outputs"),
                     }
                 }
+                Building::Foundry(p) => {
+                    let input_wire_material_0 = snarl
+                        .wires()
+                        .find(|(_output, input)| input.node == remote_node && input.input == 0);
+
+                    let input_wire_material_1 = snarl
+                        .wires()
+                        .find(|(_output, input)| input.node == remote_node && input.input == 1);
+
+                    let input_material_0_speed = input_wire_material_0
+                        .map(|(output, _input)| {
+                            snarl[output.node].output_speed(snarl, output.node, output.output)
+                        })
+                        .unwrap_or_default();
+
+                    let input_material_1_speed = input_wire_material_1
+                        .map(|(output, _input)| {
+                            snarl[output.node].output_speed(snarl, output.node, output.output)
+                        })
+                        .unwrap_or_default();
+
+                    let input_material_0 = input_wire_material_0
+                        .map(|(output, _input)| {
+                            snarl[output.node].output_resource(snarl, output.node, output.output)
+                        })
+                        .unwrap_or_default();
+
+                    let input_material_1 = input_wire_material_1
+                        .map(|(output, _input)| {
+                            snarl[output.node].output_resource(snarl, output.node, output.output)
+                        })
+                        .unwrap_or_default();
+
+                    let (expected_input_material_0, expected_input_material_1) = p
+                        .input_material()
+                        .map(|(a, b)| (Resource::Material(a), Resource::Material(b)))
+                        .unzip();
+
+                    let is_valid = expected_input_material_0 == input_material_0
+                        && expected_input_material_1 == input_material_1;
+                    if !is_valid {
+                        return 0.;
+                    }
+                    p.output_material_speed(input_material_0_speed, input_material_1_speed)
+                }
                 Building::Refinery(p) => {
                     let input_wire_fluid = snarl
                         .wires()
@@ -346,6 +391,7 @@ impl Node {
                     .recipe
                     .as_ref()
                     .map(|r| Resource::Material(r.output_material())),
+                Building::Foundry(r) => r.output_material().map(Resource::Material),
                 Building::Constructor(remote_s) => remote_s
                     .recipe
                     .as_ref()

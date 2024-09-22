@@ -4,11 +4,12 @@ use egui_snarl::{
     ui::{AnyPins, PinInfo, SnarlViewer},
     InPin, NodeId, OutPin, Snarl,
 };
+use strum::VariantArray;
 
 use crate::{
     buildings::{
-        Building, Constructor, Fluid, Material, Merger, Miner, OilExtractor, Packager, Refinery,
-        Smelter, Splitter, StorageContainer, WaterExtractor,
+        Building, Constructor, Fluid, Foundry, Material, Merger, Miner, OilExtractor, Packager,
+        Refinery, Smelter, SomersloopSlot2, Splitter, StorageContainer, WaterExtractor,
     },
     node::{Node, Resource},
 };
@@ -71,6 +72,41 @@ impl Viewer<'_> {
                         .map(|r| r.input_material_speed())
                         .unwrap_or_default();
                     let material = p.input_material().map(Resource::Material);
+                    single_input(
+                        material,
+                        max_input_speed,
+                        ui,
+                        pin,
+                        scale,
+                        snarl,
+                        PinInfo::square(),
+                    )
+                } else {
+                    unreachable!("only two inputs");
+                }
+            }
+            Building::Foundry(f) => {
+                if pin.id.input == 0 {
+                    let max_input_speed = f
+                        .recipe
+                        .map(|r| r.input_material_speed().0)
+                        .unwrap_or_default();
+                    let material = f.input_material().map(|(a, _)| Resource::Material(a));
+                    single_input(
+                        material,
+                        max_input_speed,
+                        ui,
+                        pin,
+                        scale,
+                        snarl,
+                        PinInfo::square(),
+                    )
+                } else if pin.id.input == 1 {
+                    let max_input_speed = f
+                        .recipe
+                        .map(|r| r.input_material_speed().1)
+                        .unwrap_or_default();
+                    let material = f.input_material().map(|(_, b)| Resource::Material(b));
                     single_input(
                         material,
                         max_input_speed,
@@ -379,7 +415,54 @@ impl SnarlViewer<Node> for Viewer<'_> {
                         add_speed_ui(ui, &mut p.speed);
 
                         ui.add_space(10.0 * scale);
-                        ui.checkbox(&mut p.amplified, "Sommersloop");
+                        ui.checkbox(&mut p.amplified, "Somersloop");
+                    }
+                    Building::Foundry(f) => {
+                        ui.horizontal(|ui| {
+                            let x = 20. * scale;
+                            if let Some(ref recipe) = f.recipe {
+                                let image = recipe.image();
+                                let image = egui::Image::new(image)
+                                    .fit_to_exact_size(vec2(x, x))
+                                    .show_loading_spinner(true);
+                                ui.add(image);
+                            } else {
+                                ui.add_space(x * 2.);
+                            }
+
+                            let text = match &f.recipe {
+                                Some(r) => r.name(),
+                                None => "Select Recipe".to_string(),
+                            };
+                            egui::ComboBox::from_id_source(egui::Id::new("foundry_recipe"))
+                                .selected_text(text)
+                                .show_ui(ui, |ui| {
+                                    for recipe in f.available_recipes() {
+                                        let name = recipe.name();
+                                        ui.horizontal(|ui| {
+                                            let image = recipe.image();
+                                            let image = egui::Image::new(image)
+                                                .fit_to_exact_size(vec2(20., 20.))
+                                                .show_loading_spinner(true);
+                                            ui.add(image);
+                                            ui.selectable_value(&mut f.recipe, Some(*recipe), name);
+                                        });
+                                    }
+                                });
+                        });
+
+                        ui.add_space(10.0 * scale);
+                        add_speed_ui(ui, &mut f.speed);
+
+                        ui.add_space(10.0 * scale);
+                        egui::ComboBox::from_id_source(egui::Id::new("foundry_amplification"))
+                            .selected_text("Somersloop")
+                            .show_ui(ui, |ui| {
+                                for var in SomersloopSlot2::VARIANTS {
+                                    let name = var.name();
+                                    ui.selectable_value(&mut f.amplified, *var, name);
+                                }
+                            });
                     }
                     Building::Refinery(p) => {
                         ui.horizontal(|ui| {
@@ -438,7 +521,7 @@ impl SnarlViewer<Node> for Viewer<'_> {
                         add_speed_ui(ui, &mut p.speed);
 
                         ui.add_space(10.0 * scale);
-                        ui.checkbox(&mut p.amplified, "Sommersloop");
+                        ui.checkbox(&mut p.amplified, "Somersloop");
                     }
                     Building::WaterExtractor(m) => {
                         let text = match &m.output_pipe {
@@ -543,7 +626,7 @@ impl SnarlViewer<Node> for Viewer<'_> {
                         add_speed_ui(ui, &mut s.speed);
 
                         ui.add_space(10.0 * scale);
-                        ui.checkbox(&mut s.amplified, "Sommersloop");
+                        ui.checkbox(&mut s.amplified, "Somersloop");
                     }
                     Building::Splitter(_) => {}
                     Building::Merger(_) => {}
@@ -585,7 +668,7 @@ impl SnarlViewer<Node> for Viewer<'_> {
                         add_speed_ui(ui, &mut s.speed);
 
                         ui.add_space(10.0 * scale);
-                        ui.checkbox(&mut s.amplified, "Sommersloop");
+                        ui.checkbox(&mut s.amplified, "Somersloop");
                     }
                 },
             }
@@ -832,6 +915,18 @@ impl SnarlViewer<Node> for Viewer<'_> {
 
                     material_output(material, max_speed, ui, scale, pin, snarl)
                 }
+                Building::Foundry(f) => {
+                    assert_eq!(pin.id.output, 0, "Foundry node has only one output");
+
+                    let material = f.output_material();
+                    let max_speed = f
+                        .recipe
+                        .as_ref()
+                        .map(|r| r.max_output_speed_material())
+                        .unwrap_or_default();
+
+                    material_output(material, max_speed, ui, scale, pin, snarl)
+                }
                 Building::Splitter(_s) => {
                     let (speed, material) = if !pin.remotes.is_empty() {
                         let speed =
@@ -918,6 +1013,11 @@ impl SnarlViewer<Node> for Viewer<'_> {
 
         if ui.button("Add Smelter").clicked() {
             snarl.insert_node(pos, Node::Building(Building::Smelter(Smelter::default())));
+            ui.close_menu();
+        }
+
+        if ui.button("Add Foundry").clicked() {
+            snarl.insert_node(pos, Node::Building(Building::Foundry(Foundry::default())));
             ui.close_menu();
         }
 

@@ -26,7 +26,7 @@
 
 #### Smelters
 - [x] Smelter
-- [ ] Foundary
+- [x] Foundary
 
 #### Manufacturers
 - [x] Constructor

@@ -1,6 +1,7 @@
 use egui::Color32;
 
 mod constructor;
+mod foundry;
 mod merger;
 mod miner;
 mod oil_extractor;
@@ -14,6 +15,7 @@ mod water_extractor;
 use crate::util::load_img;
 
 pub use self::constructor::Constructor;
+pub use self::foundry::Foundry;
 pub use self::merger::Merger;
 pub use self::miner::Miner;
 pub use self::oil_extractor::OilExtractor;
@@ -36,6 +38,7 @@ pub enum Building {
     OilExtractor(OilExtractor),
     Packager(Packager),
     Refinery(Refinery),
+    Foundry(Foundry),
 }
 
 #[derive(
@@ -454,6 +457,7 @@ impl Building {
             Self::OilExtractor(s) => s.header_image(),
             Self::Packager(s) => s.header_image(),
             Self::Refinery(s) => s.header_image(),
+            Self::Foundry(s) => s.header_image(),
         }
     }
 
@@ -469,6 +473,7 @@ impl Building {
             Self::OilExtractor(s) => s.num_outputs(),
             Self::Packager(s) => s.num_outputs(),
             Self::Refinery(s) => s.num_outputs(),
+            Self::Foundry(s) => s.num_outputs(),
         }
     }
 
@@ -484,6 +489,7 @@ impl Building {
             Self::OilExtractor(s) => s.num_inputs(),
             Self::Packager(s) => s.num_inputs(),
             Self::Refinery(s) => s.num_inputs(),
+            Self::Foundry(s) => s.num_inputs(),
         }
     }
 
@@ -499,6 +505,7 @@ impl Building {
             Self::OilExtractor(s) => s.name(),
             Self::Packager(s) => s.name(),
             Self::Refinery(s) => s.name(),
+            Self::Foundry(s) => s.name(),
         }
     }
 
@@ -514,6 +521,7 @@ impl Building {
             Self::OilExtractor(s) => s.description(),
             Self::Packager(s) => s.description(),
             Self::Refinery(s) => s.description(),
+            Self::Foundry(s) => s.description(),
         }
     }
 }
@@ -650,5 +658,39 @@ impl Pipe {
             Self::Mk1 => 300.,
             Self::Mk2 => 600.,
         }
+    }
+}
+
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    serde::Serialize,
+    serde::Deserialize,
+    PartialEq,
+    Eq,
+    strum::VariantArray,
+    strum::Display,
+)]
+pub enum SomersloopSlot2 {
+    #[strum(to_string = "None")]
+    Empty,
+    #[strum(to_string = "1")]
+    One,
+    #[strum(to_string = "2")]
+    Two,
+}
+
+impl SomersloopSlot2 {
+    pub fn factor(&self) -> f32 {
+        match self {
+            Self::Empty => 1.,
+            Self::One => 1.5,
+            Self::Two => 2.,
+        }
+    }
+
+    pub fn name(&self) -> String {
+        self.to_string()
     }
 }
