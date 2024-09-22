@@ -278,6 +278,26 @@ impl Node {
                         _ => unreachable!("only two outputs"),
                     }
                 }
+                Building::PipelineJunction(_) => {
+                    let input_wires = snarl
+                        .wires()
+                        .filter(|(_output, input)| input.node == remote_node);
+                    let mut input_speed = 0.;
+                    for (output, _input) in input_wires {
+                        // TODO: this is expensive, find a better way
+                        let num_connections = snarl
+                            .wires()
+                            .filter(|(o, _i)| o.node == remote_node)
+                            .count() as f32;
+
+                        let base_speed =
+                            snarl[output.node].output_speed(snarl, output.node, output.output);
+
+                        input_speed += base_speed / num_connections;
+                    }
+
+                    input_speed
+                }
                 Building::Splitter(_remote_s) => {
                     let input_wire = snarl
                         .wires()
@@ -420,6 +440,18 @@ impl Node {
                     _ => unreachable!("only two outputs"),
                 },
                 Building::StorageContainer(s) => s.output_material().map(Resource::Material),
+                Building::PipelineJunction(_) => {
+                    let input_wire = snarl
+                        .wires()
+                        .find(|(_output, input)| input.node == remote_node);
+
+                    match input_wire {
+                        Some((output, _input)) => {
+                            snarl[output.node].output_resource(snarl, output.node, output.output)
+                        }
+                        None => None,
+                    }
+                }
                 Building::Splitter(_remote_s) => {
                     let input_wire = snarl
                         .wires()

@@ -9,8 +9,8 @@ use strum::VariantArray;
 use crate::{
     buildings::{
         Assembler, Building, Constructor, Fluid, Foundry, Material, Merger, Miner, OilExtractor,
-        Packager, Refinery, Smelter, SomersloopSlot1, SomersloopSlot2, Splitter, StorageContainer,
-        WaterExtractor,
+        Packager, PipelineJunction, Refinery, Smelter, SomersloopSlot1, SomersloopSlot2, Splitter,
+        StorageContainer, WaterExtractor,
     },
     node::{Node, Resource},
 };
@@ -204,6 +204,32 @@ impl Viewer<'_> {
                     snarl,
                     PinInfo::square(),
                 )
+            }
+            Building::PipelineJunction(_) => {
+                // 4 inputs
+                let (actual_input_speed, material) = match &*pin.remotes {
+                    [] => (0., None),
+                    [remote] => {
+                        let speed =
+                            snarl[remote.node].output_speed(snarl, remote.node, remote.output);
+                        let material =
+                            snarl[remote.node].output_resource(snarl, remote.node, remote.output);
+                        (speed, material)
+                    }
+                    _ => unreachable!("only one output"),
+                };
+
+                let color = material
+                    .as_ref()
+                    .map(|m| m.color())
+                    .unwrap_or(BUILDING_COLOR);
+
+                ui.horizontal(|ui| {
+                    add_resource_image(ui, scale, &material);
+                    ui.label(format!("{}/m^3", actual_input_speed,));
+                });
+
+                PinInfo::circle().with_fill(color)
             }
             Building::Splitter(_) => {
                 assert_eq!(pin.id.input, 0, "Splitter node has only one input");
@@ -701,6 +727,7 @@ impl SnarlViewer<Node> for Viewer<'_> {
                         ui.add_space(10.0 * scale);
                         add_somersloop1_ui(ui, &mut s.amplified);
                     }
+                    Building::PipelineJunction(_) => {}
                     Building::Splitter(_) => {}
                     Building::Merger(_) => {}
                     Building::Constructor(s) => {
@@ -1012,6 +1039,25 @@ impl SnarlViewer<Node> for Viewer<'_> {
 
                     material_output(material, max_speed, ui, scale, pin, snarl)
                 }
+                Building::PipelineJunction(_s) => {
+                    let (speed, material) = if !pin.remotes.is_empty() {
+                        let speed =
+                            snarl[pin.id.node].output_speed(snarl, pin.id.node, pin.id.output);
+                        let material =
+                            snarl[pin.id.node].output_resource(snarl, pin.id.node, pin.id.output);
+                        (speed, material)
+                    } else {
+                        (0., None)
+                    };
+
+                    ui.horizontal(|ui| {
+                        add_resource_image(ui, scale, &material);
+                        ui.label(format!("{}/m^3", speed));
+                    });
+
+                    let color = material.map(|m| m.color()).unwrap_or(BUILDING_COLOR);
+                    PinInfo::circle().with_fill(color)
+                }
                 Building::Splitter(_s) => {
                     let (speed, material) = if !pin.remotes.is_empty() {
                         let speed =
@@ -1140,6 +1186,15 @@ impl SnarlViewer<Node> for Viewer<'_> {
         }
         if ui.button("Add Merger").clicked() {
             snarl.insert_node(pos, Node::Building(Building::Merger(Merger::default())));
+            ui.close_menu();
+        }
+
+        ui.separator();
+        if ui.button("Add Pipeline Junction").clicked() {
+            snarl.insert_node(
+                pos,
+                Node::Building(Building::PipelineJunction(PipelineJunction::default())),
+            );
             ui.close_menu();
         }
 

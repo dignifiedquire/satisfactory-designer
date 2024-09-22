@@ -7,6 +7,7 @@ mod merger;
 mod miner;
 mod oil_extractor;
 mod packager;
+mod pipeline_junction;
 mod refinery;
 mod smelter;
 mod splitter;
@@ -22,6 +23,7 @@ pub use self::merger::Merger;
 pub use self::miner::Miner;
 pub use self::oil_extractor::OilExtractor;
 pub use self::packager::Packager;
+pub use self::pipeline_junction::PipelineJunction;
 pub use self::refinery::Refinery;
 pub use self::smelter::Smelter;
 pub use self::splitter::Splitter;
@@ -42,6 +44,7 @@ pub enum Building {
     Refinery(Refinery),
     Foundry(Foundry),
     Assembler(Assembler),
+    PipelineJunction(PipelineJunction),
 }
 
 #[derive(
@@ -570,6 +573,7 @@ impl Building {
             Self::Refinery(s) => s.header_image(),
             Self::Foundry(s) => s.header_image(),
             Self::Assembler(s) => s.header_image(),
+            Self::PipelineJunction(s) => s.header_image(),
         }
     }
 
@@ -587,6 +591,7 @@ impl Building {
             Self::Refinery(s) => s.num_outputs(),
             Self::Foundry(s) => s.num_outputs(),
             Self::Assembler(s) => s.num_outputs(),
+            Self::PipelineJunction(s) => s.num_outputs(),
         }
     }
 
@@ -604,6 +609,7 @@ impl Building {
             Self::Refinery(s) => s.num_inputs(),
             Self::Foundry(s) => s.num_inputs(),
             Self::Assembler(s) => s.num_inputs(),
+            Self::PipelineJunction(s) => s.num_inputs(),
         }
     }
 
@@ -621,6 +627,7 @@ impl Building {
             Self::Refinery(s) => s.name(),
             Self::Foundry(s) => s.name(),
             Self::Assembler(s) => s.name(),
+            Self::PipelineJunction(s) => s.name(),
         }
     }
 
@@ -638,6 +645,7 @@ impl Building {
             Self::Refinery(s) => s.description(),
             Self::Foundry(s) => s.description(),
             Self::Assembler(s) => s.description(),
+            Self::PipelineJunction(s) => s.description(),
         }
     }
 }

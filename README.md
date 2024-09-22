@@ -57,7 +57,7 @@
 - [ ] Programmable Splitter
 
 #### Pipelines
-- [ ] Pipeline Junction
+- [x] Pipeline Junction
 - [ ] Valve
 
 ### Organization
