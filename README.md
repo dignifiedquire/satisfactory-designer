@@ -31,7 +31,7 @@
 #### Manufacturers
 - [x] Constructor
 - [x] Assembler
-- [ ] Manufactorer
+- [x] Manufactorer
 - [x] Packager
 - [x] Refinery
 - [ ] Blender

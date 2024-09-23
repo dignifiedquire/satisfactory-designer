@@ -8,9 +8,9 @@ use strum::VariantArray;
 
 use crate::{
     buildings::{
-        Assembler, Building, Constructor, Fluid, Foundry, Material, Merger, Miner, OilExtractor,
-        Packager, PipelineJunction, Refinery, Smelter, SomersloopSlot1, SomersloopSlot2, Splitter,
-        StorageContainer, WaterExtractor,
+        Assembler, Building, Constructor, Fluid, Foundry, Manufacturer, Material, Merger, Miner,
+        OilExtractor, Packager, PipelineJunction, Refinery, Smelter, SomersloopSlot1,
+        SomersloopSlot2, SomersloopSlot4, Splitter, StorageContainer, WaterExtractor,
     },
     node::{Node, Resource},
 };
@@ -156,6 +156,75 @@ impl Viewer<'_> {
                     unreachable!("only two inputs");
                 }
             }
+            Building::Manufacturer(f) => match pin.id.input {
+                0 => {
+                    let max_input_speed = f
+                        .recipe
+                        .map(|r| r.input_material_speed().0)
+                        .unwrap_or_default();
+                    let material = f.input_material().map(|(a, _, _, _)| Resource::Material(a));
+                    single_input(
+                        material,
+                        max_input_speed,
+                        ui,
+                        pin,
+                        scale,
+                        snarl,
+                        PinInfo::square(),
+                    )
+                }
+                1 => {
+                    let max_input_speed = f
+                        .recipe
+                        .map(|r| r.input_material_speed().1)
+                        .unwrap_or_default();
+                    let material = f.input_material().map(|(_, b, _, _)| Resource::Material(b));
+                    single_input(
+                        material,
+                        max_input_speed,
+                        ui,
+                        pin,
+                        scale,
+                        snarl,
+                        PinInfo::square(),
+                    )
+                }
+                2 => {
+                    let max_input_speed = f
+                        .recipe
+                        .map(|r| r.input_material_speed().2)
+                        .unwrap_or_default();
+                    let material = f.input_material().map(|(_, _, c, _)| Resource::Material(c));
+                    single_input(
+                        material,
+                        max_input_speed,
+                        ui,
+                        pin,
+                        scale,
+                        snarl,
+                        PinInfo::square(),
+                    )
+                }
+                3 => {
+                    let max_input_speed = f
+                        .recipe
+                        .map(|r| r.input_material_speed().3)
+                        .unwrap_or_default();
+                    let material = f
+                        .input_material()
+                        .and_then(|(_, _, _, d)| d.map(Resource::Material));
+                    single_input(
+                        material,
+                        max_input_speed,
+                        ui,
+                        pin,
+                        scale,
+                        snarl,
+                        PinInfo::square(),
+                    )
+                }
+                _ => unreachable!("only four inputs"),
+            },
             Building::Refinery(p) => {
                 if pin.id.input == 0 {
                     let max_input_speed =
@@ -558,6 +627,53 @@ impl SnarlViewer<Node> for Viewer<'_> {
                             .selected_text(f.amplified.name())
                             .show_ui(ui, |ui| {
                                 for var in SomersloopSlot2::VARIANTS {
+                                    let name = var.name();
+                                    ui.selectable_value(&mut f.amplified, *var, name);
+                                }
+                            });
+                    }
+                    Building::Manufacturer(f) => {
+                        ui.horizontal(|ui| {
+                            let x = 20. * scale;
+                            if let Some(ref recipe) = f.recipe {
+                                let image = recipe.image();
+                                let image = egui::Image::new(image)
+                                    .fit_to_exact_size(vec2(x, x))
+                                    .show_loading_spinner(true);
+                                ui.add(image);
+                            } else {
+                                ui.add_space(x * 2.);
+                            }
+
+                            let text = match &f.recipe {
+                                Some(r) => r.name(),
+                                None => "Select Recipe".to_string(),
+                            };
+                            egui::ComboBox::from_id_source(egui::Id::new("manufacturer_recipe"))
+                                .selected_text(text)
+                                .show_ui(ui, |ui| {
+                                    for recipe in f.available_recipes() {
+                                        let name = recipe.name();
+                                        ui.horizontal(|ui| {
+                                            let image = recipe.image();
+                                            let image = egui::Image::new(image)
+                                                .fit_to_exact_size(vec2(20., 20.))
+                                                .show_loading_spinner(true);
+                                            ui.add(image);
+                                            ui.selectable_value(&mut f.recipe, Some(*recipe), name);
+                                        });
+                                    }
+                                });
+                        });
+
+                        ui.add_space(10.0 * scale);
+                        add_speed_ui(ui, &mut f.speed);
+
+                        ui.add_space(10.0 * scale);
+                        egui::ComboBox::from_id_source(egui::Id::new("manufacturer_amplification"))
+                            .selected_text(f.amplified.name())
+                            .show_ui(ui, |ui| {
+                                for var in SomersloopSlot4::VARIANTS {
                                     let name = var.name();
                                     ui.selectable_value(&mut f.amplified, *var, name);
                                 }
@@ -1039,6 +1155,18 @@ impl SnarlViewer<Node> for Viewer<'_> {
 
                     material_output(material, max_speed, ui, scale, pin, snarl)
                 }
+                Building::Manufacturer(f) => {
+                    assert_eq!(pin.id.output, 0, "Assembler node has only one output");
+
+                    let material = f.output_material();
+                    let max_speed = f
+                        .recipe
+                        .as_ref()
+                        .map(|r| r.max_output_speed_material())
+                        .unwrap_or_default();
+
+                    material_output(material, max_speed, ui, scale, pin, snarl)
+                }
                 Building::PipelineJunction(_s) => {
                     let (speed, material) = if !pin.remotes.is_empty() {
                         let speed =
@@ -1167,14 +1295,19 @@ impl SnarlViewer<Node> for Viewer<'_> {
             );
             ui.close_menu();
         }
-
         if ui.button("Add Packager").clicked() {
             snarl.insert_node(pos, Node::Building(Building::Packager(Packager::default())));
             ui.close_menu();
         }
-
         if ui.button("Add Refinery").clicked() {
             snarl.insert_node(pos, Node::Building(Building::Refinery(Refinery::default())));
+            ui.close_menu();
+        }
+        if ui.button("Add Manufacturer").clicked() {
+            snarl.insert_node(
+                pos,
+                Node::Building(Building::Manufacturer(Manufacturer::default())),
+            );
             ui.close_menu();
         }
 

@@ -3,6 +3,7 @@ use egui::Color32;
 mod assembler;
 mod constructor;
 mod foundry;
+mod manufacturer;
 mod merger;
 mod miner;
 mod oil_extractor;
@@ -19,6 +20,7 @@ use crate::util::load_img;
 pub use self::assembler::Assembler;
 pub use self::constructor::Constructor;
 pub use self::foundry::Foundry;
+pub use self::manufacturer::Manufacturer;
 pub use self::merger::Merger;
 pub use self::miner::Miner;
 pub use self::oil_extractor::OilExtractor;
@@ -45,6 +47,7 @@ pub enum Building {
     Foundry(Foundry),
     Assembler(Assembler),
     PipelineJunction(PipelineJunction),
+    Manufacturer(Manufacturer),
 }
 
 #[derive(
@@ -208,7 +211,7 @@ pub enum Material {
     #[strum(to_string = "Quartz Crystal")]
     QuartzCrystal,
     #[strum(to_string = "Reanimated SAM")]
-    ReanimatedSam,
+    ReanimatedSAM,
     #[strum(to_string = "Screw")]
     Screw,
     #[strum(to_string = "Silica")]
@@ -331,6 +334,44 @@ pub enum Material {
     StunRebar,
     #[strum(to_string = "Portable Miner")]
     PortableMiner,
+    #[strum(to_string = "Heavy Modular Frame")]
+    HeavyModularFrame,
+    #[strum(to_string = "Thermal Propulsion Rocket")]
+    ThermalPropulsionRocket,
+    #[strum(to_string = "Singularity Cell")]
+    SingularityCell,
+    #[strum(to_string = "Dark Matter Crystal")]
+    DarkMatterCrystal,
+    #[strum(to_string = "Ballistic Warp Drive")]
+    BallisticWarpDrive,
+    #[strum(to_string = "Superposition Oscillator")]
+    SuperpositionOscillator,
+    #[strum(to_string = "Gas Filter")]
+    GasFilter,
+    #[strum(to_string = "Iodine Infused Filter")]
+    IodineInfusedFilter,
+    #[strum(to_string = "Modular Engine")]
+    ModularEngine,
+    #[strum(to_string = "Encased UraniumCell")]
+    EncasedUraniumCell,
+    #[strum(to_string = "Nuke Nobelisk")]
+    NukeNobelisk,
+    #[strum(to_string = "SAM Fluctuator")]
+    SAMFluctuator,
+    #[strum(to_string = "Nuclear Pasta")]
+    NuclearPasta,
+    #[strum(to_string = "Turbo Motor")]
+    TurboMotor,
+    #[strum(to_string = "Fused Modular Frame")]
+    FusedModularFrame,
+    #[strum(to_string = "Turbo Rifle Ammo")]
+    TurboRifleAmmo,
+    #[strum(to_string = "Uranium FuelRod")]
+    UraniumFuelRod,
+    #[strum(to_string = "Battery")]
+    Battery,
+    #[strum(to_string = "Explosive Rebar")]
+    ExplosiveRebar,
 }
 
 impl Material {
@@ -407,7 +448,7 @@ impl Material {
             Self::IronRebar => "40px-Iron_Rebar.png",
             Self::PowerShard => "40px-Power_Shard.png",
             Self::QuartzCrystal => "40px-Quartz_Crystal.png",
-            Self::ReanimatedSam => "40px-Reanimated_SAM.png",
+            Self::ReanimatedSAM => "40px-Reanimated_SAM.png",
             Self::Screw => "40px-Screw.png",
             Self::Silica => "40px-Silica.png",
             Self::SolidBiofuel => "40px-Solid_Biofuel.png",
@@ -469,6 +510,25 @@ impl Material {
             Self::SmartPlating => "40px-Smart_Plating.png",
             Self::StunRebar => "40px-Stun_Rebar.png",
             Self::PortableMiner => "40px-Portable_Miner.png",
+            Self::HeavyModularFrame => "40px-Heavy_Modular_Frame.png",
+            Self::ThermalPropulsionRocket => "40px-Thermal_Propulsion_Rocket.png",
+            Self::SingularityCell => "40px-Singularity_Cell.png",
+            Self::DarkMatterCrystal => "40px-Dark_Matter_Crystal.png",
+            Self::BallisticWarpDrive => "40px-Ballistic_Warp_Drive.png",
+            Self::SuperpositionOscillator => "40px-Superposition_Oscillator.png",
+            Self::GasFilter => "40px-Gas_Filter.png",
+            Self::IodineInfusedFilter => "40px-Iodine-Infused_Filter.png",
+            Self::ModularEngine => "40px-Modular_Engine.png",
+            Self::EncasedUraniumCell => "40px-Encased_Uranium_Cell.png",
+            Self::NukeNobelisk => "40px-Nuke_Nobelisk.png",
+            Self::SAMFluctuator => "40px-SAM_Fluctuator.png",
+            Self::NuclearPasta => "40px-Nuclear_Pasta.png",
+            Self::TurboMotor => "40px-Turbo_Motor.png",
+            Self::FusedModularFrame => "40px-Fused_Modular_Frame.png",
+            Self::TurboRifleAmmo => "40px-Turbo_Rifle_Ammo.png",
+            Self::UraniumFuelRod => "40px-Uranium_Fuel_Rod.png",
+            Self::Battery => "40px-Battery.png",
+            Self::ExplosiveRebar => "40px-Explosive_Rebar.png",
         };
         load_img(name)
     }
@@ -574,6 +634,7 @@ impl Building {
             Self::Foundry(s) => s.header_image(),
             Self::Assembler(s) => s.header_image(),
             Self::PipelineJunction(s) => s.header_image(),
+            Self::Manufacturer(s) => s.header_image(),
         }
     }
 
@@ -592,6 +653,7 @@ impl Building {
             Self::Foundry(s) => s.num_outputs(),
             Self::Assembler(s) => s.num_outputs(),
             Self::PipelineJunction(s) => s.num_outputs(),
+            Self::Manufacturer(s) => s.num_outputs(),
         }
     }
 
@@ -610,6 +672,7 @@ impl Building {
             Self::Foundry(s) => s.num_inputs(),
             Self::Assembler(s) => s.num_inputs(),
             Self::PipelineJunction(s) => s.num_inputs(),
+            Self::Manufacturer(s) => s.num_inputs(),
         }
     }
 
@@ -628,6 +691,7 @@ impl Building {
             Self::Foundry(s) => s.name(),
             Self::Assembler(s) => s.name(),
             Self::PipelineJunction(s) => s.name(),
+            Self::Manufacturer(s) => s.name(),
         }
     }
 
@@ -646,6 +710,7 @@ impl Building {
             Self::Foundry(s) => s.description(),
             Self::Assembler(s) => s.description(),
             Self::PipelineJunction(s) => s.description(),
+            Self::Manufacturer(s) => s.description(),
         }
     }
 }
@@ -693,7 +758,7 @@ fn calc_output2(
             } else {
                 1.
             };
-            let b = if input_size_a < input_base_b {
+            let b = if input_size_b < input_base_b {
                 input_size_b / input_base_b
             } else {
                 1.
@@ -711,6 +776,67 @@ fn calc_output2(
     // 60/4 * 1 = 15
     let b = (60. / duration) * a * output_size;
     round(b)
+}
+
+fn calc_output4(
+    input_size: Option<(f32, f32, f32, f32)>,
+    duration: f32,
+    output_size: f32,
+    input_base_a: f32,
+    input_base_b: f32,
+    input_base_c: f32,
+    input_base_d: f32,
+) -> f32 {
+    let a = match input_size {
+        Some((input_size_a, input_size_b, input_size_c, input_size_d)) => {
+            let input_size_a = (input_size_a / 60.) * duration;
+            let input_size_b = (input_size_b / 60.) * duration;
+            let input_size_c = (input_size_c / 60.) * duration;
+            let input_size_d = (input_size_d / 60.) * duration;
+
+            // 45/60 * 4secs = 3
+            let a = if input_size_a < input_base_a {
+                input_size_a / input_base_a
+            } else {
+                1.
+            };
+            let b = if input_size_b < input_base_b {
+                input_size_b / input_base_b
+            } else {
+                1.
+            };
+            let c = if input_size_c < input_base_c {
+                input_size_c / input_base_c
+            } else {
+                1.
+            };
+            let d = if input_size_d < input_base_d {
+                input_size_d / input_base_d
+            } else {
+                1.
+            };
+
+            // restrict to the minimum
+            min4(a, b, c, d)
+        }
+        None => 1.,
+    };
+
+    // 60/4 * 1 = 15
+    let b = (60. / duration) * a * output_size;
+    round(b)
+}
+
+fn min4(a: f32, b: f32, c: f32, d: f32) -> f32 {
+    let mut sizes = [a, b, c, d];
+    sizes.sort_by(|a, b| {
+        if a < b {
+            std::cmp::Ordering::Less
+        } else {
+            std::cmp::Ordering::Greater
+        }
+    });
+    sizes[0]
 }
 
 #[derive(
@@ -847,5 +973,56 @@ impl SomersloopSlot2 {
 
     pub fn name(&self) -> String {
         self.to_string()
+    }
+}
+
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    serde::Serialize,
+    serde::Deserialize,
+    PartialEq,
+    Eq,
+    strum::VariantArray,
+    strum::Display,
+)]
+pub enum SomersloopSlot4 {
+    #[strum(to_string = "No Somersloop")]
+    Empty,
+    #[strum(to_string = "1 Somersloop")]
+    One,
+    #[strum(to_string = "2 Somersloops")]
+    Two,
+    #[strum(to_string = "3 Somersloops")]
+    Three,
+    #[strum(to_string = "4 Somersloops")]
+    Four,
+}
+
+impl SomersloopSlot4 {
+    pub fn factor(&self) -> f32 {
+        match self {
+            Self::Empty => 1.,
+            Self::One => 1.25,
+            Self::Two => 1.5,
+            Self::Three => 1.75,
+            Self::Four => 2.,
+        }
+    }
+
+    pub fn name(&self) -> String {
+        self.to_string()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_min4() {
+        assert_eq!(min4(1., 2., 3., 4.), 1.);
+        assert_eq!(min4(4., 2., 28., 0.03), 0.03);
     }
 }

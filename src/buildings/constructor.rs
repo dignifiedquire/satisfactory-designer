@@ -185,7 +185,7 @@ impl ConstructorRecipe {
             Self::PowerShard5 => Material::PowerShard,
             Self::QuartzCrystal => Material::QuartzCrystal,
             Self::Quickwire => Material::Quickwire,
-            Self::ReanimatedSam => Material::ReanimatedSam,
+            Self::ReanimatedSam => Material::ReanimatedSAM,
             Self::Screw => Material::Screw,
             Self::Silica => Material::Silica,
             Self::SolidBiofuel => Material::SolidBiofuel,

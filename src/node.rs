@@ -229,6 +229,100 @@ impl Node {
                     }
                     p.output_material_speed(input_material_0_speed, input_material_1_speed)
                 }
+                Building::Manufacturer(p) => {
+                    let input_wire_material_0 = snarl
+                        .wires()
+                        .find(|(_output, input)| input.node == remote_node && input.input == 0);
+
+                    let input_wire_material_1 = snarl
+                        .wires()
+                        .find(|(_output, input)| input.node == remote_node && input.input == 1);
+
+                    let input_wire_material_2 = snarl
+                        .wires()
+                        .find(|(_output, input)| input.node == remote_node && input.input == 2);
+
+                    let input_wire_material_3 = snarl
+                        .wires()
+                        .find(|(_output, input)| input.node == remote_node && input.input == 3);
+
+                    let input_material_0_speed = input_wire_material_0
+                        .map(|(output, _input)| {
+                            snarl[output.node].output_speed(snarl, output.node, output.output)
+                        })
+                        .unwrap_or_default();
+
+                    let input_material_1_speed = input_wire_material_1
+                        .map(|(output, _input)| {
+                            snarl[output.node].output_speed(snarl, output.node, output.output)
+                        })
+                        .unwrap_or_default();
+
+                    let input_material_2_speed = input_wire_material_2
+                        .map(|(output, _input)| {
+                            snarl[output.node].output_speed(snarl, output.node, output.output)
+                        })
+                        .unwrap_or_default();
+
+                    let input_material_3_speed = input_wire_material_3
+                        .map(|(output, _input)| {
+                            snarl[output.node].output_speed(snarl, output.node, output.output)
+                        })
+                        .unwrap_or_default();
+
+                    let input_material_0 = input_wire_material_0
+                        .map(|(output, _input)| {
+                            snarl[output.node].output_resource(snarl, output.node, output.output)
+                        })
+                        .unwrap_or_default();
+
+                    let input_material_1 = input_wire_material_1
+                        .map(|(output, _input)| {
+                            snarl[output.node].output_resource(snarl, output.node, output.output)
+                        })
+                        .unwrap_or_default();
+
+                    let input_material_2 = input_wire_material_2
+                        .map(|(output, _input)| {
+                            snarl[output.node].output_resource(snarl, output.node, output.output)
+                        })
+                        .unwrap_or_default();
+
+                    let input_material_3 = input_wire_material_3
+                        .map(|(output, _input)| {
+                            snarl[output.node].output_resource(snarl, output.node, output.output)
+                        })
+                        .unwrap_or_default();
+
+                    let (
+                        expected_input_material_0,
+                        expected_input_material_1,
+                        expected_input_material_2,
+                        expected_input_material_3,
+                    ) = match p.input_material() {
+                        Some((a, b, c, d)) => (
+                            Some(Resource::Material(a)),
+                            Some(Resource::Material(b)),
+                            Some(Resource::Material(c)),
+                            d.map(Resource::Material),
+                        ),
+                        None => (None, None, None, None),
+                    };
+
+                    let is_valid = expected_input_material_0 == input_material_0
+                        && expected_input_material_1 == input_material_1
+                        && expected_input_material_2 == input_material_2
+                        && expected_input_material_3 == input_material_3;
+                    if !is_valid {
+                        return 0.;
+                    }
+                    p.output_material_speed(
+                        input_material_0_speed,
+                        input_material_1_speed,
+                        input_material_2_speed,
+                        input_material_3_speed,
+                    )
+                }
                 Building::Refinery(p) => {
                     let input_wire_fluid = snarl
                         .wires()
@@ -470,6 +564,7 @@ impl Node {
                     .map(|r| Resource::Material(r.output_material())),
                 Building::Foundry(f) => f.output_material().map(Resource::Material),
                 Building::Assembler(a) => a.output_material().map(Resource::Material),
+                Building::Manufacturer(a) => a.output_material().map(Resource::Material),
                 Building::Constructor(remote_s) => remote_s
                     .recipe
                     .as_ref()
