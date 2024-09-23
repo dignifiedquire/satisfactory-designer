@@ -451,7 +451,7 @@ impl Material {
             Self::RifleAmmo => "40px-Rifle_Ammo.png",
             Self::HeatSink => "40px-Heat_Sink.png",
             Self::HomingRifleAmmo => "40px-Homing_Rifle_Ammo.png",
-            Self::HighSpeedConnector => "40px-High_Speed_Connector.png",
+            Self::HighSpeedConnector => "40px-High-Speed_Connector.png",
             Self::VersatileFramework => "40px-Versatile_Framework.png",
             Self::MagneticFieldGenerator => "40px-Magnetic_Field_Generator.png",
             Self::Rotor => "40px-Rotor.png",
