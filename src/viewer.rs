@@ -2,17 +2,14 @@ use egui::{vec2, Color32, FontId, Id, RichText, Ui, Vec2};
 use egui_dock::SurfaceIndex;
 use egui_snarl::{
     ui::{AnyPins, PinInfo, SnarlViewer},
-    InPin, NodeId, OutPin, Snarl,
+    InPin, NodeId, OutPin,
 };
 use strum::VariantArray;
 
 use crate::{
-    buildings::{
-        Assembler, Building, Constructor, Fluid, Foundry, Manufacturer, Material, Merger, Miner,
-        OilExtractor, Packager, PipelineJunction, Refinery, Smelter, SomersloopSlot1,
-        SomersloopSlot2, SomersloopSlot4, Splitter, StorageContainer, WaterExtractor,
-    },
-    node::{Node, Resource},
+    app::{EdgeDetails, GraphIdx, NodeGraph, Snarl},
+    buildings::{Building, Fluid, Material, SomersloopSlot1, SomersloopSlot2, SomersloopSlot4},
+    node::{Input, Node, Output, Resource},
 };
 
 const BUILDING_COLOR: Color32 = Color32::from_rgb(0xb0, 0xb0, 0xb0);
@@ -22,23 +19,26 @@ pub struct Viewer<'a> {
     pub snarl_id_source: String,
     pub snarl_ui_id: Option<Id>,
     pub index: (SurfaceIndex, egui_dock::NodeIndex, usize),
+    pub graph: &'a mut NodeGraph,
     pub group_edits: &'a mut Vec<(
         SurfaceIndex,
         egui_dock::NodeIndex,
         usize,
         NodeId,
-        Snarl<Node>,
+        NodeGraph,
+        Snarl,
     )>,
 }
 
 impl Viewer<'_> {
     fn show_input_building(
-        &mut self,
+        &self,
+        graph_idx: GraphIdx,
         b: &Building,
         pin: &InPin,
         ui: &mut Ui,
         scale: f32,
-        snarl: &Snarl<Node>,
+        snarl: &Snarl,
     ) -> PinInfo {
         match b {
             Building::Miner(_) => {
@@ -58,9 +58,18 @@ impl Viewer<'_> {
                     let max_input_speed =
                         p.recipe.map(|r| r.input_fluid_speed()).unwrap_or_default();
                     let fluid = p.input_fluid().map(Resource::Fluid);
+
+                    let actual_input_speed = p
+                        .current_input_fluid
+                        .as_ref()
+                        .map(|i| i.speed)
+                        .unwrap_or_default();
+                    let actual_input_fluid = p.current_input_fluid.as_ref().map(|i| i.resource);
                     single_input(
                         fluid,
                         max_input_speed,
+                        actual_input_speed,
+                        actual_input_fluid,
                         ui,
                         pin,
                         scale,
@@ -73,9 +82,18 @@ impl Viewer<'_> {
                         .map(|r| r.input_material_speed())
                         .unwrap_or_default();
                     let material = p.input_material().map(Resource::Material);
+                    let actual_input_speed = p
+                        .current_input_material
+                        .as_ref()
+                        .map(|i| i.speed)
+                        .unwrap_or_default();
+                    let actual_input_material =
+                        p.current_input_material.as_ref().map(|i| i.resource);
                     single_input(
                         material,
                         max_input_speed,
+                        actual_input_speed,
+                        actual_input_material,
                         ui,
                         pin,
                         scale,
@@ -93,9 +111,18 @@ impl Viewer<'_> {
                         .map(|r| r.input_material_speed().0)
                         .unwrap_or_default();
                     let material = f.input_material().map(|(a, _)| Resource::Material(a));
+                    let actual_input_speed = f
+                        .current_input_material_0
+                        .as_ref()
+                        .map(|i| i.speed)
+                        .unwrap_or_default();
+                    let actual_input_material =
+                        f.current_input_material_0.as_ref().map(|i| i.resource);
                     single_input(
                         material,
                         max_input_speed,
+                        actual_input_speed,
+                        actual_input_material,
                         ui,
                         pin,
                         scale,
@@ -108,9 +135,18 @@ impl Viewer<'_> {
                         .map(|r| r.input_material_speed().1)
                         .unwrap_or_default();
                     let material = f.input_material().map(|(_, b)| Resource::Material(b));
+                    let actual_input_speed = f
+                        .current_input_material_1
+                        .as_ref()
+                        .map(|i| i.speed)
+                        .unwrap_or_default();
+                    let actual_input_material =
+                        f.current_input_material_1.as_ref().map(|i| i.resource);
                     single_input(
                         material,
                         max_input_speed,
+                        actual_input_speed,
+                        actual_input_material,
                         ui,
                         pin,
                         scale,
@@ -128,9 +164,19 @@ impl Viewer<'_> {
                         .map(|r| r.input_material_speed().0)
                         .unwrap_or_default();
                     let material = f.input_material().map(|(a, _)| Resource::Material(a));
+
+                    let actual_input_speed = f
+                        .current_input_material_0
+                        .as_ref()
+                        .map(|i| i.speed)
+                        .unwrap_or_default();
+                    let actual_input_material =
+                        f.current_input_material_0.as_ref().map(|i| i.resource);
                     single_input(
                         material,
                         max_input_speed,
+                        actual_input_speed,
+                        actual_input_material,
                         ui,
                         pin,
                         scale,
@@ -143,9 +189,18 @@ impl Viewer<'_> {
                         .map(|r| r.input_material_speed().1)
                         .unwrap_or_default();
                     let material = f.input_material().map(|(_, b)| Resource::Material(b));
+                    let actual_input_speed = f
+                        .current_input_material_1
+                        .as_ref()
+                        .map(|i| i.speed)
+                        .unwrap_or_default();
+                    let actual_input_material =
+                        f.current_input_material_1.as_ref().map(|i| i.resource);
                     single_input(
                         material,
                         max_input_speed,
+                        actual_input_speed,
+                        actual_input_material,
                         ui,
                         pin,
                         scale,
@@ -163,9 +218,18 @@ impl Viewer<'_> {
                         .map(|r| r.input_material_speed().0)
                         .unwrap_or_default();
                     let material = f.input_material().map(|(a, _, _, _)| Resource::Material(a));
+                    let actual_input_speed = f
+                        .current_input_material_0
+                        .as_ref()
+                        .map(|i| i.speed)
+                        .unwrap_or_default();
+                    let actual_input_material =
+                        f.current_input_material_0.as_ref().map(|i| i.resource);
                     single_input(
                         material,
                         max_input_speed,
+                        actual_input_speed,
+                        actual_input_material,
                         ui,
                         pin,
                         scale,
@@ -178,10 +242,19 @@ impl Viewer<'_> {
                         .recipe
                         .map(|r| r.input_material_speed().1)
                         .unwrap_or_default();
-                    let material = f.input_material().map(|(_, b, _, _)| Resource::Material(b));
+                    let material = f.input_material().map(|(a, _, _, _)| Resource::Material(a));
+                    let actual_input_speed = f
+                        .current_input_material_1
+                        .as_ref()
+                        .map(|i| i.speed)
+                        .unwrap_or_default();
+                    let actual_input_material =
+                        f.current_input_material_1.as_ref().map(|i| i.resource);
                     single_input(
                         material,
                         max_input_speed,
+                        actual_input_speed,
+                        actual_input_material,
                         ui,
                         pin,
                         scale,
@@ -195,9 +268,18 @@ impl Viewer<'_> {
                         .map(|r| r.input_material_speed().2)
                         .unwrap_or_default();
                     let material = f.input_material().map(|(_, _, c, _)| Resource::Material(c));
+                    let actual_input_speed = f
+                        .current_input_material_2
+                        .as_ref()
+                        .map(|i| i.speed)
+                        .unwrap_or_default();
+                    let actual_input_material =
+                        f.current_input_material_2.as_ref().map(|i| i.resource);
                     single_input(
                         material,
                         max_input_speed,
+                        actual_input_speed,
+                        actual_input_material,
                         ui,
                         pin,
                         scale,
@@ -213,9 +295,18 @@ impl Viewer<'_> {
                     let material = f
                         .input_material()
                         .and_then(|(_, _, _, d)| d.map(Resource::Material));
+                    let actual_input_speed = f
+                        .current_input_material_3
+                        .as_ref()
+                        .map(|i| i.speed)
+                        .unwrap_or_default();
+                    let actual_input_material =
+                        f.current_input_material_3.as_ref().map(|i| i.resource);
                     single_input(
                         material,
                         max_input_speed,
+                        actual_input_speed,
+                        actual_input_material,
                         ui,
                         pin,
                         scale,
@@ -230,9 +321,17 @@ impl Viewer<'_> {
                     let max_input_speed =
                         p.recipe.map(|r| r.input_fluid_speed()).unwrap_or_default();
                     let fluid = p.input_fluid().map(Resource::Fluid);
+                    let actual_input_speed = p
+                        .current_input_fluid
+                        .as_ref()
+                        .map(|i| i.speed)
+                        .unwrap_or_default();
+                    let actual_input_fluid = p.current_input_fluid.as_ref().map(|i| i.resource);
                     single_input(
                         fluid,
                         max_input_speed,
+                        actual_input_speed,
+                        actual_input_fluid,
                         ui,
                         pin,
                         scale,
@@ -245,9 +344,18 @@ impl Viewer<'_> {
                         .map(|r| r.input_material_speed())
                         .unwrap_or_default();
                     let material = p.input_material().map(Resource::Material);
+                    let actual_input_speed = p
+                        .current_input_material
+                        .as_ref()
+                        .map(|i| i.speed)
+                        .unwrap_or_default();
+                    let actual_input_material =
+                        p.current_input_material.as_ref().map(|i| i.resource);
                     single_input(
                         material,
                         max_input_speed,
+                        actual_input_speed,
+                        actual_input_material,
                         ui,
                         pin,
                         scale,
@@ -263,10 +371,17 @@ impl Viewer<'_> {
 
                 let material = s.input_material().map(Resource::Material);
                 let max_input_speed = s.input_speed();
-
+                let actual_input_speed = s
+                    .current_input
+                    .as_ref()
+                    .map(|i| i.speed)
+                    .unwrap_or_default();
+                let actual_input_material = s.current_input.as_ref().map(|i| i.resource);
                 single_input(
                     material,
                     max_input_speed,
+                    actual_input_speed,
+                    actual_input_material,
                     ui,
                     pin,
                     scale,
@@ -276,48 +391,34 @@ impl Viewer<'_> {
             }
             Building::PipelineJunction(_) => {
                 // 4 inputs
-                let (actual_input_speed, material) = match &*pin.remotes {
-                    [] => (0., None),
-                    [remote] => {
-                        let speed =
-                            snarl[remote.node].output_speed(snarl, remote.node, remote.output);
-                        let material =
-                            snarl[remote.node].output_resource(snarl, remote.node, remote.output);
-                        (speed, material)
-                    }
-                    _ => unreachable!("only one output"),
-                };
+                let actual_input_speed = 0.;
+                let input_fluid = None;
 
-                let color = material
+                let color = input_fluid
                     .as_ref()
-                    .map(|m| m.color())
+                    .map(|m: &Resource| m.color())
                     .unwrap_or(BUILDING_COLOR);
 
                 ui.horizontal(|ui| {
-                    add_resource_image(ui, scale, &material);
+                    add_resource_image(ui, scale, &input_fluid);
                     ui.label(format!("{}/m^3", actual_input_speed,));
                 });
 
                 PinInfo::circle().with_fill(color)
             }
-            Building::Splitter(_) => {
+            Building::Splitter(s) => {
                 assert_eq!(pin.id.input, 0, "Splitter node has only one input");
 
-                let (actual_input_speed, material) = match &*pin.remotes {
-                    [] => (0., None),
-                    [remote] => {
-                        let speed =
-                            snarl[remote.node].output_speed(snarl, remote.node, remote.output);
-                        let material =
-                            snarl[remote.node].output_resource(snarl, remote.node, remote.output);
-                        (speed, material)
+                let (actual_input_speed, material) = match s.current_input {
+                    Some(ref input) => {
+                        (input.speed, Some(input.resource))
                     }
-                    _ => unreachable!("only one output"),
+                    None => (0., None),
                 };
 
                 let color = material
                     .as_ref()
-                    .map(|m| m.color())
+                    .map(|m: &Resource| m.color())
                     .unwrap_or(BUILDING_COLOR);
 
                 ui.horizontal(|ui| {
@@ -327,28 +428,24 @@ impl Viewer<'_> {
 
                 PinInfo::square().with_fill(color)
             }
-            Building::Merger(_) => {
+            Building::Merger(m) => {
                 // 3 inputs
-                let (actual_input_speed, material) = match &*pin.remotes {
-                    [] => (0., None),
-                    [remote] => {
-                        let speed =
-                            snarl[remote.node].output_speed(snarl, remote.node, remote.output);
-                        let material =
-                            snarl[remote.node].output_resource(snarl, remote.node, remote.output);
-                        (speed, material)
-                    }
-                    _ => unreachable!("only one output"),
+
+                let current_input = match pin.id.input {
+                    0 => &m.current_input_0,
+                    1 => &m.current_input_1,
+                    2 => &m.current_input_2,
+                    _ => unreachable!("3 inputs"),
                 };
 
-                let color = material
-                    .as_ref()
-                    .map(|m| m.color())
-                    .unwrap_or(BUILDING_COLOR);
+                let resource = current_input.as_ref().map(|i| i.resource);
+                let color = resource.map(|r| r.color()).unwrap_or(BUILDING_COLOR);
+                let actual_input_speed =
+                    current_input.as_ref().map(|r| r.speed).unwrap_or_default();
 
                 ui.horizontal(|ui| {
-                    add_resource_image(ui, scale, &material);
-                    ui.label(format!("{}/min", actual_input_speed,));
+                    add_resource_image(ui, scale, &resource);
+                    ui.label(format!("{}/min", actual_input_speed));
                 });
 
                 PinInfo::square().with_fill(color)
@@ -359,9 +456,18 @@ impl Viewer<'_> {
                 let material = s.input_material().map(Resource::Material);
                 let max_input_speed = s.input_speed();
 
+                let actual_input_speed = s
+                    .current_input
+                    .as_ref()
+                    .map(|i| i.speed)
+                    .unwrap_or_default();
+                let actual_input_material = s.current_input.as_ref().map(|i| i.resource);
+
                 single_input(
                     material,
                     max_input_speed,
+                    actual_input_speed,
+                    actual_input_material,
                     ui,
                     pin,
                     scale,
@@ -369,11 +475,29 @@ impl Viewer<'_> {
                     PinInfo::square(),
                 )
             }
+            Building::AwesomeSink(ref s) => {
+                assert_eq!(pin.id.input, 0, "Awesome sink node has only one input");
+
+                let color = match s.current_input {
+                    Some(ref input) => {
+                        let color = input.resource.color();
+
+                        ui.horizontal(|ui| {
+                            add_resource_image(ui, scale, &Some(input.resource));
+                            ui.label(format!("{}/min", input.speed));
+                        });
+                        color
+                    }
+                    None => BUILDING_COLOR,
+                };
+
+                PinInfo::square().with_fill(color)
+            }
         }
     }
 }
 
-impl SnarlViewer<Node> for Viewer<'_> {
+impl SnarlViewer<GraphIdx> for Viewer<'_> {
     fn show_body(
         &mut self,
         node: NodeId,
@@ -381,27 +505,30 @@ impl SnarlViewer<Node> for Viewer<'_> {
         _outputs: &[OutPin],
         ui: &mut Ui,
         scale: f32,
-        snarl: &mut Snarl<Node>,
+        snarl: &mut Snarl,
     ) {
         ui.vertical(|ui| {
-            match &mut snarl[node] {
+            let graph_idx = snarl[node];
+            let node = self.graph.node_weight_mut(graph_idx).unwrap();
+            match node {
                 Node::Group { snarl, .. } => {
-                    for node in snarl.nodes() {
-                        ui.horizontal(|ui| {
-                            let x = 25. * scale;
-                            if let Some(img) = node.header_image() {
-                                let image = egui::Image::new(img)
-                                    .fit_to_exact_size(vec2(x, x))
-                                    .show_loading_spinner(true);
-                                ui.add(image);
-                            } else {
-                                ui.add_space(x);
-                            }
-                            ui.add_space(5. * scale);
-                            ui.label(node.name());
-                        });
-                        ui.add_space(5. * scale);
-                    }
+                    todo!()
+                    // for node in snarl.nodes() {
+                    //     ui.horizontal(|ui| {
+                    //         let x = 25. * scale;
+                    //         if let Some(img) = node.header_image() {
+                    //             let image = egui::Image::new(img)
+                    //                 .fit_to_exact_size(vec2(x, x))
+                    //                 .show_loading_spinner(true);
+                    //             ui.add(image);
+                    //         } else {
+                    //             ui.add_space(x);
+                    //         }
+                    //         ui.add_space(5. * scale);
+                    //         ui.label(node.name());
+                    //     });
+                    //     ui.add_space(5. * scale);
+                    // }
                 }
                 Node::Building(b) => match b {
                     Building::Miner(m) => {
@@ -846,6 +973,7 @@ impl SnarlViewer<Node> for Viewer<'_> {
                     Building::PipelineJunction(_) => {}
                     Building::Splitter(_) => {}
                     Building::Merger(_) => {}
+                    Building::AwesomeSink(_) => {}
                     Building::Constructor(s) => {
                         ui.horizontal(|ui| {
                             let x = 20. * scale;
@@ -893,7 +1021,8 @@ impl SnarlViewer<Node> for Viewer<'_> {
         });
     }
 
-    fn has_body(&mut self, node: &Node) -> bool {
+    fn has_body(&mut self, node: &GraphIdx) -> bool {
+        let node = self.graph.node_weight(*node).unwrap();
         match node {
             Node::Building(_) => true,
             Node::Group { .. } => true,
@@ -902,14 +1031,15 @@ impl SnarlViewer<Node> for Viewer<'_> {
 
     fn show_header(
         &mut self,
-        node: NodeId,
+        node_id: NodeId,
         _inputs: &[InPin],
         _outputs: &[OutPin],
         ui: &mut Ui,
         scale: f32,
-        snarl: &mut Snarl<Node>,
+        snarl: &mut Snarl,
     ) {
-        let node = &snarl[node];
+        let graph_idx = snarl[node_id];
+        let node = self.graph.node_weight_mut(graph_idx).unwrap();
 
         ui.vertical(|ui| {
             ui.horizontal(|ui| {
@@ -922,7 +1052,7 @@ impl SnarlViewer<Node> for Viewer<'_> {
                     ui.add_space(5. * scale);
                 }
 
-                let title = self.title(node);
+                let title = node.name();
                 let text = RichText::new(title).font(FontId::proportional(15.0 * scale));
                 ui.label(text);
                 ui.add_space(5. * scale);
@@ -931,90 +1061,178 @@ impl SnarlViewer<Node> for Viewer<'_> {
     }
 
     #[inline]
-    fn connect(&mut self, from: &OutPin, to: &InPin, snarl: &mut Snarl<Node>) {
-        // Validate connection
-        match (&snarl[from.id.node], &snarl[to.id.node]) {
-            (Node::Group { .. }, Node::Group { .. }) => {}
-            (Node::Building(_), Node::Building(_)) => {}
-            (_, Node::Building(_)) => {
-                return;
-            }
-            (Node::Building(_), _) => {
-                return;
-            }
-        }
+    fn connect(&mut self, from: &OutPin, to: &InPin, snarl: &mut Snarl) {
+        // TODO: Validate connection
 
-        for &remote in &to.remotes {
-            snarl.disconnect(remote, to.id);
-        }
+        // Update graph
+        let node_from_idx = snarl[from.id.node];
+        let node_to_idx = snarl[to.id.node];
 
+        // connect graph
+        self.graph.add_edge(
+            node_from_idx,
+            node_to_idx,
+            EdgeDetails {
+                input: to.id.input,
+                output: from.id.output,
+            },
+        );
+
+        // connect snarl
         snarl.connect(from.id, to.id);
+
+        // Update cached values
+        let node_from = self.graph.node_weight_mut(node_from_idx).unwrap();
+        node_from.set_current_output_connected(from.id.output);
+        let node_from_output = node_from.current_output(from.id.output);
+
+        let externals = self.graph.externals(petgraph::Direction::Outgoing);
+        for target in externals {
+            println!("{}", self.graph.node_weight(target).unwrap().name());
+            let paths = petgraph::algo::all_simple_paths::<Vec<_>, _>(
+                &*self.graph,
+                node_to_idx,
+                target,
+                1,
+                None,
+            );
+            for path in paths {
+                let path: Vec<_> = path
+                    .into_iter()
+                    .map(|n| self.graph.node_weight(n).unwrap().name())
+                    .collect();
+                println!("{:?}", path);
+            }
+        }
+
+        dbg!(&node_from_output);
+
+        // - grab output from "from"
+
+        if let Some(output) = node_from_output {
+            let node_to = self.graph.node_weight_mut(node_to_idx).unwrap();
+            node_to.set_current_input(output, to.id.input);
+
+            // move to function
+            let parent_idx = node_from_idx;
+
+            // walk affected nodes
+            let mut neighbors = self
+                .graph
+                .neighbors_directed(parent_idx, petgraph::Direction::Outgoing)
+                .detach();
+            while let Some(node_idx) = neighbors.next_node(&self.graph) {
+                let mut neighbors = self
+                    .graph
+                    .neighbors_directed(node_idx, petgraph::Direction::Outgoing)
+                    .detach();
+
+                while let Some((edge_idx, next_node_idx)) = neighbors.next(&self.graph) {
+                    let edge = self.graph.edge_weight(edge_idx).unwrap().clone();
+
+                    let node = self.graph.node_weight(node_idx).unwrap();
+                    let output = node.current_output(edge.output);
+                    let next_node = self.graph.node_weight_mut(next_node_idx).unwrap();
+
+                    match output {
+                        Some(output) => {
+                            next_node.set_current_input(output, edge.input);
+                        }
+                        None => {
+                            next_node.clear_current_input(edge.input);
+                        }
+                    }
+                }
+            }
+        }
     }
 
-    fn title(&mut self, node: &Node) -> String {
+    fn disconnect(&mut self, from: &OutPin, to: &InPin, snarl: &mut egui_snarl::Snarl<GraphIdx>) {
+        // Update graph
+        let node_from_idx = snarl[from.id.node];
+        let node_to_idx = snarl[to.id.node];
+
+        // disconnect graph
+        if let Some(edge) = self.graph.find_edge(node_from_idx, node_to_idx) {
+            self.graph.remove_edge(edge);
+        }
+
+        // disconnect snarl
+        snarl.disconnect(from.id, to.id);
+
+        // Update cached values
+        let node_from = self.graph.node_weight_mut(node_from_idx).unwrap();
+        node_from.set_current_output_disconnected(from.id.output);
+
+        let node_to = self.graph.node_weight_mut(node_to_idx).unwrap();
+
+        // - clear output on "to"
+        node_to.clear_current_input(to.id.input);
+
+        // TODO: walk affected nodes
+
+    }
+
+    fn title(&mut self, graph_idx: &GraphIdx) -> String {
+        let node = self.graph.node_weight(*graph_idx).unwrap();
         node.name()
     }
 
-    fn inputs(&mut self, node: &Node) -> usize {
+    fn inputs(&mut self, graph_idx: &GraphIdx) -> usize {
+        let node = self.graph.node_weight(*graph_idx).unwrap();
         node.inputs()
     }
 
-    fn outputs(&mut self, node: &Node) -> usize {
+    fn outputs(&mut self, graph_idx: &GraphIdx) -> usize {
+        let node = self.graph.node_weight(*graph_idx).unwrap();
         node.outputs()
     }
 
-    fn show_input(
-        &mut self,
-        pin: &InPin,
-        ui: &mut Ui,
-        scale: f32,
-        snarl: &mut Snarl<Node>,
-    ) -> PinInfo {
-        match snarl[pin.id.node] {
+    fn show_input(&mut self, pin: &InPin, ui: &mut Ui, scale: f32, snarl: &mut Snarl) -> PinInfo {
+        let graph_idx = snarl[pin.id.node];
+        let node = self.graph.node_weight(graph_idx).unwrap();
+        match node {
             Node::Group { ref snarl, .. } => {
                 let mut counter = 0;
-                let mut building = None;
+                // let mut building = None;
 
-                for b in snarl.nodes() {
-                    counter += b.inputs();
-                    if b.inputs() > 0 && counter > pin.id.input {
-                        building = Some((b, counter - pin.id.input - 1));
-                        break;
-                    }
-                }
-                let (building, output_id) = building.unwrap();
+                todo!()
+                // for b in snarl.nodes() {
+                //     counter += b.inputs();
+                //     if b.inputs() > 0 && counter > pin.id.input {
+                //         building = Some((b, counter - pin.id.input - 1));
+                //         break;
+                //     }
+                // }
+                // let (building, output_id) = building.unwrap();
 
-                let mut fake_pin = pin.clone();
-                fake_pin.id.input = output_id;
+                // let mut fake_pin = pin.clone();
+                // fake_pin.id.input = output_id;
 
-                let building = match building {
-                    Node::Building(b) => b,
-                    Node::Group { .. } => todo!("nested groups are not supported yet"),
-                };
-                self.show_input_building(building, &fake_pin, ui, scale, snarl)
+                // let building = match building {
+                //     Node::Building(b) => b,
+                //     Node::Group { .. } => todo!("nested groups are not supported yet"),
+                // };
+                // self.show_input_building(building, &fake_pin, ui, scale, snarl)
             }
-            Node::Building(ref b) => self.show_input_building(b, pin, ui, scale, snarl),
+            Node::Building(ref b) => self.show_input_building(graph_idx, b, pin, ui, scale, snarl),
         }
     }
 
-    fn show_output(
-        &mut self,
-        pin: &OutPin,
-        ui: &mut Ui,
-        scale: f32,
-        snarl: &mut Snarl<Node>,
-    ) -> PinInfo {
-        match snarl[pin.id.node] {
+    fn show_output(&mut self, pin: &OutPin, ui: &mut Ui, scale: f32, snarl: &mut Snarl) -> PinInfo {
+        let graph_idx = snarl[pin.id.node];
+        let node = self.graph.node_weight(graph_idx).unwrap();
+        match node {
             Node::Group { .. } => {
                 // TODO
                 PinInfo::square().with_fill(BUILDING_COLOR)
             }
             Node::Building(ref b) => match b {
-                Building::Miner(_) => {
+                Building::Miner(m) => {
                     assert_eq!(pin.id.output, 0, "Miner has only one output");
-                    let speed = snarl[pin.id.node].output_speed(snarl, pin.id.node, pin.id.output);
-                    let material =
-                        snarl[pin.id.node].output_resource(snarl, pin.id.node, pin.id.output);
+
+                    let speed = m.output_speed();
+                    let material = m.output_material().map(Resource::Material);
                     let color = material
                         .as_ref()
                         .map(|m| m.color())
@@ -1037,7 +1255,7 @@ impl SnarlViewer<Node> for Viewer<'_> {
                             .map(|r| r.max_output_speed_fluid())
                             .unwrap_or_default();
 
-                        fluid_output(fluid, max_speed, ui, scale, pin, snarl)
+                        fluid_output(fluid, max_speed, p.current_output_fluid(), ui, scale)
                     } else if pin.id.output == 1 {
                         // Material
                         let material = p.output_material();
@@ -1047,7 +1265,7 @@ impl SnarlViewer<Node> for Viewer<'_> {
                             .map(|r| r.max_output_speed_material())
                             .unwrap_or_default();
 
-                        material_output(material, max_speed, ui, scale, pin, snarl)
+                        material_output(material, max_speed, p.current_output_material(), ui, scale)
                     } else {
                         unreachable!("only two outputs");
                     }
@@ -1062,7 +1280,7 @@ impl SnarlViewer<Node> for Viewer<'_> {
                             .map(|r| r.max_output_speed_fluid())
                             .unwrap_or_default();
 
-                        fluid_output(fluid, max_speed, ui, scale, pin, snarl)
+                        fluid_output(fluid, max_speed, p.current_output_fluid(), ui, scale)
                     } else if pin.id.output == 1 {
                         // Material
                         let material = p.output_material();
@@ -1072,7 +1290,7 @@ impl SnarlViewer<Node> for Viewer<'_> {
                             .map(|r| r.max_output_speed_material())
                             .unwrap_or_default();
 
-                        material_output(material, max_speed, ui, scale, pin, snarl)
+                        material_output(material, max_speed, p.current_output_material(), ui, scale)
                     } else {
                         unreachable!("only two outputs");
                     }
@@ -1129,7 +1347,7 @@ impl SnarlViewer<Node> for Viewer<'_> {
                         .map(|r| r.max_output_speed())
                         .unwrap_or_default();
 
-                    material_output(material, max_speed, ui, scale, pin, snarl)
+                    material_output(material, max_speed, s.current_output(), ui, scale)
                 }
                 Building::Foundry(f) => {
                     assert_eq!(pin.id.output, 0, "Foundry node has only one output");
@@ -1141,7 +1359,7 @@ impl SnarlViewer<Node> for Viewer<'_> {
                         .map(|r| r.max_output_speed_material())
                         .unwrap_or_default();
 
-                    material_output(material, max_speed, ui, scale, pin, snarl)
+                    material_output(material, max_speed, f.current_output(), ui, scale)
                 }
                 Building::Assembler(f) => {
                     assert_eq!(pin.id.output, 0, "Assembler node has only one output");
@@ -1153,7 +1371,7 @@ impl SnarlViewer<Node> for Viewer<'_> {
                         .map(|r| r.max_output_speed_material())
                         .unwrap_or_default();
 
-                    material_output(material, max_speed, ui, scale, pin, snarl)
+                    material_output(material, max_speed, f.current_output(), ui, scale)
                 }
                 Building::Manufacturer(f) => {
                     assert_eq!(pin.id.output, 0, "Assembler node has only one output");
@@ -1165,18 +1383,11 @@ impl SnarlViewer<Node> for Viewer<'_> {
                         .map(|r| r.max_output_speed_material())
                         .unwrap_or_default();
 
-                    material_output(material, max_speed, ui, scale, pin, snarl)
+                    material_output(material, max_speed, f.current_output(), ui, scale)
                 }
                 Building::PipelineJunction(_s) => {
-                    let (speed, material) = if !pin.remotes.is_empty() {
-                        let speed =
-                            snarl[pin.id.node].output_speed(snarl, pin.id.node, pin.id.output);
-                        let material =
-                            snarl[pin.id.node].output_resource(snarl, pin.id.node, pin.id.output);
-                        (speed, material)
-                    } else {
-                        (0., None)
-                    };
+                    let speed = 0.;
+                    let material = None;
 
                     ui.horizontal(|ui| {
                         add_resource_image(ui, scale, &material);
@@ -1186,15 +1397,16 @@ impl SnarlViewer<Node> for Viewer<'_> {
                     let color = material.map(|m| m.color()).unwrap_or(BUILDING_COLOR);
                     PinInfo::circle().with_fill(color)
                 }
-                Building::Splitter(_s) => {
-                    let (speed, material) = if !pin.remotes.is_empty() {
-                        let speed =
-                            snarl[pin.id.node].output_speed(snarl, pin.id.node, pin.id.output);
-                        let material =
-                            snarl[pin.id.node].output_resource(snarl, pin.id.node, pin.id.output);
-                        (speed, material)
-                    } else {
-                        (0., None)
+                Building::Splitter(s) => {
+                    let output = match pin.id.output {
+                        0 => s.current_output_0(),
+                        1 => s.current_output_1(),
+                        2 => s.current_output_2(),
+                        _ => unreachable!("3 outputs"),
+                    };
+                    let (speed, material) = match output {
+                        Some(output) => (output.speed, Some(output.resource)),
+                        None => (0., None)
                     };
 
                     ui.horizontal(|ui| {
@@ -1205,23 +1417,19 @@ impl SnarlViewer<Node> for Viewer<'_> {
                     let color = material.map(|m| m.color()).unwrap_or(BUILDING_COLOR);
                     PinInfo::square().with_fill(color)
                 }
-                Building::Merger(_m) => {
-                    let (speed, material) = if !pin.remotes.is_empty() {
-                        let speed =
-                            snarl[pin.id.node].output_speed(snarl, pin.id.node, pin.id.output);
-                        let material =
-                            snarl[pin.id.node].output_resource(snarl, pin.id.node, pin.id.output);
-                        (speed, material)
-                    } else {
-                        (0., None)
+                Building::Merger(m) => {
+                    let color = match m.current_output() {
+                        Some(output) => {
+                            let color = output.resource.color();
+                            ui.horizontal(|ui| {
+                                add_resource_image(ui, scale, &Some(output.resource));
+                                ui.label(format!("{}/min", output.speed));
+                            });
+                            color
+                        }
+                        None => BUILDING_COLOR,
                     };
 
-                    ui.horizontal(|ui| {
-                        add_resource_image(ui, scale, &material);
-                        ui.label(format!("{}/min", speed));
-                    });
-
-                    let color = material.map(|m| m.color()).unwrap_or(BUILDING_COLOR);
                     PinInfo::square().with_fill(color)
                 }
                 Building::Constructor(s) => {
@@ -1233,168 +1441,125 @@ impl SnarlViewer<Node> for Viewer<'_> {
                         .map(|r| r.max_output_speed())
                         .unwrap_or_default();
 
-                    material_output(material, max_speed, ui, scale, pin, snarl)
+                    material_output(material, max_speed, s.current_output(), ui, scale)
+                }
+                Building::AwesomeSink(_) => {
+                    unreachable!("no outputs");
                 }
             },
         }
     }
 
-    fn has_graph_menu(&mut self, _pos: egui::Pos2, _snarl: &mut Snarl<Node>) -> bool {
+    fn has_graph_menu(&mut self, _pos: egui::Pos2, _snarl: &mut Snarl) -> bool {
         true
     }
 
-    fn show_graph_menu(
-        &mut self,
-        pos: egui::Pos2,
-        ui: &mut Ui,
-        _scale: f32,
-        snarl: &mut Snarl<Node>,
-    ) {
-        if ui.button("Add Miner").clicked() {
-            snarl.insert_node(pos, Node::Building(Building::Miner(Miner::default())));
-            ui.close_menu();
+    fn show_graph_menu(&mut self, pos: egui::Pos2, ui: &mut Ui, _scale: f32, snarl: &mut Snarl) {
+        enum MenuItem {
+            Building(Building),
+            Group,
+            Sep,
         }
-        if ui.button("Add Water Extractor").clicked() {
-            snarl.insert_node(
-                pos,
-                Node::Building(Building::WaterExtractor(WaterExtractor::default())),
-            );
-            ui.close_menu();
-        }
-        if ui.button("Add Oil Extractor").clicked() {
-            snarl.insert_node(
-                pos,
-                Node::Building(Building::OilExtractor(OilExtractor::default())),
-            );
-            ui.close_menu();
-        }
-        ui.separator();
+        let items = vec![
+            MenuItem::Building(Building::Miner(Default::default())),
+            MenuItem::Building(Building::WaterExtractor(Default::default())),
+            MenuItem::Building(Building::OilExtractor(Default::default())),
+            MenuItem::Sep,
+            MenuItem::Building(Building::Smelter(Default::default())),
+            MenuItem::Building(Building::Foundry(Default::default())),
+            MenuItem::Building(Building::Assembler(Default::default())),
+            MenuItem::Building(Building::Constructor(Default::default())),
+            MenuItem::Building(Building::Packager(Default::default())),
+            MenuItem::Building(Building::Refinery(Default::default())),
+            MenuItem::Building(Building::Manufacturer(Default::default())),
+            MenuItem::Sep,
+            MenuItem::Building(Building::Splitter(Default::default())),
+            MenuItem::Building(Building::Merger(Default::default())),
+            MenuItem::Sep,
+            MenuItem::Building(Building::PipelineJunction(Default::default())),
+            MenuItem::Sep,
+            MenuItem::Building(Building::AwesomeSink(Default::default())),
+            MenuItem::Sep,
+            MenuItem::Building(Building::StorageContainer(Default::default())),
+            MenuItem::Sep,
+            MenuItem::Group,
+        ];
 
-        if ui.button("Add Smelter").clicked() {
-            snarl.insert_node(pos, Node::Building(Building::Smelter(Smelter::default())));
-            ui.close_menu();
-        }
-
-        if ui.button("Add Foundry").clicked() {
-            snarl.insert_node(pos, Node::Building(Building::Foundry(Foundry::default())));
-            ui.close_menu();
-        }
-
-        ui.separator();
-        if ui.button("Add Assembler").clicked() {
-            snarl.insert_node(
-                pos,
-                Node::Building(Building::Assembler(Assembler::default())),
-            );
-            ui.close_menu();
-        }
-        if ui.button("Add Constructor").clicked() {
-            snarl.insert_node(
-                pos,
-                Node::Building(Building::Constructor(Constructor::default())),
-            );
-            ui.close_menu();
-        }
-        if ui.button("Add Packager").clicked() {
-            snarl.insert_node(pos, Node::Building(Building::Packager(Packager::default())));
-            ui.close_menu();
-        }
-        if ui.button("Add Refinery").clicked() {
-            snarl.insert_node(pos, Node::Building(Building::Refinery(Refinery::default())));
-            ui.close_menu();
-        }
-        if ui.button("Add Manufacturer").clicked() {
-            snarl.insert_node(
-                pos,
-                Node::Building(Building::Manufacturer(Manufacturer::default())),
-            );
-            ui.close_menu();
-        }
-
-        ui.separator();
-
-        if ui.button("Add Splitter").clicked() {
-            snarl.insert_node(pos, Node::Building(Building::Splitter(Splitter::default())));
-            ui.close_menu();
-        }
-        if ui.button("Add Merger").clicked() {
-            snarl.insert_node(pos, Node::Building(Building::Merger(Merger::default())));
-            ui.close_menu();
-        }
-
-        ui.separator();
-        if ui.button("Add Pipeline Junction").clicked() {
-            snarl.insert_node(
-                pos,
-                Node::Building(Building::PipelineJunction(PipelineJunction::default())),
-            );
-            ui.close_menu();
-        }
-
-        ui.separator();
-        if ui.button("Add Storage Container").clicked() {
-            snarl.insert_node(
-                pos,
-                Node::Building(Building::StorageContainer(StorageContainer::default())),
-            );
-            ui.close_menu();
-        }
-
-        ui.separator();
-
-        if ui.button("Group").clicked() {
-            if let Some(snarl_ui_id) = self.snarl_ui_id {
-                let selected = Snarl::<Node>::get_selected_nodes_at(
-                    &self.snarl_id_source,
-                    snarl_ui_id,
-                    ui.ctx(),
-                );
-                let mut selected = selected
-                    .into_iter()
-                    .map(|id| (id, &snarl[id]))
-                    .collect::<Vec<_>>();
-
-                selected.sort_by_key(|(id, _)| *id);
-
-                let mut buildings = Snarl::new();
-                let mut to_remove = Vec::new();
-                let mut num_inputs = 0;
-                let mut num_outputs = 0;
-                for (id, node) in selected {
-                    let info = snarl.get_node_info(id).unwrap();
-                    num_outputs += node.outputs();
-                    num_inputs += node.inputs();
-                    buildings.insert_node(info.pos, node.clone());
-                    to_remove.push(id);
-                }
-                // copy wires
-                let mut connections = Vec::new();
-                for (output, input) in snarl.wires() {
-                    if to_remove.contains(&output.node) && to_remove.contains(&input.node) {
-                        num_inputs -= 1;
-                        num_outputs -= 1;
-                        connections.push((output, input));
+        for item in items {
+            match item {
+                MenuItem::Building(b) => {
+                    if ui.button(format!("Add {}", b.name())).clicked() {
+                        let graph_idx = self.graph.add_node(Node::Building(b));
+                        snarl.insert_node(pos, graph_idx);
+                        ui.close_menu();
                     }
                 }
+                MenuItem::Group => {
+                    if ui.button("Group").clicked() {
+                        if let Some(snarl_ui_id) = self.snarl_ui_id {
+                            let selected = Snarl::get_selected_nodes_at(
+                                &self.snarl_id_source,
+                                snarl_ui_id,
+                                ui.ctx(),
+                            );
+                            let mut selected = selected
+                                .into_iter()
+                                .map(|id| (id, &snarl[id]))
+                                .collect::<Vec<_>>();
 
-                for id in to_remove {
-                    snarl.remove_node(id);
-                }
-                for (output, input) in connections {
-                    buildings.connect(output, input);
-                }
+                            selected.sort_by_key(|(id, _)| *id);
 
-                snarl.insert_node(
-                    pos,
-                    Node::Group {
-                        snarl: buildings,
-                        num_inputs,
-                        num_outputs,
-                    },
-                );
+                            let mut buildings = Snarl::new();
+                            let mut sub_graph = NodeGraph::default();
+                            let mut to_remove = Vec::new();
+                            let mut num_inputs = 0;
+                            let mut num_outputs = 0;
+                            for (id, graph_idx) in selected {
+                                let node = self.graph.node_weight(*graph_idx).unwrap();
+                                let info = snarl.get_node_info(id).unwrap();
+                                num_outputs += node.outputs();
+                                num_inputs += node.inputs();
+                                let new_graph_idx = sub_graph.add_node(node.clone());
+                                buildings.insert_node(info.pos, new_graph_idx);
+                                to_remove.push((id, *graph_idx));
+                            }
+                            // copy wires
+                            // TODO
+                            // let mut connections = Vec::new();
+                            // for (output, input) in snarl.wires() {
+                            //     if to_remove.contains(&output.node)
+                            //         && to_remove.contains(&input.node)
+                            //     {
+                            //         num_inputs -= 1;
+                            //         num_outputs -= 1;
+                            //         connections.push((output, input));
+                            //     }
+                            // }
+
+                            // for id in to_remove {
+                            //     snarl.remove_node(id);
+                            // }
+                            // for (output, input) in connections {
+                            //     buildings.connect(output, input);
+                            // }
+
+                            let node = Node::Group {
+                                graph: sub_graph,
+                                snarl: buildings,
+                                num_inputs,
+                                num_outputs,
+                            };
+                            let graph_idx = self.graph.add_node(node);
+                            snarl.insert_node(pos, graph_idx);
+                        }
+
+                        ui.close_menu();
+                    }
+                }
+                MenuItem::Sep => {
+                    ui.separator();
+                }
             }
-
-            ui.close_menu();
         }
 
         ui.separator();
@@ -1405,7 +1570,7 @@ impl SnarlViewer<Node> for Viewer<'_> {
         }
     }
 
-    fn has_dropped_wire_menu(&mut self, _src_pins: AnyPins, _snarl: &mut Snarl<Node>) -> bool {
+    fn has_dropped_wire_menu(&mut self, _src_pins: AnyPins, _snarl: &mut Snarl) -> bool {
         true
     }
 
@@ -1415,13 +1580,13 @@ impl SnarlViewer<Node> for Viewer<'_> {
         ui: &mut Ui,
         _scale: f32,
         _src_pins: AnyPins,
-        _snarl: &mut Snarl<Node>,
+        _snarl: &mut Snarl,
     ) {
         ui.label("Add node");
         // TODO:
     }
 
-    fn has_node_menu(&mut self, _node: &Node) -> bool {
+    fn has_node_menu(&mut self, _node: &GraphIdx) -> bool {
         true
     }
 
@@ -1432,20 +1597,23 @@ impl SnarlViewer<Node> for Viewer<'_> {
         _outputs: &[OutPin],
         ui: &mut Ui,
         _scale: f32,
-        snarl: &mut Snarl<Node>,
+        snarl: &mut Snarl,
     ) {
-        let node = snarl.get_node_info(node_id).expect("missing node");
-        ui.label(node.value.name());
+        let node_info = snarl.get_node_info(node_id).unwrap();
+        let graph_idx = node_info.value;
+        let node = self.graph.node_weight(graph_idx).unwrap();
+        ui.label(node.name());
 
-        match &node.value {
+        match node {
             Node::Building(_) => {}
-            Node::Group { snarl, .. } => {
+            Node::Group { snarl, graph, .. } => {
                 if ui.button("Edit").clicked() {
                     self.group_edits.push((
                         self.index.0,
                         self.index.1,
                         self.index.2,
                         node_id,
+                        graph.clone(),
                         snarl.clone(),
                     ));
 
@@ -1455,13 +1623,14 @@ impl SnarlViewer<Node> for Viewer<'_> {
         }
 
         if ui.button("Duplicate").clicked() {
-            let pos = node.pos + Vec2::new(5., 5.);
-            let new_node = node.value.clone();
-            snarl.insert_node(pos, new_node);
+            let pos = node_info.pos + Vec2::new(5., 5.);
+            let new_graph_idx = self.graph.add_node(node.clone());
+            snarl.insert_node(pos, new_graph_idx);
             ui.close_menu();
         }
 
         if ui.button("Remove").clicked() {
+            self.graph.remove_node(graph_idx);
             snarl.remove_node(node_id);
             ui.close_menu();
         }
@@ -1494,22 +1663,14 @@ fn add_speed_ui(ui: &mut Ui, value: &mut f32) {
 fn single_input(
     resource: Option<Resource>,
     max_input_speed: f32,
+    actual_input_speed: f32,
+    actual_input_material: Option<Resource>,
     ui: &mut Ui,
     pin: &InPin,
     scale: f32,
-    snarl: &Snarl<Node>,
+    snarl: &Snarl,
     pin_info: PinInfo,
 ) -> PinInfo {
-    let (actual_input_speed, actual_input_material) = match &*pin.remotes {
-        [] => (0., None),
-        [remote] => {
-            let speed = snarl[remote.node].output_speed(snarl, remote.node, remote.output);
-            let material = snarl[remote.node].output_resource(snarl, remote.node, remote.output);
-            (speed, material)
-        }
-        _ => unreachable!("only one output"),
-    };
-
     let color = match (resource, actual_input_material) {
         (Some(resource), Some(actual_input_material)) => {
             let (actual_input_speed, color) = if resource == actual_input_material {
@@ -1550,22 +1711,18 @@ fn single_input(
 fn fluid_output(
     fluid: Option<Fluid>,
     max_speed: f32,
+    current_output: Option<Output>,
     ui: &mut Ui,
     scale: f32,
-    pin: &OutPin,
-    snarl: &Snarl<Node>,
 ) -> PinInfo {
     let color = fluid.as_ref().map(|m| m.color()).unwrap_or(BUILDING_COLOR);
     if let Some(fluid) = fluid {
-        let output_speed = snarl[pin.id.node].output_speed(snarl, pin.id.node, pin.id.output);
-        let output_fluid = snarl[pin.id.node].output_resource(snarl, pin.id.node, pin.id.output);
-
         let fluid = Resource::Fluid(fluid);
-        match output_fluid {
-            Some(_output_fluid) => {
+        match current_output {
+            Some(current_output) => {
                 ui.horizontal(|ui| {
-                    add_resource_image(ui, scale, &Some(fluid));
-                    ui.label(format!("{}/m^3 ({}/m^3)", output_speed, max_speed));
+                    add_resource_image(ui, scale, &Some(current_output.resource));
+                    ui.label(format!("{}/m^3 ({}/m^3)", current_output.speed, max_speed));
                 });
             }
             None => {
@@ -1583,25 +1740,21 @@ fn fluid_output(
 fn material_output(
     material: Option<Material>,
     max_speed: f32,
+    current_output: Option<Output>,
     ui: &mut Ui,
     scale: f32,
-    pin: &OutPin,
-    snarl: &Snarl<Node>,
 ) -> PinInfo {
     let color = material
         .as_ref()
         .map(|m| m.color())
         .unwrap_or(BUILDING_COLOR);
     if let Some(material) = material {
-        let output_speed = snarl[pin.id.node].output_speed(snarl, pin.id.node, pin.id.output);
-        let output_material = snarl[pin.id.node].output_resource(snarl, pin.id.node, pin.id.output);
-
         let material = Resource::Material(material);
-        match output_material {
-            Some(_output_material) => {
+        match current_output {
+            Some(current_output) => {
                 ui.horizontal(|ui| {
-                    add_resource_image(ui, scale, &Some(material));
-                    ui.label(format!("{}/min ({}/min)", output_speed, max_speed));
+                    add_resource_image(ui, scale, &Some(current_output.resource));
+                    ui.label(format!("{}/min ({}/min)", current_output.speed, max_speed));
                 });
             }
             None => {

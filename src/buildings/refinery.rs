@@ -1,6 +1,9 @@
 use strum::VariantArray;
 
-use crate::util::load_img;
+use crate::{
+    node::{Input, Output, Resource},
+    util::load_img,
+};
 
 use super::{calc_output, calc_output2, round, Fluid, Material, SomersloopSlot2};
 
@@ -466,6 +469,8 @@ pub struct Refinery {
     pub recipe: Option<RefineryRecipe>,
     pub speed: f32,
     pub amplified: SomersloopSlot2,
+    pub current_input_fluid: Option<Input>,
+    pub current_input_material: Option<Input>,
 }
 
 impl Default for Refinery {
@@ -474,6 +479,8 @@ impl Default for Refinery {
             recipe: None,
             speed: 100.,
             amplified: SomersloopSlot2::Empty,
+            current_input_fluid: None,
+            current_input_material: None,
         }
     }
 }
@@ -506,28 +513,48 @@ impl Refinery {
         2
     }
 
-    pub fn output_material_speed(&self, input_material_size: f32, input_fluid_size: f32) -> f32 {
+    pub fn output_material_speed(&self) -> f32 {
+        let input_material_speed = self
+            .current_input_material
+            .as_ref()
+            .map(|i| i.speed)
+            .unwrap_or_default();
+        let input_fluid_speed = self
+            .current_input_fluid
+            .as_ref()
+            .map(|i| i.speed)
+            .unwrap_or_default();
         let base = self
             .recipe
             .as_ref()
-            .map(|r| r.output_speed_material(input_material_size, input_fluid_size))
+            .map(|r| r.output_speed_material(input_material_speed, input_fluid_speed))
             .unwrap_or_default();
         let amplification = self.amplified.factor();
 
-        // TODO: take speed into account for input_size
+        // TODO: take speed into account for input_speed
 
         round(base as f32 * (self.speed / 100.) * amplification)
     }
 
-    pub fn output_fluid_speed(&self, input_material_size: f32, input_fluid_size: f32) -> f32 {
+    pub fn output_fluid_speed(&self) -> f32 {
+        let input_material_speed = self
+            .current_input_material
+            .as_ref()
+            .map(|i| i.speed)
+            .unwrap_or_default();
+        let input_fluid_speed = self
+            .current_input_fluid
+            .as_ref()
+            .map(|i| i.speed)
+            .unwrap_or_default();
         let base = self
             .recipe
             .as_ref()
-            .map(|r| r.output_speed_fluid(input_material_size, input_fluid_size))
+            .map(|r| r.output_speed_fluid(input_material_speed, input_fluid_speed))
             .unwrap_or_default();
         let amplification = self.amplified.factor();
 
-        // TODO: take speed into account for input_size
+        // TODO: take speed into account for input_speed
 
         round(base as f32 * (self.speed / 100.) * amplification)
     }
@@ -545,6 +572,23 @@ impl Refinery {
     }
     pub fn input_fluid(&self) -> Option<Fluid> {
         self.recipe.as_ref().and_then(|r| r.input_fluid())
+    }
+
+    pub fn current_output_fluid(&self) -> Option<Output> {
+        self.recipe.and_then(|r| {
+            r.output_fluid().map(|output_fluid| Output {
+                speed: self.output_fluid_speed(),
+                resource: Resource::Fluid(output_fluid),
+            })
+        })
+    }
+    pub fn current_output_material(&self) -> Option<Output> {
+        self.recipe.and_then(|r| {
+            r.output_material().map(|output_material| Output {
+                speed: self.output_material_speed(),
+                resource: Resource::Material(output_material),
+            })
+        })
     }
 }
 

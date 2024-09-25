@@ -1,6 +1,9 @@
 use strum::VariantArray;
 
-use crate::util::load_img;
+use crate::{
+    node::{Output, Resource},
+    util::load_img,
+};
 
 use super::{Fluid, Pipe};
 
@@ -57,5 +60,12 @@ impl WaterExtractor {
 
     pub fn output_fluid(&self) -> Fluid {
         Fluid::Water
+    }
+
+    pub fn current_output(&self) -> Option<Output> {
+        self.output_pipe.map(|_| Output {
+            speed: self.output_speed(),
+            resource: Resource::Fluid(Fluid::Water),
+        })
     }
 }

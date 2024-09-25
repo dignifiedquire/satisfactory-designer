@@ -1,6 +1,9 @@
 use strum::VariantArray;
 
-use crate::util::load_img;
+use crate::{
+    node::{Output, Resource},
+    util::load_img,
+};
 
 use super::{Material, ResourceType};
 
@@ -115,6 +118,17 @@ impl Miner {
 
     pub fn input_material(&self) -> Option<Material> {
         None
+    }
+
+    pub fn output_material(&self) -> Option<Material> {
+        self.resource.map(|r| r.output_material())
+    }
+
+    pub fn current_output(&self) -> Option<Output> {
+        self.resource.map(|r| Output {
+            speed: self.output_speed(),
+            resource: Resource::Material(r.output_material()),
+        })
     }
 }
 

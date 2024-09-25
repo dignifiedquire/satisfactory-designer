@@ -1,7 +1,10 @@
 use egui::Color32;
 use strum::VariantArray;
 
-use crate::util::load_img;
+use crate::{
+    node::{Input, Output, Resource},
+    util::load_img,
+};
 
 use super::{calc_output, Material, SomersloopSlot1};
 
@@ -95,6 +98,7 @@ pub struct Smelter {
     pub recipe: Option<SmelterRecipe>,
     pub speed: f32,
     pub amplified: SomersloopSlot1,
+    pub current_input: Option<Input>,
 }
 
 impl Default for Smelter {
@@ -103,6 +107,7 @@ impl Default for Smelter {
             recipe: None,
             speed: 100.,
             amplified: SomersloopSlot1::Empty,
+            current_input: None,
         }
     }
 }
@@ -144,11 +149,17 @@ impl Smelter {
         (base as f32 * (self.speed / 100.)).round()
     }
 
-    pub fn output_speed(&self, input_size: f32) -> f32 {
+    pub fn output_speed(&self) -> f32 {
+        let input_speed = self
+            .current_input
+            .as_ref()
+            .map(|i| i.speed)
+            .unwrap_or_default();
+
         let base = self
             .recipe
             .as_ref()
-            .map(|r| r.output_speed(input_size))
+            .map(|r| r.output_speed(input_speed))
             .unwrap_or_default();
         let amplification = self.amplified.factor();
 
@@ -163,6 +174,13 @@ impl Smelter {
 
     pub fn output_material(&self) -> Option<Material> {
         self.recipe.as_ref().map(|r| r.output_material())
+    }
+
+    pub fn current_output(&self) -> Option<Output> {
+        self.recipe.map(|r| Output {
+            speed: self.output_speed(),
+            resource: Resource::Material(r.output_material()),
+        })
     }
 }
 

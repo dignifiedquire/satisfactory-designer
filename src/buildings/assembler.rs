@@ -1,6 +1,9 @@
 use strum::VariantArray;
 
-use crate::util::load_img;
+use crate::{
+    node::{Input, Output, Resource},
+    util::load_img,
+};
 
 use super::{calc_output2, Material, SomersloopSlot2};
 
@@ -175,6 +178,8 @@ pub struct Assembler {
     pub recipe: Option<AssemblerRecipe>,
     pub speed: f32,
     pub amplified: SomersloopSlot2,
+    pub current_input_material_0: Option<Input>,
+    pub current_input_material_1: Option<Input>,
 }
 
 impl Default for Assembler {
@@ -183,6 +188,8 @@ impl Default for Assembler {
             recipe: None,
             speed: 100.,
             amplified: SomersloopSlot2::Empty,
+            current_input_material_0: None,
+            current_input_material_1: None,
         }
     }
 }
@@ -231,25 +238,38 @@ impl Assembler {
         self.recipe.as_ref().map(|r| r.output_material())
     }
 
-    pub fn output_material_speed(
-        &self,
-        input_material_0_size: f32,
-        input_material_1_size: f32,
-    ) -> f32 {
+    pub fn output_speed(&self) -> f32 {
+        let input_material_0_speed = self
+            .current_input_material_0
+            .as_ref()
+            .map(|i| i.speed)
+            .unwrap_or_default();
+        let input_material_1_speed = self
+            .current_input_material_1
+            .as_ref()
+            .map(|i| i.speed)
+            .unwrap_or_default();
         let base = self
             .recipe
             .as_ref()
-            .map(|r| r.output_speed_material(input_material_0_size, input_material_1_size))
+            .map(|r| r.output_speed_material(input_material_0_speed, input_material_1_speed))
             .unwrap_or_default();
         let amplification = self.amplified.factor();
 
-        // TODO: take speed into account for input_size
+        // TODO: take speed into account for input_speed
 
         (base as f32 * (self.speed / 100.) * amplification).round()
     }
 
     pub fn input_material(&self) -> Option<(Material, Material)> {
         self.recipe.map(|r| r.input_material())
+    }
+
+    pub fn current_output(&self) -> Option<Output> {
+        self.recipe.map(|r| Output {
+            speed: self.output_speed(),
+            resource: Resource::Material(r.output_material()),
+        })
     }
 }
 

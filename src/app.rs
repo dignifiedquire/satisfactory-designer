@@ -4,7 +4,7 @@ use egui_dock::{DockArea, DockState, NodeIndex, SurfaceIndex};
 use egui_modal::Modal;
 use egui_snarl::{
     ui::{BackgroundPattern, SnarlStyle, Viewport},
-    NodeId, Snarl,
+    NodeId,
 };
 use serde::{Deserialize, Serialize};
 
@@ -21,9 +21,22 @@ pub struct App {
 #[derive(Default)]
 struct TabViewer {
     added_nodes: Vec<(SurfaceIndex, NodeIndex)>,
-    group_edits: Vec<(SurfaceIndex, NodeIndex, usize, NodeId, Snarl<Node>)>,
-    group_saves: Vec<(SurfaceIndex, NodeIndex, usize, NodeId, Snarl<Node>)>,
+    group_edits: Vec<(SurfaceIndex, NodeIndex, usize, NodeId, NodeGraph, Snarl)>,
+    group_saves: Vec<(SurfaceIndex, NodeIndex, usize, NodeId, NodeGraph, Snarl)>,
     current_tab_index: usize,
+}
+
+pub type NodeGraph = petgraph::stable_graph::StableDiGraph<Node, EdgeDetails>;
+pub type GraphIdx = petgraph::graph::NodeIndex<u32>;
+
+pub type Snarl = egui_snarl::Snarl<GraphIdx>;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EdgeDetails {
+    /// The input number to which the edge is going
+    pub input: usize,
+    /// The output number from which the edge is coming
+    pub output: usize,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -31,7 +44,8 @@ struct TabState {
     name: String,
     id: usize,
     snarl_ui_id: Option<Id>,
-    snarl: Snarl<Node>,
+    snarl: Snarl,
+    graph: NodeGraph,
     style: SnarlStyle,
     index: (SurfaceIndex, NodeIndex),
     group_edit: Option<(SurfaceIndex, NodeIndex, usize, NodeId)>,
@@ -51,6 +65,7 @@ impl egui_dock::TabViewer for TabViewer {
             snarl_id_source: snarl_id_source.clone(),
             snarl_ui_id: Some(ui.id()),
             group_edits: &mut self.group_edits,
+            graph: &mut tab.graph,
             index: (tab.index.0, tab.index.1, tab.id),
         };
         tab.snarl.show(&mut viewer, &tab.style, snarl_id_source, ui);
@@ -62,9 +77,16 @@ impl egui_dock::TabViewer for TabViewer {
 
     fn on_close(&mut self, closing_tab: &mut Self::Tab) -> bool {
         if let Some((surface, node_index, tab_index, group_id)) = closing_tab.group_edit.take() {
+            let current_graph = closing_tab.graph.clone();
             let current_snarl = closing_tab.snarl.clone();
-            self.group_saves
-                .push((surface, node_index, tab_index, group_id, current_snarl));
+            self.group_saves.push((
+                surface,
+                node_index,
+                tab_index,
+                group_id,
+                current_graph,
+                current_snarl,
+            ));
         }
 
         true
@@ -92,6 +114,7 @@ impl App {
                 name: "First factory".to_string(),
                 id: tab_id,
                 snarl_ui_id: None,
+                graph: Default::default(),
                 snarl: Snarl::new(),
                 style: default_style(),
                 group_edit: None,
@@ -156,7 +179,7 @@ impl eframe::App for App {
                     .show_inside(ui, &mut self.tab_viewer);
 
                 self.tab_viewer.group_edits.drain(..).for_each(
-                    |(surface, node_index, active_tab, id, snarl)| {
+                    |(surface, node_index, active_tab, id, graph, snarl)| {
                         self.tree
                             .set_focused_node_and_surface((surface, node_index));
                         let mut style = SnarlStyle::new();
@@ -170,6 +193,7 @@ impl eframe::App for App {
                             name: format!("Editing Group {}", id.0),
                             id: tab_id,
                             snarl_ui_id: None,
+                            graph,
                             snarl,
                             style,
                             group_edit: Some((surface, node_index, active_tab, id)),
@@ -178,23 +202,23 @@ impl eframe::App for App {
                     },
                 );
                 self.tab_viewer.group_saves.drain(..).for_each(
-                    |(surface, node_index, tab_index, group_id, group_snarl)| {
+                    |(surface, node_index, tab_index, group_id, group_graph, group_snarl)| {
                         let tab = &mut self.tree[surface][node_index];
                         match tab {
                             egui_dock::Node::Leaf { tabs, .. } => {
-                                if let Some((_id, node)) = tabs[tab_index]
+                                if let Some((id, _node_index)) = tabs[tab_index]
                                     .snarl
-                                    .nodes_ids_mut()
+                                    .node_ids()
                                     .find(|(id, _)| id == &group_id)
                                 {
+                                    let graph_idx = group_snarl[id];
+                                    let node =
+                                        tabs[tab_index].graph.node_weight_mut(graph_idx).unwrap();
                                     match node {
                                         Node::Building(_) => unreachable!("invalid group building"),
-                                        Node::Group {
-                                            snarl,
-                                            num_inputs,
-                                            num_outputs,
-                                        } => {
+                                        Node::Group { snarl, graph, .. } => {
                                             // TODO: update inputs and outputs
+                                            *graph = group_graph;
                                             *snarl = group_snarl;
                                         }
                                     }
@@ -221,6 +245,7 @@ impl eframe::App for App {
                             name: format!("Factory {}", self.counter),
                             id: tab_id,
                             snarl_ui_id: None,
+                            graph: Default::default(),
                             snarl: Snarl::new(),
                             style,
                             group_edit: None,

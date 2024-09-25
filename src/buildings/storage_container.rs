@@ -1,6 +1,9 @@
 use strum::VariantArray;
 
-use crate::util::load_img;
+use crate::{
+    node::{Output, Resource},
+    util::load_img,
+};
 
 use super::{Belt, Material};
 
@@ -66,5 +69,12 @@ impl StorageContainer {
     }
     pub fn output_material(&self) -> Option<Material> {
         self.material
+    }
+
+    pub fn current_output(&self) -> Option<Output> {
+        self.material.map(|m| Output {
+            speed: self.output_speed(),
+            resource: Resource::Material(m),
+        })
     }
 }

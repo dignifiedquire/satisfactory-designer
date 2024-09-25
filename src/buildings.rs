@@ -10,11 +10,13 @@ mod oil_extractor;
 mod packager;
 mod pipeline_junction;
 mod refinery;
+mod sink;
 mod smelter;
 mod splitter;
 mod storage_container;
 mod water_extractor;
 
+use crate::node::Output;
 use crate::util::load_img;
 
 pub use self::assembler::Assembler;
@@ -27,6 +29,7 @@ pub use self::oil_extractor::OilExtractor;
 pub use self::packager::Packager;
 pub use self::pipeline_junction::PipelineJunction;
 pub use self::refinery::Refinery;
+pub use self::sink::AwesomeSink;
 pub use self::smelter::Smelter;
 pub use self::splitter::Splitter;
 pub use self::storage_container::StorageContainer;
@@ -48,6 +51,7 @@ pub enum Building {
     Assembler(Assembler),
     PipelineJunction(PipelineJunction),
     Manufacturer(Manufacturer),
+    AwesomeSink(AwesomeSink),
 }
 
 #[derive(
@@ -635,6 +639,7 @@ impl Building {
             Self::Assembler(s) => s.header_image(),
             Self::PipelineJunction(s) => s.header_image(),
             Self::Manufacturer(s) => s.header_image(),
+            Self::AwesomeSink(s) => s.header_image(),
         }
     }
 
@@ -654,6 +659,7 @@ impl Building {
             Self::Assembler(s) => s.num_outputs(),
             Self::PipelineJunction(s) => s.num_outputs(),
             Self::Manufacturer(s) => s.num_outputs(),
+            Self::AwesomeSink(s) => s.num_outputs(),
         }
     }
 
@@ -673,6 +679,7 @@ impl Building {
             Self::Assembler(s) => s.num_inputs(),
             Self::PipelineJunction(s) => s.num_inputs(),
             Self::Manufacturer(s) => s.num_inputs(),
+            Self::AwesomeSink(s) => s.num_inputs(),
         }
     }
 
@@ -692,6 +699,7 @@ impl Building {
             Self::Assembler(s) => s.name(),
             Self::PipelineJunction(s) => s.name(),
             Self::Manufacturer(s) => s.name(),
+            Self::AwesomeSink(s) => s.name(),
         }
     }
 
@@ -711,6 +719,310 @@ impl Building {
             Self::Assembler(s) => s.description(),
             Self::PipelineJunction(s) => s.description(),
             Self::Manufacturer(s) => s.description(),
+            Self::AwesomeSink(s) => s.description(),
+        }
+    }
+
+    pub fn current_output(&self, output_id: usize) -> Option<Output> {
+        match self {
+            Self::Miner(m) => {
+                assert_eq!(output_id, 0, "1 output");
+                m.current_output()
+            }
+            Self::Smelter(s) => {
+                assert_eq!(output_id, 0, "1 output");
+                s.current_output()
+            }
+            Self::Constructor(s) => {
+                assert_eq!(output_id, 0, "1 output");
+                s.current_output()
+            }
+            Self::StorageContainer(s) => {
+                assert_eq!(output_id, 0, "1 output");
+                s.current_output()
+            }
+            Self::WaterExtractor(w) => {
+                assert_eq!(output_id, 0, "1 output");
+                w.current_output()
+            }
+            Self::OilExtractor(o) => {
+                assert_eq!(output_id, 0, "1 output");
+                o.current_output()
+            }
+            Self::Packager(p) => match output_id {
+                0 => p.current_output_fluid(),
+                1 => p.current_output_material(),
+                _ => unreachable!("only two output"),
+            },
+            Self::Refinery(r) => match output_id {
+                0 => r.current_output_fluid(),
+                1 => r.current_output_material(),
+                _ => unreachable!("only two output"),
+            },
+            Self::Foundry(f) => {
+                assert_eq!(output_id, 0, "1 output");
+                f.current_output()
+            }
+            Self::Assembler(a) => {
+                assert_eq!(output_id, 0, "1 output");
+                a.current_output()
+            }
+            Self::Manufacturer(m) => {
+                assert_eq!(output_id, 0, "1 output");
+                m.current_output()
+            }
+            Self::Splitter(s) => {
+                match output_id {
+                    0 => s.current_output_0(),
+                    1 => s.current_output_1(),
+                    2 => s.current_output_2(),
+                    _ => unreachable!("3 outputs"),
+                }
+            }
+            Self::Merger(m) => {
+                assert_eq!(output_id, 0, "1 output");
+                m.current_output()
+            }
+            Self::PipelineJunction(s) => None, // TODO
+            Self::AwesomeSink(_) => None,
+        }
+    }
+
+    pub fn set_current_input(&mut self, input: Output, input_id: usize) {
+        match self {
+            Self::Miner(_) => {
+                unreachable!("no inputs");
+            }
+            Self::Smelter(s) => {
+                assert_eq!(input_id, 0, "1 input");
+                s.current_input.replace(input.into());
+            }
+            Self::Constructor(c) => {
+                assert_eq!(input_id, 0, "1 input");
+                c.current_input.replace(input.into());
+            }
+            Self::StorageContainer(_) => {
+                unreachable!("no inputs");
+            }
+            Self::WaterExtractor(_) => {
+                unreachable!("no inputs");
+            }
+            Self::OilExtractor(_) => {
+                unreachable!("no inputs");
+            }
+            Self::Packager(p) => match input_id {
+                0 => {
+                    p.current_input_fluid.replace(input.into());
+                }
+                1 => {
+                    p.current_input_material.replace(input.into());
+                }
+                _ => unreachable!("2 inputs"),
+            },
+            Self::Refinery(r) => match input_id {
+                0 => {
+                    r.current_input_fluid.replace(input.into());
+                }
+                1 => {
+                    r.current_input_material.replace(input.into());
+                }
+                _ => unreachable!("2 inputs"),
+            },
+            Self::Foundry(f) => match input_id {
+                0 => {
+                    f.current_input_material_0.replace(input.into());
+                }
+                1 => {
+                    f.current_input_material_1.replace(input.into());
+                }
+                _ => unreachable!("2 inputs"),
+            },
+            Self::Assembler(a) => match input_id {
+                0 => {
+                    a.current_input_material_0.replace(input.into());
+                }
+                1 => {
+                    a.current_input_material_1.replace(input.into());
+                }
+                _ => unreachable!("2 inputs"),
+            },
+            Self::Manufacturer(m) => match input_id {
+                0 => {
+                    m.current_input_material_0.replace(input.into());
+                }
+                1 => {
+                    m.current_input_material_1.replace(input.into());
+                }
+                2 => {
+                    m.current_input_material_2.replace(input.into());
+                }
+                3 => {
+                    m.current_input_material_3.replace(input.into());
+                }
+                _ => unreachable!("4 inputs"),
+            },
+            Self::Splitter(s) => {
+                assert_eq!(input_id, 0, "1 input");
+                s.current_input.replace(input.into());
+            }
+            Self::Merger(m) => match input_id {
+                0 => {
+                    m.current_input_0.replace(input.into());
+                }
+                1 => {
+                    m.current_input_1.replace(input.into());
+                }
+                2 => {
+                    m.current_input_2.replace(input.into());
+                }
+                _ => unreachable!("3 inputs"),
+            },
+            Self::PipelineJunction(_) => {
+                // TODO
+            }
+            Self::AwesomeSink(s) => {
+                assert_eq!(input_id, 0, "1 input");
+                s.current_input.replace(input.into());
+            }
+        }
+    }
+
+    pub fn clear_current_input(&mut self, input_id: usize) {
+        match self {
+            Self::Miner(_) => {
+                unreachable!("no inputs");
+            }
+            Self::Smelter(s) => {
+                assert_eq!(input_id, 0, "1 input");
+                s.current_input = None;
+            }
+            Self::Constructor(c) => {
+                assert_eq!(input_id, 0, "1 input");
+                c.current_input = None;
+            }
+            Self::StorageContainer(_) => {
+                unreachable!("no inputs");
+            }
+            Self::WaterExtractor(_) => {
+                unreachable!("no inputs");
+            }
+            Self::OilExtractor(_) => {
+                unreachable!("no inputs");
+            }
+            Self::Packager(p) => match input_id {
+                0 => {
+                    p.current_input_fluid = None;
+                }
+                1 => {
+                    p.current_input_material = None;
+                }
+                _ => unreachable!("2 inputs"),
+            },
+            Self::Refinery(r) => match input_id {
+                0 => {
+                    r.current_input_fluid = None;
+                }
+                1 => {
+                    r.current_input_material = None;
+                }
+                _ => unreachable!("2 inputs"),
+            },
+            Self::Foundry(f) => match input_id {
+                0 => {
+                    f.current_input_material_0 = None;
+                }
+                1 => {
+                    f.current_input_material_1 = None;
+                }
+                _ => unreachable!("2 inputs"),
+            },
+            Self::Assembler(a) => match input_id {
+                0 => {
+                    a.current_input_material_0 = None;
+                }
+                1 => {
+                    a.current_input_material_1 = None;
+                }
+                _ => unreachable!("2 inputs"),
+            },
+            Self::Manufacturer(m) => match input_id {
+                0 => {
+                    m.current_input_material_0 = None;
+                }
+                1 => {
+                    m.current_input_material_1 = None;
+                }
+                2 => {
+                    m.current_input_material_2 = None;
+                }
+                3 => {
+                    m.current_input_material_3 = None;
+                }
+                _ => unreachable!("4 inputs"),
+            },
+            Self::Splitter(s) => {
+                assert_eq!(input_id, 0, "1 input");
+                s.current_input = None;
+            }
+            Self::Merger(m) => match input_id {
+                0 => {
+                    m.current_input_0 = None;
+                }
+                1 => {
+                    m.current_input_1 = None;
+                }
+                2 => {
+                    m.current_input_2 = None;
+                }
+                _ => unreachable!("3 inputs"),
+            },
+            Self::PipelineJunction(_) => {
+                // TODO
+            }
+            Self::AwesomeSink(s) => {
+                assert_eq!(input_id, 0, "1 input");
+                s.current_input = None;
+            }
+        }
+    }
+
+    pub fn set_current_output_connected(&mut self, output_id: usize) {
+        match self {
+            Building::Splitter(s) => {
+                match output_id {
+                    0 => {
+                        s.output_0_connected = true;
+                    }
+                    1 => {
+                        s.output_1_connected = true;
+                    }
+                    2 => {
+                        s.output_2_connected = true;
+                    }
+                    _ => unreachable!("3 outputs"),
+                }
+            }
+            _ => {}
+        }
+    }
+
+    pub fn set_current_output_disconnected(&mut self, output_id: usize) {
+        match self {
+            Building::Splitter(s) => {
+                match output_id {
+                    0 => {
+                        s.output_0_connected = false;
+                    }
+                    1 => {
+                        s.output_1_connected = false;
+                    }
+                    2 => {
+                        s.output_2_connected = false;
+                    }
+                    _ => unreachable!("3 outputs"),
+                }
+            }
+            _ => {}
         }
     }
 }
