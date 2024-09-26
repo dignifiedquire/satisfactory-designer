@@ -627,77 +627,73 @@ impl SnarlViewer<GraphIdx> for Viewer<'_> {
                 }
                 Node::Building(b) => match b {
                     Building::Miner(m) => {
-                        resource_selector(ui, scale, &mut m.resource);
+                        changed |= resource_selector(ui, scale, &mut m.resource).changed;
                         ui.add_space(10.0 * scale);
 
-                        level_selector(ui, scale, &mut m.level);
+                        changed |= level_selector(ui, scale, &mut m.level).changed;
                         ui.add_space(10.0 * scale);
 
-                        purity_selector(ui, scale, &mut m.resource_purity);
+                        changed |= purity_selector(ui, scale, &mut m.resource_purity).changed;
                         ui.add_space(10.0 * scale);
 
-                        add_speed_ui(ui, &mut m.speed);
+                        changed |= add_speed_ui(ui, &mut m.speed).changed;
                     }
                     Building::OilExtractor(m) => {
-                        if pipe_selector(ui, scale, &mut m.output_pipe).changed {
-                            changed = true;
-                        };
+                        changed |= pipe_selector(ui, scale, &mut m.output_pipe).changed;
                         ui.add_space(10.0 * scale);
 
-                        purity_selector(ui, scale, &mut m.resource_purity);
+                        changed |= purity_selector(ui, scale, &mut m.resource_purity).changed;
                         ui.add_space(10.0 * scale);
 
-                        add_speed_ui(ui, &mut m.speed);
+                        changed |= add_speed_ui(ui, &mut m.speed).changed;
                     }
                     Building::Packager(p) => {
-                        packager_recipe_selector(ui, scale, &mut p.recipe);
+                        changed |= packager_recipe_selector(ui, scale, &mut p.recipe).changed;
                         ui.add_space(10.0 * scale);
 
-                        add_speed_ui(ui, &mut p.speed);
+                        changed |= add_speed_ui(ui, &mut p.speed).changed;
                     }
                     Building::Foundry(f) => {
-                        foundry_recipe_selector(ui, scale, &mut f.recipe);
+                        changed |= foundry_recipe_selector(ui, scale, &mut f.recipe).changed;
                         ui.add_space(10.0 * scale);
 
-                        add_speed_ui(ui, &mut f.speed);
+                        changed |= add_speed_ui(ui, &mut f.speed).changed;
                         ui.add_space(10.0 * scale);
 
-                        add_somersloop2_ui(ui, &mut f.amplified);
+                        changed |= add_somersloop2_ui(ui, &mut f.amplified).changed;
                     }
                     Building::Assembler(f) => {
-                        assembler_recipe_selector(ui, scale, &mut f.recipe);
+                        changed |= assembler_recipe_selector(ui, scale, &mut f.recipe).changed;
                         ui.add_space(10.0 * scale);
 
-                        add_speed_ui(ui, &mut f.speed);
+                        changed |= add_speed_ui(ui, &mut f.speed).changed;
 
                         ui.add_space(10.0 * scale);
-                        add_somersloop2_ui(ui, &mut f.amplified);
+                        changed |= add_somersloop2_ui(ui, &mut f.amplified).changed;
                     }
                     Building::Manufacturer(f) => {
-                        manufacturer_recipe_selector(ui, scale, &mut f.recipe);
+                        changed |= manufacturer_recipe_selector(ui, scale, &mut f.recipe).changed;
                         ui.add_space(10.0 * scale);
 
-                        add_speed_ui(ui, &mut f.speed);
+                        changed |= add_speed_ui(ui, &mut f.speed).changed;
                         ui.add_space(10.0 * scale);
 
-                        add_somersloop4_ui(ui, &mut f.amplified);
+                        changed |= add_somersloop4_ui(ui, &mut f.amplified).changed;
                     }
                     Building::Refinery(p) => {
-                        refinery_recipe_selector(ui, scale, &mut p.recipe);
+                        changed |= refinery_recipe_selector(ui, scale, &mut p.recipe).changed;
                         ui.add_space(10.0 * scale);
 
-                        add_speed_ui(ui, &mut p.speed);
+                        changed |= add_speed_ui(ui, &mut p.speed).changed;
                         ui.add_space(10.0 * scale);
 
-                        add_somersloop2_ui(ui, &mut p.amplified);
+                        changed |= add_somersloop2_ui(ui, &mut p.amplified).changed;
                     }
                     Building::WaterExtractor(m) => {
-                        if pipe_selector(ui, scale, &mut m.output_pipe).changed {
-                            changed = true;
-                        };
+                        changed |= pipe_selector(ui, scale, &mut m.output_pipe).changed;
                         ui.add_space(10.0 * scale);
 
-                        add_speed_ui(ui, &mut m.speed);
+                        changed |= add_speed_ui(ui, &mut m.speed).changed;
                     }
                     Building::StorageContainer(s) => {
                         material_selector(ui, scale, &mut s.material);
@@ -706,26 +702,26 @@ impl SnarlViewer<GraphIdx> for Viewer<'_> {
                         belt_selector(ui, scale, &mut s.output_belt);
                     }
                     Building::Smelter(s) => {
-                        smelter_recipe_selector(ui, scale, &mut s.recipe);
+                        changed |= smelter_recipe_selector(ui, scale, &mut s.recipe).changed;
                         ui.add_space(10.0 * scale);
 
-                        add_speed_ui(ui, &mut s.speed);
+                        changed |= add_speed_ui(ui, &mut s.speed).changed;
                         ui.add_space(10.0 * scale);
 
-                        add_somersloop1_ui(ui, &mut s.amplified);
+                        changed |= add_somersloop1_ui(ui, &mut s.amplified).changed;
                     }
                     Building::PipelineJunction(_) => {}
                     Building::Splitter(_) => {}
                     Building::Merger(_) => {}
                     Building::AwesomeSink(_) => {}
                     Building::Constructor(s) => {
-                        constructor_recipe_selector(ui, scale, &mut s.recipe);
+                        changed |= constructor_recipe_selector(ui, scale, &mut s.recipe).changed;
                         ui.add_space(10.0 * scale);
 
-                        add_speed_ui(ui, &mut s.speed);
+                        changed |= add_speed_ui(ui, &mut s.speed).changed;
                         ui.add_space(10.0 * scale);
 
-                        add_somersloop1_ui(ui, &mut s.amplified);
+                        changed |= add_somersloop1_ui(ui, &mut s.amplified).changed;
                     }
                 },
             }
@@ -1528,12 +1524,14 @@ fn add_resource_image(ui: &mut Ui, scale: f32, material: &Option<Resource>) {
     }
 }
 
-fn add_speed_ui(ui: &mut Ui, value: &mut f32) {
+fn add_speed_ui(ui: &mut Ui, value: &mut f32) -> Response {
     ui.horizontal(|ui| {
         let overclock = egui::DragValue::new(value).range(0.0..=250.0).suffix("%");
-        ui.add(overclock);
+        let response = ui.add(overclock);
         ui.label("Speed");
-    });
+        response
+    })
+    .inner
 }
 
 fn single_input(
@@ -1645,35 +1643,50 @@ fn material_output(
     PinInfo::circle().with_fill(color)
 }
 
-fn add_somersloop1_ui(ui: &mut Ui, amplified: &mut SomersloopSlot1) {
-    egui::ComboBox::from_id_source(egui::Id::new("amplification1"))
+fn add_somersloop1_ui(ui: &mut Ui, amplified: &mut SomersloopSlot1) -> Response {
+    let r = egui::ComboBox::from_id_source(egui::Id::new("amplification1"))
         .selected_text(amplified.name())
         .show_ui(ui, |ui| {
-            for var in SomersloopSlot1::VARIANTS {
-                let name = var.name();
-                ui.selectable_value(amplified, *var, name);
-            }
+            SomersloopSlot1::VARIANTS
+                .into_iter()
+                .map(|var| {
+                    let name = var.name();
+                    ui.selectable_value(amplified, *var, name)
+                })
+                .reduce(|acc, r| acc | r)
+                .unwrap()
         });
+    r.inner.unwrap_or(r.response)
 }
 
-fn add_somersloop2_ui(ui: &mut Ui, amplified: &mut SomersloopSlot2) {
-    egui::ComboBox::from_id_source(egui::Id::new("amplification2"))
+fn add_somersloop2_ui(ui: &mut Ui, amplified: &mut SomersloopSlot2) -> Response {
+    let r = egui::ComboBox::from_id_source(egui::Id::new("amplification2"))
         .selected_text(amplified.name())
         .show_ui(ui, |ui| {
-            for var in SomersloopSlot2::VARIANTS {
-                let name = var.name();
-                ui.selectable_value(amplified, *var, name);
-            }
+            SomersloopSlot2::VARIANTS
+                .into_iter()
+                .map(|var| {
+                    let name = var.name();
+                    ui.selectable_value(amplified, *var, name)
+                })
+                .reduce(|acc, r| acc | r)
+                .unwrap()
         });
+    r.inner.unwrap_or(r.response)
 }
 
-fn add_somersloop4_ui(ui: &mut Ui, amplified: &mut SomersloopSlot4) {
-    egui::ComboBox::from_id_source(egui::Id::new("amplification4"))
+fn add_somersloop4_ui(ui: &mut Ui, amplified: &mut SomersloopSlot4) -> Response {
+    let r = egui::ComboBox::from_id_source(egui::Id::new("amplification4"))
         .selected_text(amplified.name())
         .show_ui(ui, |ui| {
-            for var in SomersloopSlot4::VARIANTS {
-                let name = var.name();
-                ui.selectable_value(amplified, *var, name);
-            }
+            SomersloopSlot4::VARIANTS
+                .into_iter()
+                .map(|var| {
+                    let name = var.name();
+                    ui.selectable_value(amplified, *var, name)
+                })
+                .reduce(|acc, r| acc | r)
+                .unwrap()
         });
+    r.inner.unwrap_or(r.response)
 }
