@@ -183,7 +183,7 @@ impl Smelter {
             .unwrap_or_default();
         let amplification = self.amplified.factor();
 
-        // TODO: take speed into account for input_size
+        // TODO: take speed into account for input_speed
 
         round(base as f32 * (self.speed / 100.) * amplification)
     }

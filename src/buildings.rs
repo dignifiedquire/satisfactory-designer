@@ -863,8 +863,6 @@ impl Building {
     }
 
     pub fn set_current_input(&mut self, input: Output, input_id: usize) {
-        // TODO: match materials
-
         match self {
             Self::Miner(_) => {
                 unreachable!("no inputs");
