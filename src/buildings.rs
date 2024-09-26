@@ -9,6 +9,7 @@ mod merger;
 mod miner;
 mod oil_extractor;
 mod packager;
+mod particle_accelerator;
 mod pipeline_junction;
 mod refinery;
 mod sink;
@@ -29,6 +30,7 @@ pub use self::merger::Merger;
 pub use self::miner::{Miner, MinerLevel, ResourcePurity};
 pub use self::oil_extractor::OilExtractor;
 pub use self::packager::{Packager, PackagerRecipe};
+pub use self::particle_accelerator::{ParticleAccelerator, ParticleAcceleratorRecipe};
 pub use self::pipeline_junction::PipelineJunction;
 pub use self::refinery::{Refinery, RefineryRecipe};
 pub use self::sink::AwesomeSink;
@@ -55,6 +57,7 @@ pub enum Building {
     Manufacturer(Manufacturer),
     AwesomeSink(AwesomeSink),
     Blender(Blender),
+    ParticleAccelerator(ParticleAccelerator),
 }
 
 #[derive(
@@ -396,6 +399,14 @@ pub enum Material {
     NonFissileUranium,
     #[strum(to_string = "Uranium Waste")]
     UraniumWaste,
+    #[strum(to_string = "Diamonds")]
+    Diamonds,
+    #[strum(to_string = "Ficsonium")]
+    Ficsonium,
+    #[strum(to_string = "Plutonium Waste")]
+    PlutoniumWaste,
+    #[strum(to_string = "Time Crystal")]
+    TimeCrystal,
 }
 
 impl Selectable for Material {
@@ -536,6 +547,10 @@ impl Selectable for Material {
             Self::BiochemicalSculptor => "40px-Biochemical_Sculptor.png",
             Self::NonFissileUranium => "40px-Non-Fissile_Uranium.png",
             Self::UraniumWaste => "40px-Uranium_Waste.png",
+            Self::Diamonds => "40px-Diamonds.png",
+            Self::Ficsonium => "40px-Ficsonium.png",
+            Self::PlutoniumWaste => "40px-Plutonium_Waste.png",
+            Self::TimeCrystal => "40px-Time_Crystal.png",
         };
         load_img(name)
     }
@@ -603,6 +618,8 @@ pub enum Fluid {
     Water,
     #[strum(to_string = "Dissolved Silica")]
     DissolvedSilica,
+    #[strum(to_string = "Dark Matter Residue")]
+    DarkMatterResidue,
 }
 
 impl Fluid {
@@ -625,6 +642,7 @@ impl Fluid {
             Self::Turbofuel => "#A10000",
             Self::Water => "#1662AD",
             Self::DissolvedSilica => "#eac9e3",
+            Self::DarkMatterResidue => "#e8bce4",
         };
         Color32::from_hex(code).unwrap()
     }
@@ -644,6 +662,7 @@ impl Fluid {
             Self::Turbofuel => "40px-Turbofuel.png",
             Self::Water => "40px-Water.png",
             Self::DissolvedSilica => "40px-Dissolved_Silica.png",
+            Self::DarkMatterResidue => "40px-Dark_Matter_Residue.png",
         };
         load_img(name)
     }
@@ -669,6 +688,7 @@ impl Building {
             Self::Manufacturer(s) => Self::Manufacturer(s.clear_clone()),
             Self::AwesomeSink(s) => Self::AwesomeSink(s.clear_clone()),
             Self::Blender(s) => Self::Blender(s.clear_clone()),
+            Self::ParticleAccelerator(s) => Self::ParticleAccelerator(s.clear_clone()),
         }
     }
 
@@ -690,6 +710,7 @@ impl Building {
             Self::Manufacturer(s) => s.header_image(),
             Self::AwesomeSink(s) => s.header_image(),
             Self::Blender(s) => s.header_image(),
+            Self::ParticleAccelerator(s) => s.header_image(),
         }
     }
 
@@ -711,6 +732,7 @@ impl Building {
             Self::Manufacturer(s) => s.num_outputs(),
             Self::AwesomeSink(s) => s.num_outputs(),
             Self::Blender(s) => s.num_outputs(),
+            Self::ParticleAccelerator(s) => s.num_outputs(),
         }
     }
 
@@ -732,6 +754,7 @@ impl Building {
             Self::Manufacturer(s) => s.num_inputs(),
             Self::AwesomeSink(s) => s.num_inputs(),
             Self::Blender(s) => s.num_inputs(),
+            Self::ParticleAccelerator(s) => s.num_inputs(),
         }
     }
 
@@ -753,6 +776,7 @@ impl Building {
             Self::Manufacturer(s) => s.name(),
             Self::AwesomeSink(s) => s.name(),
             Self::Blender(s) => s.name(),
+            Self::ParticleAccelerator(s) => s.name(),
         }
     }
 
@@ -774,6 +798,7 @@ impl Building {
             Self::Manufacturer(s) => s.description(),
             Self::AwesomeSink(s) => s.description(),
             Self::Blender(s) => s.description(),
+            Self::ParticleAccelerator(s) => s.description(),
         }
     }
 
@@ -795,6 +820,7 @@ impl Building {
             Self::Manufacturer(s) => s.input_resource(input_id),
             Self::AwesomeSink(s) => s.input_resource(input_id),
             Self::Blender(s) => s.input_resource(input_id),
+            Self::ParticleAccelerator(s) => s.input_resource(input_id),
         }
     }
 
@@ -816,6 +842,7 @@ impl Building {
             Self::Manufacturer(s) => s.output_resource(output_id),
             Self::AwesomeSink(s) => s.output_resource(output_id),
             Self::Blender(s) => s.output_resource(output_id),
+            Self::ParticleAccelerator(s) => s.output_resource(output_id),
         }
     }
 
@@ -889,6 +916,10 @@ impl Building {
                 0 => b.current_output_fluid(),
                 1 => b.current_output_material(),
                 _ => unreachable!("2 outputs"),
+            },
+            Self::ParticleAccelerator(b) => match output_id {
+                0 => b.current_output_material(),
+                _ => unreachable!("1 outputs"),
             },
         }
     }
@@ -1016,6 +1047,18 @@ impl Building {
                 }
                 _ => unreachable!("4 inputs"),
             },
+            Self::ParticleAccelerator(b) => match input_id {
+                0 => {
+                    b.current_input_fluid_0.replace(input.into());
+                }
+                1 => {
+                    b.current_input_material_0.replace(input.into());
+                }
+                2 => {
+                    b.current_input_material_1.replace(input.into());
+                }
+                _ => unreachable!("3 inputs"),
+            },
         }
     }
 
@@ -1141,6 +1184,18 @@ impl Building {
                     b.current_input_material_1 = None;
                 }
                 _ => unreachable!("4 inputs"),
+            },
+            Self::ParticleAccelerator(b) => match input_id {
+                0 => {
+                    b.current_input_fluid_0 = None;
+                }
+                1 => {
+                    b.current_input_material_0 = None;
+                }
+                2 => {
+                    b.current_input_material_1 = None;
+                }
+                _ => unreachable!("3 inputs"),
             },
         }
     }
@@ -1275,6 +1330,46 @@ fn calc_output2(
     round(b)
 }
 
+fn calc_output3(
+    input_size: Option<(f32, f32, f32)>,
+    duration: f32,
+    output_size: f32,
+    input_base_a: f32,
+    input_base_b: f32,
+    input_base_c: f32,
+) -> f32 {
+    let a = match input_size {
+        Some((input_size_a, input_size_b, input_size_c)) => {
+            let input_size_a = (input_size_a / 60.) * duration;
+            let input_size_b = (input_size_b / 60.) * duration;
+            let input_size_c = (input_size_c / 60.) * duration;
+
+            // 45/60 * 4secs = 3
+            let a = if input_size_a < input_base_a {
+                input_size_a / input_base_a
+            } else {
+                1.
+            };
+            let b = if input_size_b < input_base_b {
+                input_size_b / input_base_b
+            } else {
+                1.
+            };
+            let c = if input_size_c < input_base_c {
+                input_size_c / input_base_c
+            } else {
+                1.
+            };
+            min3(a, b, c)
+        }
+        None => 1.,
+    };
+
+    // 60/4 * 1 = 15
+    let b = (60. / duration) * a * output_size;
+    round(b)
+}
+
 fn calc_output4(
     input_size: Option<(f32, f32, f32, f32)>,
     duration: f32,
@@ -1372,6 +1467,18 @@ fn calc_output4_2(
     let b_a = round((60. / duration) * a * output_size_a);
     let b_b = round((60. / duration) * a * output_size_b);
     (b_a, b_b)
+}
+
+fn min3(a: f32, b: f32, c: f32) -> f32 {
+    let mut sizes = [a, b, c];
+    sizes.sort_by(|a, b| {
+        if a < b {
+            std::cmp::Ordering::Less
+        } else {
+            std::cmp::Ordering::Greater
+        }
+    });
+    sizes[0]
 }
 
 fn min4(a: f32, b: f32, c: f32, d: f32) -> f32 {
@@ -1587,5 +1694,11 @@ mod tests {
     fn test_min4() {
         assert_eq!(min4(1., 2., 3., 4.), 1.);
         assert_eq!(min4(4., 2., 28., 0.03), 0.03);
+    }
+
+    #[test]
+    fn test_min3() {
+        assert_eq!(min3(1., 2., 3.), 1.);
+        assert_eq!(min3(4., 2., 0.03), 0.03);
     }
 }

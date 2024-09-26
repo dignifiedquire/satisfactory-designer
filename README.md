@@ -35,7 +35,7 @@
 - [x] Packager
 - [x] Refinery
 - [x] Blender
-- [ ] Particle Accelerator
+- [x] Particle Accelerator
 - [ ] Quantom Encoder
 - [ ] Converter
 

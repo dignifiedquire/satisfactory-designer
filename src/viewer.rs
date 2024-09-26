@@ -13,9 +13,9 @@ use crate::{
     app::{EdgeDetails, GraphIdx, NodeGraph, Snarl},
     buildings::{
         AssemblerRecipe, Belt, BlenderRecipe, Building, ConstructorRecipe, Fluid, FoundryRecipe,
-        ManufacturerRecipe, Material, MinerLevel, PackagerRecipe, Pipe, RefineryRecipe,
-        ResourcePurity, ResourceType, Selectable, SmelterRecipe, SomersloopSlot1, SomersloopSlot2,
-        SomersloopSlot4,
+        ManufacturerRecipe, Material, MinerLevel, PackagerRecipe, ParticleAcceleratorRecipe, Pipe,
+        RefineryRecipe, ResourcePurity, ResourceType, Selectable, SmelterRecipe, SomersloopSlot1,
+        SomersloopSlot2, SomersloopSlot4,
     },
     node::{Node, Output, Resource},
 };
@@ -598,6 +598,77 @@ impl Viewer<'_> {
                 }
                 _ => unreachable!("4 inputs"),
             },
+            Building::ParticleAccelerator(b) => match pin.id.input {
+                0 => {
+                    let max_input_speed = b.recipe.map(|r| r.input_speed().0).unwrap_or_default();
+                    let fluid = b.input_material().and_then(|b| b.0).map(Resource::Fluid);
+
+                    let actual_input_speed = b
+                        .current_input_fluid_0
+                        .as_ref()
+                        .map(|i| i.speed)
+                        .unwrap_or_default();
+                    let actual_input_fluid = b.current_input_fluid_0.as_ref().map(|i| i.resource);
+                    single_input(
+                        fluid,
+                        max_input_speed,
+                        actual_input_speed,
+                        actual_input_fluid,
+                        ui,
+                        pin,
+                        scale,
+                        snarl,
+                        PinInfo::circle(),
+                    )
+                }
+                1 => {
+                    let max_input_speed = b.recipe.map(|r| r.input_speed().1).unwrap_or_default();
+                    let material = b.input_material().and_then(|b| b.1).map(Resource::Material);
+
+                    let actual_input_speed = b
+                        .current_input_material_0
+                        .as_ref()
+                        .map(|i| i.speed)
+                        .unwrap_or_default();
+                    let actual_input_material =
+                        b.current_input_material_0.as_ref().map(|i| i.resource);
+                    single_input(
+                        material,
+                        max_input_speed,
+                        actual_input_speed,
+                        actual_input_material,
+                        ui,
+                        pin,
+                        scale,
+                        snarl,
+                        PinInfo::square(),
+                    )
+                }
+                2 => {
+                    let max_input_speed = b.recipe.map(|r| r.input_speed().2).unwrap_or_default();
+                    let material = b.input_material().and_then(|b| b.2).map(Resource::Material);
+
+                    let actual_input_speed = b
+                        .current_input_material_1
+                        .as_ref()
+                        .map(|i| i.speed)
+                        .unwrap_or_default();
+                    let actual_input_material =
+                        b.current_input_material_1.as_ref().map(|i| i.resource);
+                    single_input(
+                        material,
+                        max_input_speed,
+                        actual_input_speed,
+                        actual_input_material,
+                        ui,
+                        pin,
+                        scale,
+                        snarl,
+                        PinInfo::square(),
+                    )
+                }
+                _ => unreachable!("3 inputs"),
+            },
         }
     }
 
@@ -815,6 +886,16 @@ impl SnarlViewer<GraphIdx> for Viewer<'_> {
                     }
                     Building::Blender(b) => {
                         changed |= blender_recipe_selector(ui, scale, &mut b.recipe).changed;
+                        ui.add_space(10.0 * scale);
+
+                        changed |= add_speed_ui(ui, &mut b.speed).changed;
+                        ui.add_space(10.0 * scale);
+
+                        changed |= add_somersloop4_ui(ui, &mut b.amplified).changed;
+                    }
+                    Building::ParticleAccelerator(b) => {
+                        changed |=
+                            particle_accelerator_recipe_selector(ui, scale, &mut b.recipe).changed;
                         ui.add_space(10.0 * scale);
 
                         changed |= add_speed_ui(ui, &mut b.speed).changed;
@@ -1257,6 +1338,28 @@ impl SnarlViewer<GraphIdx> for Viewer<'_> {
                         _ => unreachable!("2 outputs"),
                     }
                 }
+                Building::ParticleAccelerator(b) => {
+                    let max_speed_material = b
+                        .recipe
+                        .as_ref()
+                        .map(|r| r.max_output_speed())
+                        .unwrap_or_default();
+
+                    match pin.id.output {
+                        0 => {
+                            let material = b.output_material();
+
+                            material_output(
+                                material,
+                                max_speed_material,
+                                b.current_output_material(),
+                                ui,
+                                scale,
+                            )
+                        }
+                        _ => unreachable!("1 output"),
+                    }
+                }
             },
         }
     }
@@ -1284,6 +1387,7 @@ impl SnarlViewer<GraphIdx> for Viewer<'_> {
             MenuItem::Building(Building::Refinery(Default::default())),
             MenuItem::Building(Building::Manufacturer(Default::default())),
             MenuItem::Building(Building::Blender(Default::default())),
+            MenuItem::Building(Building::ParticleAccelerator(Default::default())),
             MenuItem::Sep,
             MenuItem::Building(Building::Splitter(Default::default())),
             MenuItem::Building(Building::Merger(Default::default())),
@@ -1593,6 +1697,13 @@ fn blender_recipe_selector(
     ui: &mut Ui,
     scale: f32,
     recipe: &mut Option<BlenderRecipe>,
+) -> Response {
+    general_selector(ui, scale, recipe)
+}
+fn particle_accelerator_recipe_selector(
+    ui: &mut Ui,
+    scale: f32,
+    recipe: &mut Option<ParticleAcceleratorRecipe>,
 ) -> Response {
     general_selector(ui, scale, recipe)
 }

@@ -319,7 +319,7 @@ impl Blender {
     }
 
     pub fn description(&self) -> String {
-        "Smelts more things".to_string()
+        "Blends things".to_string()
     }
 
     pub fn num_inputs(&self) -> usize {
