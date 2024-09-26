@@ -31,6 +31,16 @@ impl PipelineJunction {
         4
     }
 
+    pub fn input_resource(&self, input_id: usize) -> crate::node::ResourceType {
+        assert!(input_id < 4, "4 inputs");
+        crate::node::ResourceType::Fluid
+    }
+
+    pub fn output_resource(&self, output_id: usize) -> crate::node::ResourceType {
+        assert!(output_id < 4, "4 outputs");
+        crate::node::ResourceType::Fluid
+    }
+
     pub fn input_material(&self) -> Option<Material> {
         None
     }

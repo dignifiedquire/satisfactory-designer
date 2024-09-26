@@ -373,6 +373,16 @@ impl Constructor {
         1
     }
 
+    pub fn input_resource(&self, input_id: usize) -> crate::node::ResourceType {
+        assert_eq!(input_id, 0, "1 input");
+        crate::node::ResourceType::Material
+    }
+
+    pub fn output_resource(&self, output_id: usize) -> crate::node::ResourceType {
+        assert_eq!(output_id, 0, "1 output");
+        crate::node::ResourceType::Material
+    }
+
     pub fn input_speed(&self) -> f32 {
         let base = self
             .recipe

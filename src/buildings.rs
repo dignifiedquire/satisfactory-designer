@@ -389,34 +389,14 @@ pub enum Material {
     ExplosiveRebar,
 }
 
-impl Material {
-    pub fn name(&self) -> String {
+impl Selectable for Material {
+    const NAME: &'static str = "Material";
+
+    fn name(&self) -> String {
         self.to_string()
     }
 
-    pub fn color(&self) -> Color32 {
-        // Colors based on https://www.reddit.com/r/SatisfactoryGame/comments/154vft6/vencams_colour_list_25/
-        let color = match self {
-            Self::CopperOre => "#BD4C39",
-            Self::IronOre => "#8E5C5C",
-            Self::CateriumOre => "#E2B148",
-            Self::CopperIngot => "#A56355",
-            Self::IronIngot => "#989A9D",
-            Self::CateriumIngot => "#CCA566",
-            Self::AluminumScrap => "#BCC0C9",
-            Self::AluminumIngot => "#D2D3D4",
-            Self::Bauxite => "#CD7660",
-            Self::Limestone => "#C8BFA7",
-            Self::RawQuartz => "#F177B5",
-            Self::Sam => "#AE1CD7",
-            Self::Sulfur => "#FCDC48",
-            Self::Uranium => "#88D288",
-            _ => "#697082",
-        };
-        Color32::from_hex(color).unwrap()
-    }
-
-    pub fn image(&self) -> String {
+    fn image(&self) -> String {
         let name = match self {
             Self::CopperOre => "40px-Copper_Ore.png",
             Self::IronOre => "40px-Iron_Ore.png",
@@ -546,6 +526,30 @@ impl Material {
             Self::ExplosiveRebar => "40px-Explosive_Rebar.png",
         };
         load_img(name)
+    }
+}
+
+impl Material {
+    pub fn color(&self) -> Color32 {
+        // Colors based on https://www.reddit.com/r/SatisfactoryGame/comments/154vft6/vencams_colour_list_25/
+        let color = match self {
+            Self::CopperOre => "#BD4C39",
+            Self::IronOre => "#8E5C5C",
+            Self::CateriumOre => "#E2B148",
+            Self::CopperIngot => "#A56355",
+            Self::IronIngot => "#989A9D",
+            Self::CateriumIngot => "#CCA566",
+            Self::AluminumScrap => "#BCC0C9",
+            Self::AluminumIngot => "#D2D3D4",
+            Self::Bauxite => "#CD7660",
+            Self::Limestone => "#C8BFA7",
+            Self::RawQuartz => "#F177B5",
+            Self::Sam => "#AE1CD7",
+            Self::Sulfur => "#FCDC48",
+            Self::Uranium => "#88D288",
+            _ => "#697082",
+        };
+        Color32::from_hex(color).unwrap()
     }
 }
 
@@ -752,6 +756,46 @@ impl Building {
             Self::PipelineJunction(s) => s.description(),
             Self::Manufacturer(s) => s.description(),
             Self::AwesomeSink(s) => s.description(),
+        }
+    }
+
+    pub fn input_resource(&self, input_id: usize) -> crate::node::ResourceType {
+        match self {
+            Self::Miner(m) => m.input_resource(input_id),
+            Self::Smelter(s) => s.input_resource(input_id),
+            Self::Splitter(s) => s.input_resource(input_id),
+            Self::Merger(s) => s.input_resource(input_id),
+            Self::Constructor(s) => s.input_resource(input_id),
+            Self::StorageContainer(s) => s.input_resource(input_id),
+            Self::WaterExtractor(s) => s.input_resource(input_id),
+            Self::OilExtractor(s) => s.input_resource(input_id),
+            Self::Packager(s) => s.input_resource(input_id),
+            Self::Refinery(s) => s.input_resource(input_id),
+            Self::Foundry(s) => s.input_resource(input_id),
+            Self::Assembler(s) => s.input_resource(input_id),
+            Self::PipelineJunction(s) => s.input_resource(input_id),
+            Self::Manufacturer(s) => s.input_resource(input_id),
+            Self::AwesomeSink(s) => s.input_resource(input_id),
+        }
+    }
+
+    pub fn output_resource(&self, output_id: usize) -> crate::node::ResourceType {
+        match self {
+            Self::Miner(m) => m.output_resource(output_id),
+            Self::Smelter(s) => s.output_resource(output_id),
+            Self::Splitter(s) => s.output_resource(output_id),
+            Self::Merger(s) => s.output_resource(output_id),
+            Self::Constructor(s) => s.output_resource(output_id),
+            Self::StorageContainer(s) => s.output_resource(output_id),
+            Self::WaterExtractor(s) => s.output_resource(output_id),
+            Self::OilExtractor(s) => s.output_resource(output_id),
+            Self::Packager(s) => s.output_resource(output_id),
+            Self::Refinery(s) => s.output_resource(output_id),
+            Self::Foundry(s) => s.output_resource(output_id),
+            Self::Assembler(s) => s.output_resource(output_id),
+            Self::PipelineJunction(s) => s.output_resource(output_id),
+            Self::Manufacturer(s) => s.output_resource(output_id),
+            Self::AwesomeSink(s) => s.output_resource(output_id),
         }
     }
 
@@ -1204,11 +1248,27 @@ pub enum Belt {
     Mk6,
 }
 
-impl Belt {
-    pub fn name(&self) -> String {
+impl Selectable for Belt {
+    const NAME: &'static str = "Belt";
+
+    fn name(&self) -> String {
         self.to_string()
     }
 
+    fn image(&self) -> String {
+        let img = match self {
+            Self::Mk1 => "Conveyor_Belt_Mk.1.png",
+            Self::Mk2 => "Conveyor_Belt_Mk.2.png",
+            Self::Mk3 => "Conveyor_Belt_Mk.3.png",
+            Self::Mk4 => "Conveyor_Belt_Mk.4.png",
+            Self::Mk5 => "Conveyor_Belt_Mk.5.png",
+            Self::Mk6 => "Conveyor_Belt_Mk.6.png",
+        };
+        load_img(img)
+    }
+}
+
+impl Belt {
     pub fn speed(&self) -> f32 {
         match self {
             Self::Mk1 => 60.,

@@ -52,6 +52,15 @@ impl WaterExtractor {
         1
     }
 
+    pub fn input_resource(&self, _input_id: usize) -> crate::node::ResourceType {
+        unreachable!("no inputs");
+    }
+
+    pub fn output_resource(&self, output_id: usize) -> crate::node::ResourceType {
+        assert_eq!(output_id, 0, "1 output");
+        crate::node::ResourceType::Fluid
+    }
+
     pub fn output_speed(&self) -> f32 {
         let max = self.output_pipe.map(|p| p.speed()).unwrap_or_default();
         let val = (120. * (self.speed / 100.)).round();

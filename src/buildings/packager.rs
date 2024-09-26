@@ -439,6 +439,22 @@ impl Packager {
         2
     }
 
+    pub fn input_resource(&self, input_id: usize) -> crate::node::ResourceType {
+        match input_id {
+            0 => crate::node::ResourceType::Fluid,
+            1 => crate::node::ResourceType::Material,
+            _ => unreachable!("2 inputs"),
+        }
+    }
+
+    pub fn output_resource(&self, output_id: usize) -> crate::node::ResourceType {
+        match output_id {
+            0 => crate::node::ResourceType::Fluid,
+            1 => crate::node::ResourceType::Material,
+            _ => unreachable!("2 outputs"),
+        }
+    }
+
     pub fn input_material_speed(&self) -> f32 {
         let base = self
             .recipe

@@ -1,6 +1,6 @@
 use crate::{
     app::{NodeGraph, Snarl},
-    buildings::{Building, Fluid, Material},
+    buildings::{Building, Fluid, Material, Selectable},
 };
 use egui::Color32;
 use serde::{Deserialize, Serialize};
@@ -55,6 +55,24 @@ impl Node {
         match self {
             Self::Building(b) => b.outputs(),
             Self::Group { num_outputs, .. } => *num_outputs,
+        }
+    }
+
+    pub fn input_resource(&self, input_id: usize) -> ResourceType {
+        match self {
+            Self::Group { .. } => {
+                todo!()
+            }
+            Self::Building(b) => b.input_resource(input_id),
+        }
+    }
+
+    pub fn output_resource(&self, output_id: usize) -> ResourceType {
+        match self {
+            Self::Group { .. } => {
+                todo!()
+            }
+            Self::Building(b) => b.output_resource(output_id),
         }
     }
 
@@ -120,12 +138,25 @@ impl From<Output> for Input {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ResourceType {
+    Material,
+    Fluid,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Resource {
     Material(Material),
     Fluid(Fluid),
 }
 
 impl Resource {
+    pub fn typ(&self) -> ResourceType {
+        match self {
+            Self::Material(_) => ResourceType::Material,
+            Self::Fluid(_) => ResourceType::Fluid,
+        }
+    }
+
     pub fn color(&self) -> Color32 {
         match self {
             Self::Material(m) => m.color(),

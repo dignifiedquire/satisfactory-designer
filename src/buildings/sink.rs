@@ -38,4 +38,15 @@ impl AwesomeSink {
     pub fn num_outputs(&self) -> usize {
         0
     }
+
+    pub fn input_resource(&self, input_id: usize) -> crate::node::ResourceType {
+        match input_id {
+            0 => crate::node::ResourceType::Material,
+            _ => unreachable!("1 input"),
+        }
+    }
+
+    pub fn output_resource(&self, _output_id: usize) -> crate::node::ResourceType {
+        unreachable!("no outputs");
+    }
 }

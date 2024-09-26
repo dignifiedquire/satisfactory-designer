@@ -116,10 +116,8 @@ r!(
     60., 1., Material::BallisticWarpDrive,
 
     "Computer" => Computer,
-    4. => Material::CircuitBoard,
-    8. => Material::Cable,
-    16. => Material::Plastic,
-    0. => None,
+    4. => Material::CircuitBoard, 8. => Material::Cable,
+    16. => Material::Plastic, 0. => None,
     24., 1., Material::Computer,
 
     "Crystal Oscillator" => CrystalOscillator,
@@ -452,6 +450,22 @@ impl Manufacturer {
 
     pub fn num_outputs(&self) -> usize {
         1
+    }
+    pub fn input_resource(&self, input_id: usize) -> crate::node::ResourceType {
+        match input_id {
+            0 => crate::node::ResourceType::Material,
+            1 => crate::node::ResourceType::Material,
+            2 => crate::node::ResourceType::Material,
+            3 => crate::node::ResourceType::Material,
+            _ => unreachable!("4 outputs"),
+        }
+    }
+
+    pub fn output_resource(&self, output_id: usize) -> crate::node::ResourceType {
+        match output_id {
+            0 => crate::node::ResourceType::Material,
+            _ => unreachable!("1 output"),
+        }
     }
 
     pub fn input_material_speed(&self) -> (f32, f32, f32, f32) {

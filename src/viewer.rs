@@ -250,7 +250,7 @@ impl Viewer<'_> {
                         .recipe
                         .map(|r| r.input_material_speed().1)
                         .unwrap_or_default();
-                    let material = f.input_material().map(|(a, _, _, _)| Resource::Material(a));
+                    let material = f.input_material().map(|(_, b, _, _)| Resource::Material(b));
                     let actual_input_speed = f
                         .current_input_material_1
                         .as_ref()
@@ -696,10 +696,10 @@ impl SnarlViewer<GraphIdx> for Viewer<'_> {
                         changed |= add_speed_ui(ui, &mut m.speed).changed;
                     }
                     Building::StorageContainer(s) => {
-                        material_selector(ui, scale, &mut s.material);
+                        changed |= material_selector(ui, scale, &mut s.material).changed;
                         ui.add_space(10.0 * scale);
 
-                        belt_selector(ui, scale, &mut s.output_belt);
+                        changed |= belt_selector(ui, scale, &mut s.output_belt).changed;
                     }
                     Building::Smelter(s) => {
                         changed |= smelter_recipe_selector(ui, scale, &mut s.recipe).changed;
@@ -773,11 +773,17 @@ impl SnarlViewer<GraphIdx> for Viewer<'_> {
 
     #[inline]
     fn connect(&mut self, from: &OutPin, to: &InPin, snarl: &mut Snarl) {
-        // TODO: Validate connection
-
-        // Update graph
         let node_from_idx = snarl[from.id.node];
         let node_to_idx = snarl[to.id.node];
+
+        // Validate input-output resource (pipe vs belt)
+        let node_from = self.graph.node_weight(node_from_idx).unwrap();
+        let node_to = self.graph.node_weight(node_to_idx).unwrap();
+        if node_from.output_resource(from.id.output) != node_to.input_resource(to.id.input) {
+            return;
+        }
+
+        // Update graph
 
         // connect graph
         println!("connecting {:?} -> {:?}", node_from_idx, node_to_idx);
@@ -1238,7 +1244,7 @@ impl SnarlViewer<GraphIdx> for Viewer<'_> {
     }
 
     fn has_dropped_wire_menu(&mut self, _src_pins: AnyPins, _snarl: &mut Snarl) -> bool {
-        true
+        false
     }
 
     fn show_dropped_wire_menu(
@@ -1359,53 +1365,12 @@ fn pipe_selector(ui: &mut Ui, scale: f32, pipe: &mut Option<Pipe>) -> Response {
     r.inner.unwrap_or(r.response)
 }
 
-fn belt_selector(ui: &mut Ui, scale: f32, belt: &mut Option<Belt>) {
-    let text = match belt {
-        Some(m) => m.name(),
-        None => "Select Belt".to_string(),
-    };
-
-    egui::ComboBox::from_label("Belt")
-        .selected_text(text)
-        .show_ui(ui, |ui| {
-            for b in Belt::VARIANTS {
-                let name = b.name();
-                ui.selectable_value(belt, Some(*b), name);
-            }
-        });
+fn belt_selector(ui: &mut Ui, scale: f32, belt: &mut Option<Belt>) -> Response {
+    general_selector(ui, scale, belt)
 }
 
-fn material_selector(ui: &mut Ui, scale: f32, material: &mut Option<Material>) {
-    ui.horizontal(|ui| {
-        let x = 20. * scale;
-        if let Some(ref material) = material {
-            let image = egui::Image::new(material.image())
-                .fit_to_exact_size(vec2(x, x))
-                .show_loading_spinner(true);
-            ui.add(image);
-        } else {
-            ui.add_space(x);
-        }
-
-        let text = match material {
-            Some(m) => m.name(),
-            None => "Select Material".to_string(),
-        };
-        egui::ComboBox::from_id_source(egui::Id::new("material_selector"))
-            .selected_text(text)
-            .show_ui(ui, |ui| {
-                for m in Material::VARIANTS {
-                    let name = m.name();
-                    ui.horizontal(|ui| {
-                        let image = egui::Image::new(m.image())
-                            .fit_to_exact_size(vec2(20., 20.))
-                            .show_loading_spinner(true);
-                        ui.add(image);
-                        ui.selectable_value(material, Some(*m), name);
-                    });
-                }
-            });
-    });
+fn material_selector(ui: &mut Ui, scale: f32, material: &mut Option<Material>) -> Response {
+    general_selector(ui, scale, material)
 }
 
 fn general_selector<S: Selectable>(ui: &mut Ui, scale: f32, resource: &mut Option<S>) -> Response {

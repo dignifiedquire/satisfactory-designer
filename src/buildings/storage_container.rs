@@ -5,7 +5,7 @@ use crate::{
     util::load_img,
 };
 
-use super::{Belt, Material};
+use super::{Belt, Material, Selectable};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq)]
 pub struct StorageContainer {
@@ -33,7 +33,7 @@ impl StorageContainer {
 
     pub fn name(&self) -> String {
         match &self.material {
-            Some(r) => format!("Storage Container ({})", r.name(),),
+            Some(r) => format!("Storage Container ({})", r.name()),
             None => "Storage Container".to_string(),
         }
     }
@@ -56,6 +56,15 @@ impl StorageContainer {
 
     pub fn num_outputs(&self) -> usize {
         1
+    }
+
+    pub fn input_resource(&self, _input_id: usize) -> crate::node::ResourceType {
+        unreachable!("no inputs");
+    }
+
+    pub fn output_resource(&self, output_id: usize) -> crate::node::ResourceType {
+        assert_eq!(output_id, 0, "1 output");
+        crate::node::ResourceType::Material
     }
 
     pub fn input_speed(&self) -> f32 {

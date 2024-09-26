@@ -42,6 +42,16 @@ impl Merger {
         1
     }
 
+    pub fn input_resource(&self, input_id: usize) -> crate::node::ResourceType {
+        assert!(input_id < 3, "3 inputs");
+        crate::node::ResourceType::Material
+    }
+
+    pub fn output_resource(&self, output_id: usize) -> crate::node::ResourceType {
+        assert_eq!(output_id, 0, "1 output");
+        crate::node::ResourceType::Material
+    }
+
     pub fn input_material(&self) -> Option<Material> {
         None
     }
