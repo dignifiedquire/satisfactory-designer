@@ -1,6 +1,7 @@
 use egui::Color32;
 
 mod assembler;
+mod blender;
 mod constructor;
 mod foundry;
 mod manufacturer;
@@ -20,6 +21,7 @@ use crate::node::Output;
 use crate::util::load_img;
 
 pub use self::assembler::{Assembler, AssemblerRecipe};
+pub use self::blender::{Blender, BlenderRecipe};
 pub use self::constructor::{Constructor, ConstructorRecipe};
 pub use self::foundry::{Foundry, FoundryRecipe};
 pub use self::manufacturer::{Manufacturer, ManufacturerRecipe};
@@ -52,6 +54,7 @@ pub enum Building {
     PipelineJunction(PipelineJunction),
     Manufacturer(Manufacturer),
     AwesomeSink(AwesomeSink),
+    Blender(Blender),
 }
 
 #[derive(
@@ -387,6 +390,12 @@ pub enum Material {
     Battery,
     #[strum(to_string = "Explosive Rebar")]
     ExplosiveRebar,
+    #[strum(to_string = "Biochemical Sculptor")]
+    BiochemicalSculptor,
+    #[strum(to_string = "Non-Fissile Uranium")]
+    NonFissileUranium,
+    #[strum(to_string = "Uranium Waste")]
+    UraniumWaste,
 }
 
 impl Selectable for Material {
@@ -524,6 +533,9 @@ impl Selectable for Material {
             Self::UraniumFuelRod => "40px-Uranium_Fuel_Rod.png",
             Self::Battery => "40px-Battery.png",
             Self::ExplosiveRebar => "40px-Explosive_Rebar.png",
+            Self::BiochemicalSculptor => "40px-Biochemical_Sculptor.png",
+            Self::NonFissileUranium => "40px-Non-Fissile_Uranium.png",
+            Self::UraniumWaste => "40px-Uranium_Waste.png",
         };
         load_img(name)
     }
@@ -656,6 +668,7 @@ impl Building {
             Self::PipelineJunction(s) => Self::PipelineJunction(s.clear_clone()),
             Self::Manufacturer(s) => Self::Manufacturer(s.clear_clone()),
             Self::AwesomeSink(s) => Self::AwesomeSink(s.clear_clone()),
+            Self::Blender(s) => Self::Blender(s.clear_clone()),
         }
     }
 
@@ -676,6 +689,7 @@ impl Building {
             Self::PipelineJunction(s) => s.header_image(),
             Self::Manufacturer(s) => s.header_image(),
             Self::AwesomeSink(s) => s.header_image(),
+            Self::Blender(s) => s.header_image(),
         }
     }
 
@@ -696,6 +710,7 @@ impl Building {
             Self::PipelineJunction(s) => s.num_outputs(),
             Self::Manufacturer(s) => s.num_outputs(),
             Self::AwesomeSink(s) => s.num_outputs(),
+            Self::Blender(s) => s.num_outputs(),
         }
     }
 
@@ -716,6 +731,7 @@ impl Building {
             Self::PipelineJunction(s) => s.num_inputs(),
             Self::Manufacturer(s) => s.num_inputs(),
             Self::AwesomeSink(s) => s.num_inputs(),
+            Self::Blender(s) => s.num_inputs(),
         }
     }
 
@@ -736,6 +752,7 @@ impl Building {
             Self::PipelineJunction(s) => s.name(),
             Self::Manufacturer(s) => s.name(),
             Self::AwesomeSink(s) => s.name(),
+            Self::Blender(s) => s.name(),
         }
     }
 
@@ -756,6 +773,7 @@ impl Building {
             Self::PipelineJunction(s) => s.description(),
             Self::Manufacturer(s) => s.description(),
             Self::AwesomeSink(s) => s.description(),
+            Self::Blender(s) => s.description(),
         }
     }
 
@@ -776,6 +794,7 @@ impl Building {
             Self::PipelineJunction(s) => s.input_resource(input_id),
             Self::Manufacturer(s) => s.input_resource(input_id),
             Self::AwesomeSink(s) => s.input_resource(input_id),
+            Self::Blender(s) => s.input_resource(input_id),
         }
     }
 
@@ -796,6 +815,7 @@ impl Building {
             Self::PipelineJunction(s) => s.output_resource(output_id),
             Self::Manufacturer(s) => s.output_resource(output_id),
             Self::AwesomeSink(s) => s.output_resource(output_id),
+            Self::Blender(s) => s.output_resource(output_id),
         }
     }
 
@@ -865,6 +885,11 @@ impl Building {
                 _ => unreachable!("4 outputs"),
             },
             Self::AwesomeSink(_) => None,
+            Self::Blender(b) => match output_id {
+                0 => b.current_output_fluid(),
+                1 => b.current_output_material(),
+                _ => unreachable!("2 outputs"),
+            },
         }
     }
 
@@ -976,6 +1001,21 @@ impl Building {
                 assert_eq!(input_id, 0, "1 input");
                 s.current_input.replace(input.into());
             }
+            Self::Blender(b) => match input_id {
+                0 => {
+                    b.current_input_fluid_0.replace(input.into());
+                }
+                1 => {
+                    b.current_input_fluid_1.replace(input.into());
+                }
+                2 => {
+                    b.current_input_material_0.replace(input.into());
+                }
+                3 => {
+                    b.current_input_material_1.replace(input.into());
+                }
+                _ => unreachable!("4 inputs"),
+            },
         }
     }
 
@@ -1087,6 +1127,21 @@ impl Building {
                 assert_eq!(input_id, 0, "1 input");
                 s.current_input = None;
             }
+            Self::Blender(b) => match input_id {
+                0 => {
+                    b.current_input_fluid_0 = None;
+                }
+                1 => {
+                    b.current_input_fluid_1 = None;
+                }
+                2 => {
+                    b.current_input_material_0 = None;
+                }
+                3 => {
+                    b.current_input_material_1 = None;
+                }
+                _ => unreachable!("4 inputs"),
+            },
         }
     }
 
@@ -1267,6 +1322,56 @@ fn calc_output4(
     // 60/4 * 1 = 15
     let b = (60. / duration) * a * output_size;
     round(b)
+}
+
+fn calc_output4_2(
+    input_size: Option<(f32, f32, f32, f32)>,
+    duration: f32,
+    output_size_a: f32,
+    output_size_b: f32,
+    input_base_a: f32,
+    input_base_b: f32,
+    input_base_c: f32,
+    input_base_d: f32,
+) -> (f32, f32) {
+    let a = match input_size {
+        Some((input_size_a, input_size_b, input_size_c, input_size_d)) => {
+            let input_size_a = (input_size_a / 60.) * duration;
+            let input_size_b = (input_size_b / 60.) * duration;
+            let input_size_c = (input_size_c / 60.) * duration;
+            let input_size_d = (input_size_d / 60.) * duration;
+
+            let a = if input_size_a < input_base_a {
+                input_size_a / input_base_a
+            } else {
+                1.
+            };
+            let b = if input_size_b < input_base_b {
+                input_size_b / input_base_b
+            } else {
+                1.
+            };
+            let c = if input_size_c < input_base_c {
+                input_size_c / input_base_c
+            } else {
+                1.
+            };
+            let d = if input_size_d < input_base_d {
+                input_size_d / input_base_d
+            } else {
+                1.
+            };
+
+            // restrict to the minimum
+            min4(a, b, c, d)
+        }
+        None => 1.,
+    };
+
+    // 60/4 * 1 = 15
+    let b_a = round((60. / duration) * a * output_size_a);
+    let b_b = round((60. / duration) * a * output_size_b);
+    (b_a, b_b)
 }
 
 fn min4(a: f32, b: f32, c: f32, d: f32) -> f32 {

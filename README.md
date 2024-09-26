@@ -34,7 +34,7 @@
 - [x] Manufactorer
 - [x] Packager
 - [x] Refinery
-- [ ] Blender
+- [x] Blender
 - [ ] Particle Accelerator
 - [ ] Quantom Encoder
 - [ ] Converter
