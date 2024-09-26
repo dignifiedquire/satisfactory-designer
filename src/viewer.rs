@@ -864,7 +864,11 @@ impl SnarlViewer<GraphIdx> for Viewer<'_> {
 
                 let title = node.name();
                 let text = RichText::new(title).font(FontId::proportional(15.0 * scale));
-                ui.label(text);
+                ui.label(text).on_hover_ui(|ui| {
+                    let text =
+                        RichText::new(node.description()).font(FontId::proportional(15.0 * scale));
+                    ui.label(text);
+                });
                 ui.add_space(5. * scale);
             });
         });

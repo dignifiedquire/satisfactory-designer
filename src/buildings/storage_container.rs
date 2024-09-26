@@ -1,5 +1,3 @@
-use strum::VariantArray;
-
 use crate::{
     node::{Output, Resource},
     util::load_img,
@@ -40,14 +38,6 @@ impl StorageContainer {
 
     pub fn description(&self) -> String {
         "Stores things".to_string()
-    }
-
-    pub fn available_materials(&self) -> &'static [Material] {
-        Material::VARIANTS
-    }
-
-    pub fn available_levels(&self) -> &'static [Belt] {
-        Belt::VARIANTS
     }
 
     pub fn num_inputs(&self) -> usize {

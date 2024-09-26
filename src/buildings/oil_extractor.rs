@@ -1,5 +1,3 @@
-use strum::VariantArray;
-
 use crate::{
     node::{Output, Resource},
     util::load_img,
@@ -40,14 +38,6 @@ impl OilExtractor {
 
     pub fn description(&self) -> String {
         "Extracts oil".to_string()
-    }
-
-    pub fn available_pipes(&self) -> &'static [Pipe] {
-        Pipe::VARIANTS
-    }
-
-    pub fn available_purities(&self) -> &'static [ResourcePurity] {
-        ResourcePurity::VARIANTS
     }
 
     pub fn num_inputs(&self) -> usize {

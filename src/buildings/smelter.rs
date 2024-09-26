@@ -1,4 +1,3 @@
-use egui::Color32;
 use strum::VariantArray;
 
 use crate::{
@@ -42,10 +41,6 @@ impl Selectable for SmelterRecipe {
 }
 
 impl SmelterRecipe {
-    pub fn output_color(&self) -> Color32 {
-        self.output_material().color()
-    }
-
     pub fn input_material(&self) -> Material {
         match self {
             Self::CateriumIngot => Material::CateriumOre,

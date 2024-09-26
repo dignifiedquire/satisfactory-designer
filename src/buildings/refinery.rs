@@ -1,5 +1,3 @@
-use strum::VariantArray;
-
 use crate::{
     node::{Input, Output, Resource},
     util::load_img,
@@ -506,10 +504,6 @@ impl Refinery {
 
     pub fn header_image(&self) -> String {
         load_img("Refinery.png")
-    }
-
-    pub fn available_recipes(&self) -> &'static [RefineryRecipe] {
-        RefineryRecipe::VARIANTS
     }
 
     pub fn name(&self) -> String {

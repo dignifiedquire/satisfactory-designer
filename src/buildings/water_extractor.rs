@@ -1,5 +1,3 @@
-use strum::VariantArray;
-
 use crate::{
     node::{Output, Resource},
     util::load_img,
@@ -38,10 +36,6 @@ impl WaterExtractor {
 
     pub fn description(&self) -> String {
         "Extracts water".to_string()
-    }
-
-    pub fn available_pipes(&self) -> &'static [Pipe] {
-        Pipe::VARIANTS
     }
 
     pub fn num_inputs(&self) -> usize {

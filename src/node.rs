@@ -114,6 +114,13 @@ impl Node {
             Self::Building(b) => b.set_current_output_disconnected(output_id),
         }
     }
+
+    pub fn description(&self) -> String {
+        match self {
+            Self::Group { .. } => "Group".to_string(),
+            Self::Building(b) => b.description(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
