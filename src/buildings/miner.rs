@@ -3,7 +3,7 @@ use crate::{
     util::load_img,
 };
 
-use super::{Material, ResourceType, Selectable};
+use super::{round, Material, ResourceType, Selectable};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq)]
 pub struct Miner {
@@ -114,7 +114,7 @@ impl Miner {
                 let val = self.resource_purity.modifier()
                     * (self.speed / 100.)
                     * self.level.mining_speed() as f32;
-                val.round()
+                round(val)
             }
             None => 0.,
         }

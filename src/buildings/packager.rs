@@ -5,7 +5,7 @@ use crate::{
     util::load_img,
 };
 
-use super::{calc_output, calc_output2, Fluid, Material, Selectable};
+use super::{calc_output, calc_output2, round, Fluid, Material, Selectable};
 
 #[derive(
     Debug,
@@ -461,7 +461,7 @@ impl Packager {
             .as_ref()
             .map(|r| r.input_material_speed())
             .unwrap_or_default();
-        (base as f32 * (self.speed / 100.)).round()
+        round(base as f32 * (self.speed / 100.))
     }
 
     pub fn input_fluid_speed(&self) -> f32 {
@@ -470,7 +470,7 @@ impl Packager {
             .as_ref()
             .map(|r| r.input_fluid_speed())
             .unwrap_or_default();
-        (base as f32 * (self.speed / 100.)).round()
+        round(base as f32 * (self.speed / 100.))
     }
 
     pub fn output_material(&self) -> Option<Material> {
@@ -500,7 +500,7 @@ impl Packager {
 
         // TODO: take speed into account for input_speed
 
-        (base as f32 * (self.speed / 100.)).round()
+        round(base as f32 * (self.speed / 100.))
     }
 
     pub fn output_fluid_speed(&self) -> f32 {
@@ -522,7 +522,7 @@ impl Packager {
 
         // TODO: take speed into account for input_speed
 
-        (base as f32 * (self.speed / 100.)).round()
+        round(base as f32 * (self.speed / 100.))
     }
 
     pub fn input_material(&self) -> Option<Material> {

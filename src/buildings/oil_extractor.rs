@@ -5,7 +5,7 @@ use crate::{
     util::load_img,
 };
 
-use super::{miner::ResourcePurity, Fluid, Pipe};
+use super::{miner::ResourcePurity, round, Fluid, Pipe};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq)]
 pub struct OilExtractor {
@@ -69,7 +69,7 @@ impl OilExtractor {
 
     pub fn output_speed(&self) -> f32 {
         let max = self.output_pipe.map(|p| p.speed()).unwrap_or_default();
-        let val = (120. * self.resource_purity.modifier() * (self.speed / 100.)).round();
+        let val = round(120. * self.resource_purity.modifier() * (self.speed / 100.));
 
         if val > max {
             max

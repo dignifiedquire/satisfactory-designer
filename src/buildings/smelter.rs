@@ -6,7 +6,7 @@ use crate::{
     util::load_img,
 };
 
-use super::{calc_output, Material, Selectable, SomersloopSlot1};
+use super::{calc_output, round, Material, Selectable, SomersloopSlot1};
 
 #[derive(
     Debug,
@@ -166,7 +166,7 @@ impl Smelter {
             .as_ref()
             .map(|r| r.input_speed())
             .unwrap_or_default();
-        (base as f32 * (self.speed / 100.)).round()
+        round(base as f32 * (self.speed / 100.))
     }
 
     pub fn output_speed(&self) -> f32 {
@@ -185,7 +185,7 @@ impl Smelter {
 
         // TODO: take speed into account for input_size
 
-        (base as f32 * (self.speed / 100.) * amplification).round()
+        round(base as f32 * (self.speed / 100.) * amplification)
     }
 
     pub fn input_material(&self) -> Option<Material> {

@@ -3,7 +3,7 @@ use crate::{
     util::load_img,
 };
 
-use super::{calc_output2, Material, Selectable, SomersloopSlot2};
+use super::{calc_output2, round, Material, Selectable, SomersloopSlot2};
 
 macro_rules! r {
     ($($literal_name:expr => $name:ident, $input_speed_0:expr, $input_material_0:expr, $input_speed_1:expr, $input_material_1:expr, $duration:expr, $output_speed:expr, $output_material:expr),* $(,)*) => {
@@ -250,8 +250,8 @@ impl Assembler {
             .as_ref()
             .map(|r| r.input_material_speed())
             .unwrap_or_default();
-        let a = (base_0 as f32 * (self.speed / 100.)).round();
-        let b = (base_1 as f32 * (self.speed / 100.)).round();
+        let a = round(base_0 as f32 * (self.speed / 100.));
+        let b = round(base_1 as f32 * (self.speed / 100.));
 
         (a, b)
     }
@@ -280,7 +280,7 @@ impl Assembler {
 
         // TODO: take speed into account for input_speed
 
-        (base as f32 * (self.speed / 100.) * amplification).round()
+        round(base as f32 * (self.speed / 100.) * amplification)
     }
 
     pub fn input_material(&self) -> Option<(Material, Material)> {

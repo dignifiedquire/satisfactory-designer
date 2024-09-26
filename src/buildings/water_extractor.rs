@@ -5,7 +5,7 @@ use crate::{
     util::load_img,
 };
 
-use super::{Fluid, Pipe};
+use super::{round, Fluid, Pipe};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq)]
 pub struct WaterExtractor {
@@ -63,7 +63,7 @@ impl WaterExtractor {
 
     pub fn output_speed(&self) -> f32 {
         let max = self.output_pipe.map(|p| p.speed()).unwrap_or_default();
-        let val = (120. * (self.speed / 100.)).round();
+        let val = round(120. * (self.speed / 100.));
 
         if val > max {
             max
