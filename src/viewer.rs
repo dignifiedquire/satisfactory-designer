@@ -397,15 +397,21 @@ impl Viewer<'_> {
                     PinInfo::square(),
                 )
             }
-            Building::PipelineJunction(_) => {
+            Building::PipelineJunction(s) => {
                 // 4 inputs
-                let actual_input_speed = 0.;
-                let input_fluid = None;
 
-                let color = input_fluid
-                    .as_ref()
-                    .map(|m: &Resource| m.color())
-                    .unwrap_or(BUILDING_COLOR);
+                let current_input = match pin.id.input {
+                    0 => &s.current_input_0,
+                    1 => &s.current_input_1,
+                    2 => &s.current_input_2,
+                    3 => &s.current_input_3,
+                    _ => unreachable!("4 inputs"),
+                };
+
+                let input_fluid = current_input.as_ref().map(|i| i.resource);
+                let color = input_fluid.map(|r| r.color()).unwrap_or(BUILDING_COLOR);
+                let actual_input_speed =
+                    current_input.as_ref().map(|r| r.speed).unwrap_or_default();
 
                 ui.horizontal(|ui| {
                     add_resource_image(ui, scale, &input_fluid);
@@ -1046,16 +1052,25 @@ impl SnarlViewer<GraphIdx> for Viewer<'_> {
 
                     material_output(material, max_speed, f.current_output(), ui, scale)
                 }
-                Building::PipelineJunction(_s) => {
-                    let speed = 0.;
-                    let material = None;
+                Building::PipelineJunction(s) => {
+                    let output = match pin.id.output {
+                        0 => s.current_output_0(),
+                        1 => s.current_output_1(),
+                        2 => s.current_output_2(),
+                        3 => s.current_output_3(),
+                        _ => unreachable!("4 outputs"),
+                    };
+                    let (speed, fluid) = match output {
+                        Some(output) => (output.speed, Some(output.resource)),
+                        None => (0., None),
+                    };
 
                     ui.horizontal(|ui| {
-                        add_resource_image(ui, scale, &material);
+                        add_resource_image(ui, scale, &fluid);
                         ui.label(format!("{}/m^3", speed));
                     });
 
-                    let color = material.map(|m| m.color()).unwrap_or(BUILDING_COLOR);
+                    let color = fluid.map(|m| m.color()).unwrap_or(BUILDING_COLOR);
                     PinInfo::circle().with_fill(color)
                 }
                 Building::Splitter(s) => {

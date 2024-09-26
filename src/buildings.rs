@@ -857,7 +857,13 @@ impl Building {
                 assert_eq!(output_id, 0, "1 output");
                 m.current_output()
             }
-            Self::PipelineJunction(_s) => None, // TODO
+            Self::PipelineJunction(s) => match output_id {
+                0 => s.current_output_0(),
+                1 => s.current_output_1(),
+                2 => s.current_output_2(),
+                3 => s.current_output_3(),
+                _ => unreachable!("4 outputs"),
+            },
             Self::AwesomeSink(_) => None,
         }
     }
@@ -951,9 +957,21 @@ impl Building {
                 }
                 _ => unreachable!("3 inputs"),
             },
-            Self::PipelineJunction(_) => {
-                // TODO
-            }
+            Self::PipelineJunction(s) => match input_id {
+                0 => {
+                    s.current_input_0.replace(input.into());
+                }
+                1 => {
+                    s.current_input_1.replace(input.into());
+                }
+                2 => {
+                    s.current_input_2.replace(input.into());
+                }
+                3 => {
+                    s.current_input_3.replace(input.into());
+                }
+                _ => unreachable!("3 inputs"),
+            },
             Self::AwesomeSink(s) => {
                 assert_eq!(input_id, 0, "1 input");
                 s.current_input.replace(input.into());
@@ -1050,9 +1068,21 @@ impl Building {
                 }
                 _ => unreachable!("3 inputs"),
             },
-            Self::PipelineJunction(_) => {
-                // TODO
-            }
+            Self::PipelineJunction(s) => match input_id {
+                0 => {
+                    s.current_input_0 = None;
+                }
+                1 => {
+                    s.current_input_1 = None;
+                }
+                2 => {
+                    s.current_input_2 = None;
+                }
+                3 => {
+                    s.current_input_3 = None;
+                }
+                _ => unreachable!("4 inputs"),
+            },
             Self::AwesomeSink(s) => {
                 assert_eq!(input_id, 0, "1 input");
                 s.current_input = None;
@@ -1074,6 +1104,21 @@ impl Building {
                 }
                 _ => unreachable!("3 outputs"),
             },
+            Building::PipelineJunction(s) => match output_id {
+                0 => {
+                    s.output_0_connected = true;
+                }
+                1 => {
+                    s.output_1_connected = true;
+                }
+                2 => {
+                    s.output_2_connected = true;
+                }
+                3 => {
+                    s.output_3_connected = true;
+                }
+                _ => unreachable!("4 outputs"),
+            },
             _ => {}
         }
     }
@@ -1091,6 +1136,21 @@ impl Building {
                     s.output_2_connected = false;
                 }
                 _ => unreachable!("3 outputs"),
+            },
+            Building::PipelineJunction(s) => match output_id {
+                0 => {
+                    s.output_0_connected = false;
+                }
+                1 => {
+                    s.output_1_connected = false;
+                }
+                2 => {
+                    s.output_2_connected = false;
+                }
+                3 => {
+                    s.output_2_connected = false;
+                }
+                _ => unreachable!("4 outputs"),
             },
             _ => {}
         }
