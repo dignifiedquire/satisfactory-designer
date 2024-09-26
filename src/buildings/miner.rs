@@ -1,11 +1,9 @@
-use strum::VariantArray;
-
 use crate::{
     node::{Output, Resource},
     util::load_img,
 };
 
-use super::{Material, ResourceType};
+use super::{Material, ResourceType, Selectable};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq)]
 pub struct Miner {
@@ -54,6 +52,15 @@ impl MinerLevel {
 }
 
 impl Miner {
+    pub fn clear_clone(&self) -> Self {
+        Self {
+            resource: self.resource.clone(),
+            resource_purity: self.resource_purity.clone(),
+            level: self.level.clone(),
+            speed: self.speed.clone(),
+        }
+    }
+
     pub fn header_image(&self) -> String {
         let name = match self.level {
             MinerLevel::Mk1 => "Miner_Mk.1.png",
@@ -77,18 +84,6 @@ impl Miner {
 
     pub fn description(&self) -> String {
         "Mines things".to_string()
-    }
-
-    pub fn available_purities(&self) -> &'static [ResourcePurity] {
-        ResourcePurity::VARIANTS
-    }
-
-    pub fn available_levels(&self) -> &'static [MinerLevel] {
-        MinerLevel::VARIANTS
-    }
-
-    pub fn available_resources(&self) -> &'static [ResourceType] {
-        ResourceType::VARIANTS
     }
 
     pub fn num_inputs(&self) -> usize {

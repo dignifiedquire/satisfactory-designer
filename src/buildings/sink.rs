@@ -1,11 +1,4 @@
-use strum::VariantArray;
-
-use crate::{
-    node::{Input, Output, Resource},
-    util::load_img,
-};
-
-use super::{Belt, Material};
+use crate::{node::Input, util::load_img};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct AwesomeSink {
@@ -20,6 +13,12 @@ impl Default for AwesomeSink {
     }
 }
 impl AwesomeSink {
+    pub fn clear_clone(&self) -> Self {
+        let mut this = self.clone();
+        this.current_input = None;
+        this
+    }
+
     pub fn header_image(&self) -> String {
         load_img("AWESOME_Sink.png")
     }

@@ -1,5 +1,5 @@
 use crate::{
-    app::{GraphIdx, NodeGraph, Snarl},
+    app::{NodeGraph, Snarl},
     buildings::{Building, Fluid, Material},
 };
 use egui::Color32;
@@ -19,6 +19,17 @@ pub enum Node {
 }
 
 impl Node {
+    /// Clone, but with caches reset
+    pub fn clear_clone(&self) -> Self {
+        match self {
+            Self::Group { .. } => {
+                // TODO
+                self.clone()
+            }
+            Self::Building(b) => Self::Building(b.clear_clone()),
+        }
+    }
+
     pub fn name(&self) -> String {
         match self {
             Self::Building(b) => b.name(),

@@ -6,7 +6,7 @@ use crate::{
     util::load_img,
 };
 
-use super::{calc_output, Material, SomersloopSlot1};
+use super::{calc_output, Material, Selectable, SomersloopSlot1};
 
 #[derive(
     Debug,
@@ -29,15 +29,19 @@ pub enum SmelterRecipe {
     PureAluminumIngot,
 }
 
-impl SmelterRecipe {
-    pub fn name(&self) -> String {
+impl Selectable for SmelterRecipe {
+    const NAME: &'static str = "Recipe";
+
+    fn name(&self) -> String {
         self.to_string()
     }
 
-    pub fn image(&self) -> String {
+    fn image(&self) -> String {
         self.output_material().image()
     }
+}
 
+impl SmelterRecipe {
     pub fn output_color(&self) -> Color32 {
         self.output_material().color()
     }
@@ -113,6 +117,12 @@ impl Default for Smelter {
 }
 
 impl Smelter {
+    pub fn clear_clone(&self) -> Self {
+        let mut this = self.clone();
+        this.current_input = None;
+        this
+    }
+
     pub fn header_image(&self) -> String {
         load_img("Smelter.png")
     }

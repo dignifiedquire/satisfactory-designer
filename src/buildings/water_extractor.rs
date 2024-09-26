@@ -23,6 +23,11 @@ impl Default for WaterExtractor {
 }
 
 impl WaterExtractor {
+    pub fn clear_clone(&self) -> Self {
+        let this = self.clone();
+        this
+    }
+
     pub fn header_image(&self) -> String {
         load_img("Water_Extractor.png")
     }

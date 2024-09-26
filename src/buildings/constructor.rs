@@ -1,11 +1,9 @@
-use strum::VariantArray;
-
 use crate::{
     node::{Input, Output, Resource},
     util::load_img,
 };
 
-use super::{calc_output, Material, SomersloopSlot1};
+use super::{calc_output, Material, Selectable, SomersloopSlot1};
 
 #[derive(
     Debug,
@@ -106,15 +104,19 @@ pub enum ConstructorRecipe {
     SteelScrew,
 }
 
-impl ConstructorRecipe {
-    pub fn name(&self) -> String {
+impl Selectable for ConstructorRecipe {
+    const NAME: &'static str = "Recipe";
+
+    fn name(&self) -> String {
         self.to_string()
     }
 
-    pub fn image(&self) -> String {
+    fn image(&self) -> String {
         self.output_material().image()
     }
+}
 
+impl ConstructorRecipe {
     pub fn input_material(&self) -> Material {
         match self {
             Self::AlienDnaCapsule => Material::AlienProtein,
@@ -342,12 +344,14 @@ impl Default for Constructor {
 }
 
 impl Constructor {
-    pub fn header_image(&self) -> String {
-        load_img("Constructor.png")
+    pub fn clear_clone(&self) -> Self {
+        let mut this = self.clone();
+        this.current_input = None;
+        this
     }
 
-    pub fn available_recipes(&self) -> &'static [ConstructorRecipe] {
-        ConstructorRecipe::VARIANTS
+    pub fn header_image(&self) -> String {
+        load_img("Constructor.png")
     }
 
     pub fn name(&self) -> String {

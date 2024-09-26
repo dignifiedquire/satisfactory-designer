@@ -5,7 +5,7 @@ use crate::{
     util::load_img,
 };
 
-use super::{calc_output, calc_output2, round, Fluid, Material, SomersloopSlot2};
+use super::{calc_output, calc_output2, round, Fluid, Material, Selectable, SomersloopSlot2};
 
 #[derive(
     Debug,
@@ -88,17 +88,28 @@ pub enum RefineryRecipe {
     WetConcrete,
 }
 
-impl RefineryRecipe {
-    pub fn name(&self) -> String {
+impl Selectable for RefineryRecipe {
+    const NAME: &'static str = "Recipe";
+
+    fn name(&self) -> String {
         self.to_string()
     }
 
-    pub fn image(&self) -> (Option<String>, Option<String>) {
+    fn image(&self) -> String {
         let a = self.output_material().map(|m| m.image());
         let b = self.output_fluid().map(|m| m.image());
-        (a, b)
+        match (a, b) {
+            (Some(_image), Some(image)) => image,
+            (Some(image), None) => image,
+            (None, Some(image)) => image,
+            (None, None) => {
+                unreachable!("have at least one output")
+            }
+        }
     }
+}
 
+impl RefineryRecipe {
     pub fn input_material(&self) -> Option<Material> {
         match self {
             Self::AluminaSolution => Some(Material::Bauxite),
@@ -486,6 +497,13 @@ impl Default for Refinery {
 }
 
 impl Refinery {
+    pub fn clear_clone(&self) -> Self {
+        let mut this = self.clone();
+        this.current_input_fluid = None;
+        this.current_input_material = None;
+        this
+    }
+
     pub fn header_image(&self) -> String {
         load_img("Refinery.png")
     }

@@ -19,18 +19,18 @@ mod water_extractor;
 use crate::node::Output;
 use crate::util::load_img;
 
-pub use self::assembler::Assembler;
-pub use self::constructor::Constructor;
-pub use self::foundry::Foundry;
-pub use self::manufacturer::Manufacturer;
+pub use self::assembler::{Assembler, AssemblerRecipe};
+pub use self::constructor::{Constructor, ConstructorRecipe};
+pub use self::foundry::{Foundry, FoundryRecipe};
+pub use self::manufacturer::{Manufacturer, ManufacturerRecipe};
 pub use self::merger::Merger;
-pub use self::miner::Miner;
+pub use self::miner::{Miner, MinerLevel, ResourcePurity};
 pub use self::oil_extractor::OilExtractor;
-pub use self::packager::Packager;
+pub use self::packager::{Packager, PackagerRecipe};
 pub use self::pipeline_junction::PipelineJunction;
-pub use self::refinery::Refinery;
+pub use self::refinery::{Refinery, RefineryRecipe};
 pub use self::sink::AwesomeSink;
-pub use self::smelter::Smelter;
+pub use self::smelter::{Smelter, SmelterRecipe};
 pub use self::splitter::Splitter;
 pub use self::storage_container::StorageContainer;
 pub use self::water_extractor::WaterExtractor;
@@ -87,15 +87,26 @@ pub enum ResourceType {
     Coal,
 }
 
-impl ResourceType {
-    pub fn name(&self) -> String {
+pub trait Selectable: strum::VariantArray + PartialEq + Clone {
+    const NAME: &'static str;
+
+    fn name(&self) -> String;
+    fn image(&self) -> String;
+}
+
+impl Selectable for ResourceType {
+    const NAME: &'static str = "Resource";
+
+    fn name(&self) -> String {
         self.to_string()
     }
 
-    pub fn image(&self) -> String {
+    fn image(&self) -> String {
         self.output_material().image()
     }
+}
 
+impl ResourceType {
     pub fn output_material(&self) -> Material {
         match self {
             Self::Bauxite => Material::Bauxite,
@@ -623,6 +634,27 @@ impl Fluid {
 }
 
 impl Building {
+    /// Clone, but with caches reset
+    pub fn clear_clone(&self) -> Self {
+        match self {
+            Self::Miner(m) => Self::Miner(m.clear_clone()),
+            Self::Smelter(s) => Self::Smelter(s.clear_clone()),
+            Self::Splitter(s) => Self::Splitter(s.clear_clone()),
+            Self::Merger(s) => Self::Merger(s.clear_clone()),
+            Self::Constructor(s) => Self::Constructor(s.clear_clone()),
+            Self::StorageContainer(s) => Self::StorageContainer(s.clear_clone()),
+            Self::WaterExtractor(s) => Self::WaterExtractor(s.clear_clone()),
+            Self::OilExtractor(s) => Self::OilExtractor(s.clear_clone()),
+            Self::Packager(s) => Self::Packager(s.clear_clone()),
+            Self::Refinery(s) => Self::Refinery(s.clear_clone()),
+            Self::Foundry(s) => Self::Foundry(s.clear_clone()),
+            Self::Assembler(s) => Self::Assembler(s.clear_clone()),
+            Self::PipelineJunction(s) => Self::PipelineJunction(s.clear_clone()),
+            Self::Manufacturer(s) => Self::Manufacturer(s.clear_clone()),
+            Self::AwesomeSink(s) => Self::AwesomeSink(s.clear_clone()),
+        }
+    }
+
     pub fn header_image(&self) -> String {
         match self {
             Self::Miner(m) => m.header_image(),
@@ -771,24 +803,24 @@ impl Building {
                 assert_eq!(output_id, 0, "1 output");
                 m.current_output()
             }
-            Self::Splitter(s) => {
-                match output_id {
-                    0 => s.current_output_0(),
-                    1 => s.current_output_1(),
-                    2 => s.current_output_2(),
-                    _ => unreachable!("3 outputs"),
-                }
-            }
+            Self::Splitter(s) => match output_id {
+                0 => s.current_output_0(),
+                1 => s.current_output_1(),
+                2 => s.current_output_2(),
+                _ => unreachable!("3 outputs"),
+            },
             Self::Merger(m) => {
                 assert_eq!(output_id, 0, "1 output");
                 m.current_output()
             }
-            Self::PipelineJunction(s) => None, // TODO
+            Self::PipelineJunction(_s) => None, // TODO
             Self::AwesomeSink(_) => None,
         }
     }
 
     pub fn set_current_input(&mut self, input: Output, input_id: usize) {
+        // TODO: match materials
+
         match self {
             Self::Miner(_) => {
                 unreachable!("no inputs");
@@ -988,40 +1020,36 @@ impl Building {
 
     pub fn set_current_output_connected(&mut self, output_id: usize) {
         match self {
-            Building::Splitter(s) => {
-                match output_id {
-                    0 => {
-                        s.output_0_connected = true;
-                    }
-                    1 => {
-                        s.output_1_connected = true;
-                    }
-                    2 => {
-                        s.output_2_connected = true;
-                    }
-                    _ => unreachable!("3 outputs"),
+            Building::Splitter(s) => match output_id {
+                0 => {
+                    s.output_0_connected = true;
                 }
-            }
+                1 => {
+                    s.output_1_connected = true;
+                }
+                2 => {
+                    s.output_2_connected = true;
+                }
+                _ => unreachable!("3 outputs"),
+            },
             _ => {}
         }
     }
 
     pub fn set_current_output_disconnected(&mut self, output_id: usize) {
         match self {
-            Building::Splitter(s) => {
-                match output_id {
-                    0 => {
-                        s.output_0_connected = false;
-                    }
-                    1 => {
-                        s.output_1_connected = false;
-                    }
-                    2 => {
-                        s.output_2_connected = false;
-                    }
-                    _ => unreachable!("3 outputs"),
+            Building::Splitter(s) => match output_id {
+                0 => {
+                    s.output_0_connected = false;
                 }
-            }
+                1 => {
+                    s.output_1_connected = false;
+                }
+                2 => {
+                    s.output_2_connected = false;
+                }
+                _ => unreachable!("3 outputs"),
+            },
             _ => {}
         }
     }

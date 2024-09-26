@@ -1,15 +1,23 @@
-use egui::{vec2, Color32, FontId, Id, RichText, Ui, Vec2};
+use std::collections::HashMap;
+
+use egui::{vec2, Color32, FontId, Id, Response, RichText, Ui, Vec2};
 use egui_dock::SurfaceIndex;
 use egui_snarl::{
     ui::{AnyPins, PinInfo, SnarlViewer},
     InPin, NodeId, OutPin,
 };
+use petgraph::visit::EdgeRef;
 use strum::VariantArray;
 
 use crate::{
     app::{EdgeDetails, GraphIdx, NodeGraph, Snarl},
-    buildings::{Building, Fluid, Material, SomersloopSlot1, SomersloopSlot2, SomersloopSlot4},
-    node::{Input, Node, Output, Resource},
+    buildings::{
+        AssemblerRecipe, Belt, Building, ConstructorRecipe, Fluid, FoundryRecipe,
+        ManufacturerRecipe, Material, MinerLevel, PackagerRecipe, Pipe, RefineryRecipe,
+        ResourcePurity, ResourceType, Selectable, SmelterRecipe, SomersloopSlot1, SomersloopSlot2,
+        SomersloopSlot4,
+    },
+    node::{Node, Output, Resource},
 };
 
 const BUILDING_COLOR: Color32 = Color32::from_rgb(0xb0, 0xb0, 0xb0);
@@ -410,9 +418,7 @@ impl Viewer<'_> {
                 assert_eq!(pin.id.input, 0, "Splitter node has only one input");
 
                 let (actual_input_speed, material) = match s.current_input {
-                    Some(ref input) => {
-                        (input.speed, Some(input.resource))
-                    }
+                    Some(ref input) => (input.speed, Some(input.resource)),
                     None => (0., None),
                 };
 
@@ -495,6 +501,93 @@ impl Viewer<'_> {
             }
         }
     }
+
+    fn refresh_node(&mut self, node_idx: GraphIdx) {
+        use petgraph::prelude::NodeIndex;
+        println!("Refreshing {:?}", node_idx);
+
+        // Find all paths
+        fn all_paths_dfs(
+            graph: &NodeGraph,
+            start: NodeIndex,
+            end: NodeIndex,
+            visited: &mut HashMap<NodeIndex, Vec<NodeIndex>>,
+            path: &mut Vec<NodeIndex>,
+            all_paths: &mut Vec<Vec<NodeIndex>>,
+        ) {
+            path.push(start); // Add the current node to the path
+            if start == end {
+                // If the current node is the destination
+                all_paths.push(path.clone()); // Add a copy of the path to the results
+            } else {
+                // Explore neighbors
+                for neighbor in
+                    graph.neighbors_directed(start, petgraph::prelude::Direction::Outgoing)
+                {
+                    let count = path.iter().filter(|n| *n == &neighbor).count();
+                    // This number is..special
+                    // A tradeoff between accuracy and calculation time.
+                    const MAX_COUNT: usize = 5;
+                    if count < MAX_COUNT {
+                        all_paths_dfs(graph, neighbor, end, visited, path, all_paths);
+                    }
+                }
+            }
+            // Backtrack to explore other paths
+            path.pop();
+        }
+
+        let externals: Vec<_> = self
+            .graph
+            .externals(petgraph::Direction::Outgoing)
+            .collect();
+        for target in externals {
+            println!("Searching paths to {:?}", target);
+            let mut path = Vec::new();
+            let mut paths = Vec::new();
+            let mut visited = HashMap::new();
+            all_paths_dfs(
+                &*self.graph,
+                node_idx,
+                target,
+                &mut visited,
+                &mut path,
+                &mut paths,
+            );
+            for path in paths {
+                println!("Updating {:?}", path);
+
+                let mut start_idx = path[0];
+                for next_node_idx in path.into_iter().skip(1) {
+                    let edges: Vec<_> = self
+                        .graph
+                        .edges_connecting(start_idx, next_node_idx)
+                        .map(|e| e.weight().clone())
+                        .collect();
+                    for edge in edges {
+                        println!(
+                            "Edge({}, {}) {:?} -> {:?}",
+                            edge.output, edge.input, start_idx, next_node_idx
+                        );
+                        let output = self
+                            .graph
+                            .node_weight(start_idx)
+                            .unwrap()
+                            .current_output(edge.output);
+                        println!("  {:?}", output);
+                        let node = self.graph.node_weight_mut(next_node_idx).unwrap();
+                        if let Some(output) = output {
+                            node.set_current_input(output, edge.input);
+                        } else {
+                            node.clear_current_input(edge.input);
+                        }
+                    }
+                    // step forward
+                    start_idx = next_node_idx;
+                }
+            }
+        }
+    }
 }
 
 impl SnarlViewer<GraphIdx> for Viewer<'_> {
@@ -507,9 +600,11 @@ impl SnarlViewer<GraphIdx> for Viewer<'_> {
         scale: f32,
         snarl: &mut Snarl,
     ) {
+        let mut changed = false;
+        let graph_idx = snarl[node];
+        let node = self.graph.node_weight_mut(graph_idx).unwrap();
+
         ui.vertical(|ui| {
-            let graph_idx = snarl[node];
-            let node = self.graph.node_weight_mut(graph_idx).unwrap();
             match node {
                 Node::Group { snarl, .. } => {
                     todo!()
@@ -532,442 +627,91 @@ impl SnarlViewer<GraphIdx> for Viewer<'_> {
                 }
                 Node::Building(b) => match b {
                     Building::Miner(m) => {
-                        ui.horizontal(|ui| {
-                            let x = 20. * scale;
-                            if let Some(ref resource) = m.resource {
-                                let image = egui::Image::new(resource.image())
-                                    .fit_to_exact_size(vec2(x, x))
-                                    .show_loading_spinner(true);
-                                ui.add(image);
-                            } else {
-                                ui.add_space(x);
-                            }
-
-                            let text = match &m.resource {
-                                Some(r) => r.name(),
-                                None => "Select Resource".to_string(),
-                            };
-                            egui::ComboBox::from_id_source(egui::Id::new("miner_resource"))
-                                .selected_text(text)
-                                .show_ui(ui, |ui| {
-                                    for resource in m.available_resources() {
-                                        let name = resource.name();
-                                        ui.horizontal(|ui| {
-                                            let image = egui::Image::new(resource.image())
-                                                .fit_to_exact_size(vec2(20., 20.))
-                                                .show_loading_spinner(true);
-                                            ui.add(image);
-                                            ui.selectable_value(
-                                                &mut m.resource,
-                                                Some(*resource),
-                                                name,
-                                            );
-                                        });
-                                    }
-                                });
-                        });
-
+                        resource_selector(ui, scale, &mut m.resource);
                         ui.add_space(10.0 * scale);
-                        egui::ComboBox::from_label("Level")
-                            .selected_text(m.level.name())
-                            .show_ui(ui, |ui| {
-                                for level in m.available_levels() {
-                                    let name = level.name();
-                                    ui.selectable_value(&mut m.level, *level, name);
-                                }
-                            });
 
+                        level_selector(ui, scale, &mut m.level);
                         ui.add_space(10.0 * scale);
-                        egui::ComboBox::from_label("Purity")
-                            .selected_text(m.resource_purity.name())
-                            .show_ui(ui, |ui| {
-                                for purity in m.available_purities() {
-                                    let name = purity.name();
-                                    ui.selectable_value(&mut m.resource_purity, *purity, name);
-                                }
-                            });
+
+                        purity_selector(ui, scale, &mut m.resource_purity);
                         ui.add_space(10.0 * scale);
+
                         add_speed_ui(ui, &mut m.speed);
                     }
                     Building::OilExtractor(m) => {
-                        let text = match &m.output_pipe {
-                            Some(r) => r.name(),
-                            None => "Select Pipe".to_string(),
+                        if pipe_selector(ui, scale, &mut m.output_pipe).changed {
+                            changed = true;
                         };
-
-                        egui::ComboBox::from_label("Pipe")
-                            .selected_text(text)
-                            .show_ui(ui, |ui| {
-                                for pipe in m.available_pipes() {
-                                    let name = pipe.name();
-                                    ui.selectable_value(&mut m.output_pipe, Some(*pipe), name);
-                                }
-                            });
-
                         ui.add_space(10.0 * scale);
-                        egui::ComboBox::from_label("Purity")
-                            .selected_text(m.resource_purity.name())
-                            .show_ui(ui, |ui| {
-                                for purity in m.available_purities() {
-                                    let name = purity.name();
-                                    ui.selectable_value(&mut m.resource_purity, *purity, name);
-                                }
-                            });
+
+                        purity_selector(ui, scale, &mut m.resource_purity);
                         ui.add_space(10.0 * scale);
+
                         add_speed_ui(ui, &mut m.speed);
                     }
                     Building::Packager(p) => {
-                        ui.horizontal(|ui| {
-                            let x = 20. * scale;
-                            if let Some(ref recipe) = p.recipe {
-                                let images = recipe.image();
-                                if let Some(image) = images.0 {
-                                    let image = egui::Image::new(image)
-                                        .fit_to_exact_size(vec2(x, x))
-                                        .show_loading_spinner(true);
-                                    ui.add(image);
-                                } else {
-                                    ui.add_space(x);
-                                }
-                                if let Some(image) = images.1 {
-                                    let image = egui::Image::new(image)
-                                        .fit_to_exact_size(vec2(x, x))
-                                        .show_loading_spinner(true);
-                                    ui.add(image);
-                                } else {
-                                    ui.add_space(x);
-                                }
-                            } else {
-                                ui.add_space(x * 2.);
-                            }
-
-                            let text = match &p.recipe {
-                                Some(r) => r.name(),
-                                None => "Select Recipe".to_string(),
-                            };
-                            egui::ComboBox::from_id_source(egui::Id::new("packager_recipe"))
-                                .selected_text(text)
-                                .show_ui(ui, |ui| {
-                                    for recipe in p.available_recipes() {
-                                        let name = recipe.name();
-                                        ui.horizontal(|ui| {
-                                            let image = match recipe.image() {
-                                                (Some(_image), Some(image)) => image,
-                                                (Some(image), None) => image,
-                                                (None, Some(image)) => image,
-                                                (None, None) => {
-                                                    unreachable!("have at least one output")
-                                                }
-                                            };
-                                            let image = egui::Image::new(image)
-                                                .fit_to_exact_size(vec2(20., 20.))
-                                                .show_loading_spinner(true);
-                                            ui.add(image);
-                                            ui.selectable_value(&mut p.recipe, Some(*recipe), name);
-                                        });
-                                    }
-                                });
-                        });
-
+                        packager_recipe_selector(ui, scale, &mut p.recipe);
                         ui.add_space(10.0 * scale);
+
                         add_speed_ui(ui, &mut p.speed);
                     }
                     Building::Foundry(f) => {
-                        ui.horizontal(|ui| {
-                            let x = 20. * scale;
-                            if let Some(ref recipe) = f.recipe {
-                                let image = recipe.image();
-                                let image = egui::Image::new(image)
-                                    .fit_to_exact_size(vec2(x, x))
-                                    .show_loading_spinner(true);
-                                ui.add(image);
-                            } else {
-                                ui.add_space(x * 2.);
-                            }
-
-                            let text = match &f.recipe {
-                                Some(r) => r.name(),
-                                None => "Select Recipe".to_string(),
-                            };
-                            egui::ComboBox::from_id_source(egui::Id::new("foundry_recipe"))
-                                .selected_text(text)
-                                .show_ui(ui, |ui| {
-                                    for recipe in f.available_recipes() {
-                                        let name = recipe.name();
-                                        ui.horizontal(|ui| {
-                                            let image = recipe.image();
-                                            let image = egui::Image::new(image)
-                                                .fit_to_exact_size(vec2(20., 20.))
-                                                .show_loading_spinner(true);
-                                            ui.add(image);
-                                            ui.selectable_value(&mut f.recipe, Some(*recipe), name);
-                                        });
-                                    }
-                                });
-                        });
-
+                        foundry_recipe_selector(ui, scale, &mut f.recipe);
                         ui.add_space(10.0 * scale);
+
+                        add_speed_ui(ui, &mut f.speed);
+                        ui.add_space(10.0 * scale);
+
+                        add_somersloop2_ui(ui, &mut f.amplified);
+                    }
+                    Building::Assembler(f) => {
+                        assembler_recipe_selector(ui, scale, &mut f.recipe);
+                        ui.add_space(10.0 * scale);
+
                         add_speed_ui(ui, &mut f.speed);
 
                         ui.add_space(10.0 * scale);
                         add_somersloop2_ui(ui, &mut f.amplified);
                     }
-                    Building::Assembler(f) => {
-                        ui.horizontal(|ui| {
-                            let x = 20. * scale;
-                            if let Some(ref recipe) = f.recipe {
-                                let image = recipe.image();
-                                let image = egui::Image::new(image)
-                                    .fit_to_exact_size(vec2(x, x))
-                                    .show_loading_spinner(true);
-                                ui.add(image);
-                            } else {
-                                ui.add_space(x * 2.);
-                            }
-
-                            let text = match &f.recipe {
-                                Some(r) => r.name(),
-                                None => "Select Recipe".to_string(),
-                            };
-                            egui::ComboBox::from_id_source(egui::Id::new("assembler_recipe"))
-                                .selected_text(text)
-                                .show_ui(ui, |ui| {
-                                    for recipe in f.available_recipes() {
-                                        let name = recipe.name();
-                                        ui.horizontal(|ui| {
-                                            let image = recipe.image();
-                                            let image = egui::Image::new(image)
-                                                .fit_to_exact_size(vec2(20., 20.))
-                                                .show_loading_spinner(true);
-                                            ui.add(image);
-                                            ui.selectable_value(&mut f.recipe, Some(*recipe), name);
-                                        });
-                                    }
-                                });
-                        });
-
-                        ui.add_space(10.0 * scale);
-                        add_speed_ui(ui, &mut f.speed);
-
-                        ui.add_space(10.0 * scale);
-                        egui::ComboBox::from_id_source(egui::Id::new("assembler_amplification"))
-                            .selected_text(f.amplified.name())
-                            .show_ui(ui, |ui| {
-                                for var in SomersloopSlot2::VARIANTS {
-                                    let name = var.name();
-                                    ui.selectable_value(&mut f.amplified, *var, name);
-                                }
-                            });
-                    }
                     Building::Manufacturer(f) => {
-                        ui.horizontal(|ui| {
-                            let x = 20. * scale;
-                            if let Some(ref recipe) = f.recipe {
-                                let image = recipe.image();
-                                let image = egui::Image::new(image)
-                                    .fit_to_exact_size(vec2(x, x))
-                                    .show_loading_spinner(true);
-                                ui.add(image);
-                            } else {
-                                ui.add_space(x * 2.);
-                            }
-
-                            let text = match &f.recipe {
-                                Some(r) => r.name(),
-                                None => "Select Recipe".to_string(),
-                            };
-                            egui::ComboBox::from_id_source(egui::Id::new("manufacturer_recipe"))
-                                .selected_text(text)
-                                .show_ui(ui, |ui| {
-                                    for recipe in f.available_recipes() {
-                                        let name = recipe.name();
-                                        ui.horizontal(|ui| {
-                                            let image = recipe.image();
-                                            let image = egui::Image::new(image)
-                                                .fit_to_exact_size(vec2(20., 20.))
-                                                .show_loading_spinner(true);
-                                            ui.add(image);
-                                            ui.selectable_value(&mut f.recipe, Some(*recipe), name);
-                                        });
-                                    }
-                                });
-                        });
-
+                        manufacturer_recipe_selector(ui, scale, &mut f.recipe);
                         ui.add_space(10.0 * scale);
+
                         add_speed_ui(ui, &mut f.speed);
-
                         ui.add_space(10.0 * scale);
-                        egui::ComboBox::from_id_source(egui::Id::new("manufacturer_amplification"))
-                            .selected_text(f.amplified.name())
-                            .show_ui(ui, |ui| {
-                                for var in SomersloopSlot4::VARIANTS {
-                                    let name = var.name();
-                                    ui.selectable_value(&mut f.amplified, *var, name);
-                                }
-                            });
+
+                        add_somersloop4_ui(ui, &mut f.amplified);
                     }
                     Building::Refinery(p) => {
-                        ui.horizontal(|ui| {
-                            let x = 20. * scale;
-                            if let Some(ref recipe) = p.recipe {
-                                let images = recipe.image();
-                                if let Some(image) = images.0 {
-                                    let image = egui::Image::new(image)
-                                        .fit_to_exact_size(vec2(x, x))
-                                        .show_loading_spinner(true);
-                                    ui.add(image);
-                                } else {
-                                    ui.add_space(x);
-                                }
-                                if let Some(image) = images.1 {
-                                    let image = egui::Image::new(image)
-                                        .fit_to_exact_size(vec2(x, x))
-                                        .show_loading_spinner(true);
-                                    ui.add(image);
-                                } else {
-                                    ui.add_space(x);
-                                }
-                            } else {
-                                ui.add_space(x * 2.);
-                            }
-
-                            let text = match &p.recipe {
-                                Some(r) => r.name(),
-                                None => "Select Recipe".to_string(),
-                            };
-                            egui::ComboBox::from_id_source(egui::Id::new("refinery_recipe"))
-                                .selected_text(text)
-                                .show_ui(ui, |ui| {
-                                    for recipe in p.available_recipes() {
-                                        let name = recipe.name();
-                                        ui.horizontal(|ui| {
-                                            let image = match recipe.image() {
-                                                (Some(_image), Some(image)) => image,
-                                                (Some(image), None) => image,
-                                                (None, Some(image)) => image,
-                                                (None, None) => {
-                                                    unreachable!("have at least one output")
-                                                }
-                                            };
-                                            let image = egui::Image::new(image)
-                                                .fit_to_exact_size(vec2(20., 20.))
-                                                .show_loading_spinner(true);
-                                            ui.add(image);
-                                            ui.selectable_value(&mut p.recipe, Some(*recipe), name);
-                                        });
-                                    }
-                                });
-                        });
-
+                        refinery_recipe_selector(ui, scale, &mut p.recipe);
                         ui.add_space(10.0 * scale);
+
                         add_speed_ui(ui, &mut p.speed);
-
                         ui.add_space(10.0 * scale);
+
                         add_somersloop2_ui(ui, &mut p.amplified);
                     }
                     Building::WaterExtractor(m) => {
-                        let text = match &m.output_pipe {
-                            Some(r) => r.name(),
-                            None => "Select Pipe".to_string(),
+                        if pipe_selector(ui, scale, &mut m.output_pipe).changed {
+                            changed = true;
                         };
-
-                        egui::ComboBox::from_label("Pipe")
-                            .selected_text(text)
-                            .show_ui(ui, |ui| {
-                                for pipe in m.available_pipes() {
-                                    let name = pipe.name();
-                                    ui.selectable_value(&mut m.output_pipe, Some(*pipe), name);
-                                }
-                            });
-
                         ui.add_space(10.0 * scale);
+
                         add_speed_ui(ui, &mut m.speed);
                     }
                     Building::StorageContainer(s) => {
-                        ui.horizontal(|ui| {
-                            let x = 20. * scale;
-                            if let Some(ref material) = s.material {
-                                let image = egui::Image::new(material.image())
-                                    .fit_to_exact_size(vec2(x, x))
-                                    .show_loading_spinner(true);
-                                ui.add(image);
-                            } else {
-                                ui.add_space(x);
-                            }
-
-                            let text = match &s.material {
-                                Some(m) => m.name(),
-                                None => "Select Material".to_string(),
-                            };
-                            egui::ComboBox::from_id_source(egui::Id::new(
-                                "storage_container_material",
-                            ))
-                            .selected_text(text)
-                            .show_ui(ui, |ui| {
-                                for material in s.available_materials() {
-                                    let name = material.name();
-                                    ui.horizontal(|ui| {
-                                        let image = egui::Image::new(material.image())
-                                            .fit_to_exact_size(vec2(20., 20.))
-                                            .show_loading_spinner(true);
-                                        ui.add(image);
-                                        ui.selectable_value(&mut s.material, Some(*material), name);
-                                    });
-                                }
-                            });
-                        });
-
-                        let text = match &s.output_belt {
-                            Some(m) => m.name(),
-                            None => "Select Belt".to_string(),
-                        };
-
+                        material_selector(ui, scale, &mut s.material);
                         ui.add_space(10.0 * scale);
-                        egui::ComboBox::from_label("Belt")
-                            .selected_text(text)
-                            .show_ui(ui, |ui| {
-                                for level in s.available_levels() {
-                                    let name = level.name();
-                                    ui.selectable_value(&mut s.output_belt, Some(*level), name);
-                                }
-                            });
+
+                        belt_selector(ui, scale, &mut s.output_belt);
                     }
                     Building::Smelter(s) => {
-                        ui.horizontal(|ui| {
-                            let x = 20. * scale;
-                            if let Some(ref recipe) = s.recipe {
-                                let image = egui::Image::new(recipe.image())
-                                    .fit_to_exact_size(vec2(x, x))
-                                    .show_loading_spinner(true);
-                                ui.add(image);
-                            } else {
-                                ui.add_space(x);
-                            }
-
-                            let text = match &s.recipe {
-                                Some(r) => r.name(),
-                                None => "Select Recipe".to_string(),
-                            };
-                            egui::ComboBox::from_id_source(egui::Id::new("smelter_recipe"))
-                                .selected_text(text)
-                                .show_ui(ui, |ui| {
-                                    for recipe in s.available_recipes() {
-                                        let name = recipe.name();
-                                        ui.horizontal(|ui| {
-                                            let image = egui::Image::new(recipe.image())
-                                                .fit_to_exact_size(vec2(20., 20.))
-                                                .show_loading_spinner(true);
-                                            ui.add(image);
-                                            ui.selectable_value(&mut s.recipe, Some(*recipe), name);
-                                        });
-                                    }
-                                });
-                        });
-
+                        smelter_recipe_selector(ui, scale, &mut s.recipe);
                         ui.add_space(10.0 * scale);
+
                         add_speed_ui(ui, &mut s.speed);
-
                         ui.add_space(10.0 * scale);
+
                         add_somersloop1_ui(ui, &mut s.amplified);
                     }
                     Building::PipelineJunction(_) => {}
@@ -975,50 +719,21 @@ impl SnarlViewer<GraphIdx> for Viewer<'_> {
                     Building::Merger(_) => {}
                     Building::AwesomeSink(_) => {}
                     Building::Constructor(s) => {
-                        ui.horizontal(|ui| {
-                            let x = 20. * scale;
-                            if let Some(ref recipe) = s.recipe {
-                                let image = egui::Image::new(recipe.image())
-                                    .fit_to_exact_size(vec2(x, x))
-                                    .show_loading_spinner(true);
-                                ui.add(image);
-                            } else {
-                                ui.add_space(x);
-                            }
-
-                            let text = match &s.recipe {
-                                Some(r) => r.name(),
-                                None => "Select Recipe".to_string(),
-                            };
-
-                            egui::ComboBox::from_id_source(egui::Id::new("constructor_recipe"))
-                                .selected_text(text)
-                                .show_ui(ui, |ui| {
-                                    for recipe in s.available_recipes() {
-                                        let name = recipe.name();
-
-                                        ui.horizontal(|ui| {
-                                            let image = egui::Image::new(recipe.image())
-                                                .fit_to_exact_size(vec2(20., 20.))
-                                                .show_loading_spinner(true);
-                                            ui.add(image);
-                                            ui.selectable_value(&mut s.recipe, Some(*recipe), name);
-                                        });
-                                    }
-                                });
-                        });
-
+                        constructor_recipe_selector(ui, scale, &mut s.recipe);
                         ui.add_space(10.0 * scale);
+
                         add_speed_ui(ui, &mut s.speed);
-
                         ui.add_space(10.0 * scale);
+
                         add_somersloop1_ui(ui, &mut s.amplified);
                     }
                 },
             }
-
-            ui.add_space(10.0 * scale);
         });
+
+        if changed {
+            self.refresh_node(graph_idx);
+        }
     }
 
     fn has_body(&mut self, node: &GraphIdx) -> bool {
@@ -1052,7 +767,7 @@ impl SnarlViewer<GraphIdx> for Viewer<'_> {
                     ui.add_space(5. * scale);
                 }
 
-                let title = node.name();
+                let title = format!("{} ({:?})", node.name(), graph_idx);
                 let text = RichText::new(title).font(FontId::proportional(15.0 * scale));
                 ui.label(text);
                 ui.add_space(5. * scale);
@@ -1069,6 +784,7 @@ impl SnarlViewer<GraphIdx> for Viewer<'_> {
         let node_to_idx = snarl[to.id.node];
 
         // connect graph
+        println!("connecting {:?} -> {:?}", node_from_idx, node_to_idx);
         self.graph.add_edge(
             node_from_idx,
             node_to_idx,
@@ -1082,69 +798,11 @@ impl SnarlViewer<GraphIdx> for Viewer<'_> {
         snarl.connect(from.id, to.id);
 
         // Update cached values
-        let node_from = self.graph.node_weight_mut(node_from_idx).unwrap();
-        node_from.set_current_output_connected(from.id.output);
-        let node_from_output = node_from.current_output(from.id.output);
-
-        let externals = self.graph.externals(petgraph::Direction::Outgoing);
-        for target in externals {
-            println!("{}", self.graph.node_weight(target).unwrap().name());
-            let paths = petgraph::algo::all_simple_paths::<Vec<_>, _>(
-                &*self.graph,
-                node_to_idx,
-                target,
-                1,
-                None,
-            );
-            for path in paths {
-                let path: Vec<_> = path
-                    .into_iter()
-                    .map(|n| self.graph.node_weight(n).unwrap().name())
-                    .collect();
-                println!("{:?}", path);
-            }
-        }
-
-        dbg!(&node_from_output);
-
-        // - grab output from "from"
-
-        if let Some(output) = node_from_output {
-            let node_to = self.graph.node_weight_mut(node_to_idx).unwrap();
-            node_to.set_current_input(output, to.id.input);
-
-            // move to function
-            let parent_idx = node_from_idx;
-
-            // walk affected nodes
-            let mut neighbors = self
-                .graph
-                .neighbors_directed(parent_idx, petgraph::Direction::Outgoing)
-                .detach();
-            while let Some(node_idx) = neighbors.next_node(&self.graph) {
-                let mut neighbors = self
-                    .graph
-                    .neighbors_directed(node_idx, petgraph::Direction::Outgoing)
-                    .detach();
-
-                while let Some((edge_idx, next_node_idx)) = neighbors.next(&self.graph) {
-                    let edge = self.graph.edge_weight(edge_idx).unwrap().clone();
-
-                    let node = self.graph.node_weight(node_idx).unwrap();
-                    let output = node.current_output(edge.output);
-                    let next_node = self.graph.node_weight_mut(next_node_idx).unwrap();
-
-                    match output {
-                        Some(output) => {
-                            next_node.set_current_input(output, edge.input);
-                        }
-                        None => {
-                            next_node.clear_current_input(edge.input);
-                        }
-                    }
-                }
-            }
-        }
+        self.graph
+            .node_weight_mut(node_from_idx)
+            .unwrap()
+            .set_current_output_connected(from.id.output);
+        self.refresh_node(node_from_idx);
     }
 
     fn disconnect(&mut self, from: &OutPin, to: &InPin, snarl: &mut egui_snarl::Snarl<GraphIdx>) {
@@ -1153,24 +811,36 @@ impl SnarlViewer<GraphIdx> for Viewer<'_> {
         let node_to_idx = snarl[to.id.node];
 
         // disconnect graph
-        if let Some(edge) = self.graph.find_edge(node_from_idx, node_to_idx) {
-            self.graph.remove_edge(edge);
+        println!("disconnecting {:?} -> {:?}", node_from_idx, node_to_idx);
+        let edge = self
+            .graph
+            .edges_connecting(node_from_idx, node_to_idx)
+            .find(|e| {
+                let weight = e.weight();
+                weight.output == from.id.output && weight.input == to.id.input
+            });
+
+        if let Some(edge) = edge {
+            self.graph.remove_edge(edge.id());
         }
 
         // disconnect snarl
         snarl.disconnect(from.id, to.id);
 
         // Update cached values
-        let node_from = self.graph.node_weight_mut(node_from_idx).unwrap();
-        node_from.set_current_output_disconnected(from.id.output);
 
-        let node_to = self.graph.node_weight_mut(node_to_idx).unwrap();
+        // Clear input
+        self.graph
+            .node_weight_mut(node_from_idx)
+            .unwrap()
+            .set_current_output_disconnected(from.id.output);
+        self.graph
+            .node_weight_mut(node_to_idx)
+            .unwrap()
+            .clear_current_input(to.id.input);
 
-        // - clear output on "to"
-        node_to.clear_current_input(to.id.input);
-
-        // TODO: walk affected nodes
-
+        self.refresh_node(node_from_idx);
+        self.refresh_node(node_to_idx);
     }
 
     fn title(&mut self, graph_idx: &GraphIdx) -> String {
@@ -1193,7 +863,7 @@ impl SnarlViewer<GraphIdx> for Viewer<'_> {
         let node = self.graph.node_weight(graph_idx).unwrap();
         match node {
             Node::Group { ref snarl, .. } => {
-                let mut counter = 0;
+                // let mut counter = 0;
                 // let mut building = None;
 
                 todo!()
@@ -1406,7 +1076,7 @@ impl SnarlViewer<GraphIdx> for Viewer<'_> {
                     };
                     let (speed, material) = match output {
                         Some(output) => (output.speed, Some(output.resource)),
-                        None => (0., None)
+                        None => (0., None),
                     };
 
                     ui.horizontal(|ui| {
@@ -1566,6 +1236,7 @@ impl SnarlViewer<GraphIdx> for Viewer<'_> {
         if ui.button("Clear All").clicked() {
             // TODO: add warning
             *snarl = Snarl::default();
+            self.graph.clear();
             ui.close_menu();
         }
     }
@@ -1624,7 +1295,7 @@ impl SnarlViewer<GraphIdx> for Viewer<'_> {
 
         if ui.button("Duplicate").clicked() {
             let pos = node_info.pos + Vec2::new(5., 5.);
-            let new_graph_idx = self.graph.add_node(node.clone());
+            let new_graph_idx = self.graph.add_node(node.clear_clone());
             snarl.insert_node(pos, new_graph_idx);
             ui.close_menu();
         }
@@ -1635,6 +1306,211 @@ impl SnarlViewer<GraphIdx> for Viewer<'_> {
             ui.close_menu();
         }
     }
+}
+
+fn level_selector(ui: &mut Ui, scale: f32, level: &mut MinerLevel) -> Response {
+    let r = egui::ComboBox::from_label("Level")
+        .selected_text(level.name())
+        .show_ui(ui, |ui| {
+            MinerLevel::VARIANTS
+                .into_iter()
+                .map(|l| {
+                    let name = l.name();
+                    ui.selectable_value(level, *l, name)
+                })
+                .reduce(|acc, r| acc | r)
+                .unwrap()
+        });
+    r.inner.unwrap_or(r.response)
+}
+
+fn purity_selector(ui: &mut Ui, scale: f32, purity: &mut ResourcePurity) -> Response {
+    let r = egui::ComboBox::from_label("Purity")
+        .selected_text(purity.name())
+        .show_ui(ui, |ui| {
+            ResourcePurity::VARIANTS
+                .into_iter()
+                .map(|p| {
+                    let name = p.name();
+                    ui.selectable_value(purity, *p, name)
+                })
+                .reduce(|acc, r| acc | r)
+                .unwrap()
+        });
+
+    r.inner.unwrap_or(r.response)
+}
+
+fn pipe_selector(ui: &mut Ui, scale: f32, pipe: &mut Option<Pipe>) -> Response {
+    let text = match pipe {
+        Some(p) => p.name(),
+        None => "Select Pipe".to_string(),
+    };
+
+    let r = egui::ComboBox::from_label("Pipe")
+        .selected_text(text)
+        .show_ui(ui, |ui| {
+            Pipe::VARIANTS
+                .into_iter()
+                .map(|p| {
+                    let name = p.name();
+                    ui.selectable_value(pipe, Some(*p), name)
+                })
+                .reduce(|acc, r| acc | r)
+                .unwrap()
+        });
+
+    r.inner.unwrap_or(r.response)
+}
+
+fn belt_selector(ui: &mut Ui, scale: f32, belt: &mut Option<Belt>) {
+    let text = match belt {
+        Some(m) => m.name(),
+        None => "Select Belt".to_string(),
+    };
+
+    egui::ComboBox::from_label("Belt")
+        .selected_text(text)
+        .show_ui(ui, |ui| {
+            for b in Belt::VARIANTS {
+                let name = b.name();
+                ui.selectable_value(belt, Some(*b), name);
+            }
+        });
+}
+
+fn material_selector(ui: &mut Ui, scale: f32, material: &mut Option<Material>) {
+    ui.horizontal(|ui| {
+        let x = 20. * scale;
+        if let Some(ref material) = material {
+            let image = egui::Image::new(material.image())
+                .fit_to_exact_size(vec2(x, x))
+                .show_loading_spinner(true);
+            ui.add(image);
+        } else {
+            ui.add_space(x);
+        }
+
+        let text = match material {
+            Some(m) => m.name(),
+            None => "Select Material".to_string(),
+        };
+        egui::ComboBox::from_id_source(egui::Id::new("material_selector"))
+            .selected_text(text)
+            .show_ui(ui, |ui| {
+                for m in Material::VARIANTS {
+                    let name = m.name();
+                    ui.horizontal(|ui| {
+                        let image = egui::Image::new(m.image())
+                            .fit_to_exact_size(vec2(20., 20.))
+                            .show_loading_spinner(true);
+                        ui.add(image);
+                        ui.selectable_value(material, Some(*m), name);
+                    });
+                }
+            });
+    });
+}
+
+fn general_selector<S: Selectable>(ui: &mut Ui, scale: f32, resource: &mut Option<S>) -> Response {
+    ui.horizontal(|ui| {
+        let x = 20. * scale;
+        if let Some(ref resource) = resource {
+            let image = egui::Image::new(resource.image())
+                .fit_to_exact_size(vec2(x, x))
+                .show_loading_spinner(true);
+            ui.add(image);
+        } else {
+            ui.add_space(x);
+        }
+
+        let text = match resource {
+            Some(r) => r.name(),
+            None => format!("Select {}", S::NAME),
+        };
+
+        let r = egui::ComboBox::from_id_source(egui::Id::new(format!("{}_resource", S::NAME)))
+            .selected_text(text)
+            .show_ui(ui, |ui| {
+                S::VARIANTS
+                    .into_iter()
+                    .map(|r| {
+                        let name = r.name();
+                        ui.horizontal(|ui| {
+                            let image = egui::Image::new(r.image())
+                                .fit_to_exact_size(vec2(20., 20.))
+                                .show_loading_spinner(true);
+                            ui.add(image);
+                            ui.selectable_value(resource, Some(r.clone()), name)
+                        })
+                        .inner
+                    })
+                    .reduce(|acc, r| acc | r)
+                    .unwrap()
+            });
+        r.inner.unwrap_or(r.response)
+    })
+    .inner
+}
+
+fn resource_selector(ui: &mut Ui, scale: f32, resource: &mut Option<ResourceType>) -> Response {
+    general_selector(ui, scale, resource)
+}
+
+fn packager_recipe_selector(
+    ui: &mut Ui,
+    scale: f32,
+    recipe: &mut Option<PackagerRecipe>,
+) -> Response {
+    general_selector(ui, scale, recipe)
+}
+
+fn foundry_recipe_selector(
+    ui: &mut Ui,
+    scale: f32,
+    recipe: &mut Option<FoundryRecipe>,
+) -> Response {
+    general_selector(ui, scale, recipe)
+}
+
+fn assembler_recipe_selector(
+    ui: &mut Ui,
+    scale: f32,
+    recipe: &mut Option<AssemblerRecipe>,
+) -> Response {
+    general_selector(ui, scale, recipe)
+}
+
+fn manufacturer_recipe_selector(
+    ui: &mut Ui,
+    scale: f32,
+    recipe: &mut Option<ManufacturerRecipe>,
+) -> Response {
+    general_selector(ui, scale, recipe)
+}
+
+fn refinery_recipe_selector(
+    ui: &mut Ui,
+    scale: f32,
+    recipe: &mut Option<RefineryRecipe>,
+) -> Response {
+    general_selector(ui, scale, recipe)
+}
+
+fn smelter_recipe_selector(
+    ui: &mut Ui,
+    scale: f32,
+    recipe: &mut Option<SmelterRecipe>,
+) -> Response {
+    general_selector(ui, scale, recipe)
+}
+
+fn constructor_recipe_selector(
+    ui: &mut Ui,
+    scale: f32,
+    recipe: &mut Option<ConstructorRecipe>,
+) -> Response {
+    general_selector(ui, scale, recipe)
 }
 
 fn add_resource_image(ui: &mut Ui, scale: f32, material: &Option<Resource>) {
@@ -1785,6 +1661,17 @@ fn add_somersloop2_ui(ui: &mut Ui, amplified: &mut SomersloopSlot2) {
         .selected_text(amplified.name())
         .show_ui(ui, |ui| {
             for var in SomersloopSlot2::VARIANTS {
+                let name = var.name();
+                ui.selectable_value(amplified, *var, name);
+            }
+        });
+}
+
+fn add_somersloop4_ui(ui: &mut Ui, amplified: &mut SomersloopSlot4) {
+    egui::ComboBox::from_id_source(egui::Id::new("amplification4"))
+        .selected_text(amplified.name())
+        .show_ui(ui, |ui| {
+            for var in SomersloopSlot4::VARIANTS {
                 let name = var.name();
                 ui.selectable_value(amplified, *var, name);
             }

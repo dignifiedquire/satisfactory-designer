@@ -5,7 +5,7 @@ use crate::{
     util::load_img,
 };
 
-use super::{calc_output, calc_output2, Fluid, Material};
+use super::{calc_output, calc_output2, Fluid, Material, Selectable};
 
 #[derive(
     Debug,
@@ -68,17 +68,28 @@ pub enum PackagerRecipe {
     UnpackageWater,
 }
 
-impl PackagerRecipe {
-    pub fn name(&self) -> String {
+impl Selectable for PackagerRecipe {
+    const NAME: &'static str = "Recipe";
+
+    fn name(&self) -> String {
         self.to_string()
     }
 
-    pub fn image(&self) -> (Option<String>, Option<String>) {
+    fn image(&self) -> String {
         let a = self.output_material().map(|m| m.image());
         let b = self.output_fluid().map(|m| m.image());
-        (a, b)
+        match (a, b) {
+            (Some(_image), Some(image)) => image,
+            (Some(image), None) => image,
+            (None, Some(image)) => image,
+            (None, None) => {
+                unreachable!("have at least one output")
+            }
+        }
     }
+}
 
+impl PackagerRecipe {
     pub fn input_material(&self) -> Option<Material> {
         match self {
             Self::PackagedAluminaSolution => Some(Material::EmptyCanister),
@@ -394,6 +405,13 @@ impl Default for Packager {
 }
 
 impl Packager {
+    pub fn clear_clone(&self) -> Self {
+        let mut this = self.clone();
+        this.current_input_fluid = None;
+        this.current_input_material = None;
+        this
+    }
+
     pub fn header_image(&self) -> String {
         load_img("Packager.png")
     }

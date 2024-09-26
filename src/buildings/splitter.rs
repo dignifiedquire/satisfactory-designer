@@ -1,4 +1,7 @@
-use crate::{node::{Input, Output}, util::load_img};
+use crate::{
+    node::{Input, Output},
+    util::load_img,
+};
 
 use super::{round, Material};
 
@@ -11,6 +14,15 @@ pub struct Splitter {
 }
 
 impl Splitter {
+    pub fn clear_clone(&self) -> Self {
+        Self {
+            current_input: None,
+            output_0_connected: false,
+            output_1_connected: false,
+            output_2_connected: false,
+        }
+    }
+
     pub fn header_image(&self) -> String {
         load_img("Conveyor_Splitter.png")
     }
@@ -36,9 +48,9 @@ impl Splitter {
     }
 
     fn num_outputs_connected(&self) -> usize {
-        self.output_0_connected as usize +
-        self.output_1_connected as usize +
-        self.output_2_connected as usize
+        self.output_0_connected as usize
+            + self.output_1_connected as usize
+            + self.output_2_connected as usize
     }
 
     pub fn current_output_0(&self) -> Option<Output> {
@@ -47,7 +59,6 @@ impl Splitter {
                 Some(Output {
                     speed: round(input.speed / self.num_outputs_connected() as f32),
                     resource: input.resource,
-
                 })
             } else {
                 None
@@ -63,7 +74,6 @@ impl Splitter {
                 Some(Output {
                     speed: round(input.speed / self.num_outputs_connected() as f32),
                     resource: input.resource,
-
                 })
             } else {
                 None
@@ -79,7 +89,6 @@ impl Splitter {
                 Some(Output {
                     speed: round(input.speed / self.num_outputs_connected() as f32),
                     resource: input.resource,
-
                 })
             } else {
                 None

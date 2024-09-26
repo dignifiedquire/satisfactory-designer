@@ -1,11 +1,9 @@
-use strum::VariantArray;
-
 use crate::{
     node::{Input, Output, Resource},
     util::load_img,
 };
 
-use super::{calc_output2, Material, SomersloopSlot2};
+use super::{calc_output2, Material, Selectable, SomersloopSlot2};
 
 macro_rules! r {
     ($($literal_name:expr => $name:ident, $input_speed_0:expr, $input_material_0:expr, $input_speed_1:expr, $input_material_1:expr, $duration:expr, $output_speed:expr, $output_material:expr),* $(,)*) => {
@@ -26,14 +24,20 @@ macro_rules! r {
             )*
         }
 
-        impl AssemblerRecipe {
-            pub fn name(&self) -> String {
+        impl super::Selectable for AssemblerRecipe {
+            const NAME: &'static str = "Recipe";
+
+            fn name(&self) -> String {
                 self.to_string()
             }
 
-            pub fn image(&self) -> String {
+            fn image(&self) -> String {
                 self.output_material().image()
             }
+        }
+
+        impl AssemblerRecipe {
+
             pub fn input_material(&self) -> (Material, Material) {
                 match self {
                     $(
@@ -195,12 +199,15 @@ impl Default for Assembler {
 }
 
 impl Assembler {
-    pub fn header_image(&self) -> String {
-        load_img("Assembler.png")
+    pub fn clear_clone(&self) -> Self {
+        let mut this = self.clone();
+        this.current_input_material_0 = None;
+        this.current_input_material_1 = None;
+        this
     }
 
-    pub fn available_recipes(&self) -> &'static [AssemblerRecipe] {
-        AssemblerRecipe::VARIANTS
+    pub fn header_image(&self) -> String {
+        load_img("Assembler.png")
     }
 
     pub fn name(&self) -> String {

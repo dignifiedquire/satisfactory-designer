@@ -1,11 +1,9 @@
-use strum::VariantArray;
-
 use crate::{
     node::{Input, Output, Resource},
     util::load_img,
 };
 
-use super::{calc_output4, Material, SomersloopSlot4};
+use super::{calc_output4, Material, Selectable, SomersloopSlot4};
 
 macro_rules! r {
     ($($literal_name:expr => $name:ident, $input_speed_0:expr => $input_material_0:expr, $input_speed_1:expr => $input_material_1:expr, $input_speed_2:expr => $input_material_2:expr, $input_speed_3:expr => $input_material_3:expr, $duration:expr, $output_speed:expr, $output_material:expr),* $(,)*) => {
@@ -26,15 +24,19 @@ macro_rules! r {
             )*
         }
 
-        impl ManufacturerRecipe {
-            pub fn name(&self) -> String {
+        impl super::Selectable for ManufacturerRecipe {
+            const NAME: &'static str = "Recipe";
+
+            fn name(&self) -> String {
                 self.to_string()
             }
 
-            pub fn image(&self) -> String {
+            fn image(&self) -> String {
                 self.output_material().image()
             }
+        }
 
+        impl ManufacturerRecipe {
             pub fn input_material(&self) -> (Material, Material, Material, Option<Material>) {
                 match self {
                     $(
@@ -420,12 +422,17 @@ impl Default for Manufacturer {
 }
 
 impl Manufacturer {
-    pub fn header_image(&self) -> String {
-        load_img("Manufacturer.png")
+    pub fn clear_clone(&self) -> Self {
+        let mut this = self.clone();
+        this.current_input_material_0 = None;
+        this.current_input_material_1 = None;
+        this.current_input_material_2 = None;
+        this.current_input_material_3 = None;
+        this
     }
 
-    pub fn available_recipes(&self) -> &'static [ManufacturerRecipe] {
-        ManufacturerRecipe::VARIANTS
+    pub fn header_image(&self) -> String {
+        load_img("Manufacturer.png")
     }
 
     pub fn name(&self) -> String {

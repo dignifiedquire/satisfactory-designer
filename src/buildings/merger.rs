@@ -1,4 +1,7 @@
-use crate::{node::{Input, Output}, util::load_img};
+use crate::{
+    node::{Input, Output},
+    util::load_img,
+};
 
 use super::Material;
 
@@ -10,6 +13,15 @@ pub struct Merger {
 }
 
 impl Merger {
+    pub fn clear_clone(&self) -> Self {
+        let mut this = self.clone();
+        this.current_input_0 = None;
+        this.current_input_1 = None;
+        this.current_input_2 = None;
+
+        this
+    }
+
     pub fn header_image(&self) -> String {
         load_img("Conveyor_Merger.png")
     }
@@ -61,11 +73,6 @@ impl Merger {
             }
         }
 
-        resource.map(|r| {
-            Output {
-                speed,
-                resource: r,
-            }
-        })
+        resource.map(|r| Output { speed, resource: r })
     }
 }

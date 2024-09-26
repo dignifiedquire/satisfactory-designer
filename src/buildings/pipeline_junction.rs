@@ -6,6 +6,11 @@ use super::Material;
 pub struct PipelineJunction {}
 
 impl PipelineJunction {
+    pub fn clear_clone(&self) -> Self {
+        let this = self.clone();
+        this
+    }
+
     pub fn header_image(&self) -> String {
         load_img("Pipeline_Junction.png")
     }

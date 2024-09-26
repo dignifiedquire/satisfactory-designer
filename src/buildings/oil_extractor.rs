@@ -25,6 +25,11 @@ impl Default for OilExtractor {
 }
 
 impl OilExtractor {
+    pub fn clear_clone(&self) -> Self {
+        let this = self.clone();
+        this
+    }
+
     pub fn header_image(&self) -> String {
         load_img("Oil_Extractor.png")
     }

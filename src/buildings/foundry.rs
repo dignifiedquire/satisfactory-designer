@@ -1,11 +1,9 @@
-use strum::VariantArray;
-
 use crate::{
     node::{Input, Output, Resource},
     util::load_img,
 };
 
-use super::{calc_output2, Material, SomersloopSlot2};
+use super::{calc_output2, Material, Selectable, SomersloopSlot2};
 
 #[derive(
     Debug,
@@ -48,15 +46,19 @@ pub enum FoundryRecipe {
     TemperedCopperIngot,
 }
 
-impl FoundryRecipe {
-    pub fn name(&self) -> String {
+impl Selectable for FoundryRecipe {
+    const NAME: &'static str = "Recipe";
+
+    fn name(&self) -> String {
         self.to_string()
     }
 
-    pub fn image(&self) -> String {
+    fn image(&self) -> String {
         self.output_material().image()
     }
+}
 
+impl FoundryRecipe {
     pub fn input_material(&self) -> (Material, Material) {
         match self {
             Self::AluminumIngot => (Material::AluminumScrap, Material::Silica),
@@ -188,12 +190,14 @@ impl Default for Foundry {
 }
 
 impl Foundry {
+    pub fn clear_clone(&self) -> Self {
+        let mut this = self.clone();
+        this.current_input_material_0 = None;
+        this.current_input_material_1 = None;
+        this
+    }
     pub fn header_image(&self) -> String {
         load_img("Foundry.png")
-    }
-
-    pub fn available_recipes(&self) -> &'static [FoundryRecipe] {
-        FoundryRecipe::VARIANTS
     }
 
     pub fn name(&self) -> String {
