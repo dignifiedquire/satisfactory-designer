@@ -504,7 +504,6 @@ impl Viewer<'_> {
 
     fn refresh_node(&mut self, node_idx: GraphIdx) {
         use petgraph::prelude::NodeIndex;
-        println!("Refreshing {:?}", node_idx);
 
         // Find all paths
         fn all_paths_dfs(
@@ -542,7 +541,6 @@ impl Viewer<'_> {
             .externals(petgraph::Direction::Outgoing)
             .collect();
         for target in externals {
-            println!("Searching paths to {:?}", target);
             let mut path = Vec::new();
             let mut paths = Vec::new();
             let mut visited = HashMap::new();
@@ -555,8 +553,6 @@ impl Viewer<'_> {
                 &mut paths,
             );
             for path in paths {
-                println!("Updating {:?}", path);
-
                 let mut start_idx = path[0];
                 for next_node_idx in path.into_iter().skip(1) {
                     let edges: Vec<_> = self
@@ -565,16 +561,11 @@ impl Viewer<'_> {
                         .map(|e| e.weight().clone())
                         .collect();
                     for edge in edges {
-                        println!(
-                            "Edge({}, {}) {:?} -> {:?}",
-                            edge.output, edge.input, start_idx, next_node_idx
-                        );
                         let output = self
                             .graph
                             .node_weight(start_idx)
                             .unwrap()
                             .current_output(edge.output);
-                        println!("  {:?}", output);
                         let node = self.graph.node_weight_mut(next_node_idx).unwrap();
                         if let Some(output) = output {
                             node.set_current_input(output, edge.input);
@@ -763,7 +754,7 @@ impl SnarlViewer<GraphIdx> for Viewer<'_> {
                     ui.add_space(5. * scale);
                 }
 
-                let title = format!("{} ({:?})", node.name(), graph_idx);
+                let title = node.name();
                 let text = RichText::new(title).font(FontId::proportional(15.0 * scale));
                 ui.label(text);
                 ui.add_space(5. * scale);
@@ -786,7 +777,6 @@ impl SnarlViewer<GraphIdx> for Viewer<'_> {
         // Update graph
 
         // connect graph
-        println!("connecting {:?} -> {:?}", node_from_idx, node_to_idx);
         self.graph.add_edge(
             node_from_idx,
             node_to_idx,
@@ -813,7 +803,6 @@ impl SnarlViewer<GraphIdx> for Viewer<'_> {
         let node_to_idx = snarl[to.id.node];
 
         // disconnect graph
-        println!("disconnecting {:?} -> {:?}", node_from_idx, node_to_idx);
         let edge = self
             .graph
             .edges_connecting(node_from_idx, node_to_idx)
