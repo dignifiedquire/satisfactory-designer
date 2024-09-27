@@ -763,6 +763,55 @@ impl Viewer<'_> {
                 }
                 _ => unreachable!("4 inputs"),
             },
+            Building::Converter(b) => match pin.id.input {
+                0 => {
+                    let max_input_speed = b.recipe.map(|r| r.input_speed().0).unwrap_or_default();
+                    let material = b.input_material().and_then(|b| b.0).map(Resource::Material);
+
+                    let actual_input_speed = b
+                        .current_input_material_0
+                        .as_ref()
+                        .map(|i| i.speed)
+                        .unwrap_or_default();
+                    let actual_input_material =
+                        b.current_input_material_0.as_ref().map(|i| i.resource);
+                    single_input(
+                        material,
+                        max_input_speed,
+                        actual_input_speed,
+                        actual_input_material,
+                        ui,
+                        pin,
+                        scale,
+                        snarl,
+                        PinInfo::square(),
+                    )
+                }
+                1 => {
+                    let max_input_speed = b.recipe.map(|r| r.input_speed().1).unwrap_or_default();
+                    let material = b.input_material().and_then(|b| b.1).map(Resource::Material);
+
+                    let actual_input_speed = b
+                        .current_input_material_1
+                        .as_ref()
+                        .map(|i| i.speed)
+                        .unwrap_or_default();
+                    let actual_input_material =
+                        b.current_input_material_1.as_ref().map(|i| i.resource);
+                    single_input(
+                        material,
+                        max_input_speed,
+                        actual_input_speed,
+                        actual_input_material,
+                        ui,
+                        pin,
+                        scale,
+                        snarl,
+                        PinInfo::square(),
+                    )
+                }
+                _ => unreachable!("3 inputs"),
+            },
         }
     }
 
@@ -1005,6 +1054,15 @@ impl SnarlViewer<GraphIdx> for Viewer<'_> {
                         ui.add_space(10.0 * scale);
 
                         changed |= add_somersloop4_ui(ui, &mut b.amplified).changed;
+                    }
+                    Building::Converter(b) => {
+                        changed |= general_selector(ui, scale, &mut b.recipe).changed;
+                        ui.add_space(10.0 * scale);
+
+                        changed |= add_speed_ui(ui, &mut b.speed).changed;
+                        ui.add_space(10.0 * scale);
+
+                        changed |= add_somersloop2_ui(ui, &mut b.amplified).changed;
                     }
                 },
             }
@@ -1492,6 +1550,31 @@ impl SnarlViewer<GraphIdx> for Viewer<'_> {
                         _ => unreachable!("2 outputs"),
                     }
                 }
+                Building::Converter(b) => {
+                    let (max_speed_fluid, max_speed_material) = b
+                        .recipe
+                        .as_ref()
+                        .map(|r| r.max_output_speed())
+                        .unwrap_or_default();
+
+                    match pin.id.output {
+                        0 => fluid_output(
+                            b.output_fluid(),
+                            max_speed_fluid,
+                            b.current_output_fluid(),
+                            ui,
+                            scale,
+                        ),
+                        1 => material_output(
+                            b.output_material(),
+                            max_speed_material,
+                            b.current_output_material(),
+                            ui,
+                            scale,
+                        ),
+                        _ => unreachable!("2 outputs"),
+                    }
+                }
             },
         }
     }
@@ -1521,6 +1604,7 @@ impl SnarlViewer<GraphIdx> for Viewer<'_> {
             MenuItem::Building(Building::Blender(Default::default())),
             MenuItem::Building(Building::ParticleAccelerator(Default::default())),
             MenuItem::Building(Building::QuantumEncoder(Default::default())),
+            MenuItem::Building(Building::Converter(Default::default())),
             MenuItem::Sep,
             MenuItem::Building(Building::Splitter(Default::default())),
             MenuItem::Building(Building::Merger(Default::default())),
@@ -1996,7 +2080,7 @@ fn material_output(
         }
     }
 
-    PinInfo::circle().with_fill(color)
+    PinInfo::square().with_fill(color)
 }
 
 fn add_somersloop1_ui(ui: &mut Ui, amplified: &mut SomersloopSlot1) -> Response {

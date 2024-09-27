@@ -3,6 +3,7 @@ use egui::Color32;
 mod assembler;
 mod blender;
 mod constructor;
+mod converter;
 mod encoder;
 mod foundry;
 mod manufacturer;
@@ -25,6 +26,7 @@ use crate::util::load_img;
 pub use self::assembler::{Assembler, AssemblerRecipe};
 pub use self::blender::{Blender, BlenderRecipe};
 pub use self::constructor::{Constructor, ConstructorRecipe};
+pub use self::converter::Converter;
 pub use self::encoder::{QuantumEncoder, QuantumEncoderRecipe};
 pub use self::foundry::{Foundry, FoundryRecipe};
 pub use self::manufacturer::{Manufacturer, ManufacturerRecipe};
@@ -61,6 +63,7 @@ pub enum Building {
     Blender(Blender),
     ParticleAccelerator(ParticleAccelerator),
     QuantumEncoder(QuantumEncoder),
+    Converter(Converter),
 }
 
 #[derive(
@@ -709,6 +712,7 @@ impl Building {
             Self::Blender(s) => Self::Blender(s.clear_clone()),
             Self::ParticleAccelerator(s) => Self::ParticleAccelerator(s.clear_clone()),
             Self::QuantumEncoder(s) => Self::QuantumEncoder(s.clear_clone()),
+            Self::Converter(s) => Self::Converter(s.clear_clone()),
         }
     }
 
@@ -732,6 +736,7 @@ impl Building {
             Self::Blender(s) => s.header_image(),
             Self::ParticleAccelerator(s) => s.header_image(),
             Self::QuantumEncoder(s) => s.header_image(),
+            Self::Converter(s) => s.header_image(),
         }
     }
 
@@ -755,6 +760,7 @@ impl Building {
             Self::Blender(s) => s.num_outputs(),
             Self::ParticleAccelerator(s) => s.num_outputs(),
             Self::QuantumEncoder(s) => s.num_outputs(),
+            Self::Converter(s) => s.num_outputs(),
         }
     }
 
@@ -778,6 +784,7 @@ impl Building {
             Self::Blender(s) => s.num_inputs(),
             Self::ParticleAccelerator(s) => s.num_inputs(),
             Self::QuantumEncoder(s) => s.num_inputs(),
+            Self::Converter(s) => s.num_inputs(),
         }
     }
 
@@ -801,6 +808,7 @@ impl Building {
             Self::Blender(s) => s.name(),
             Self::ParticleAccelerator(s) => s.name(),
             Self::QuantumEncoder(s) => s.name(),
+            Self::Converter(s) => s.name(),
         }
     }
 
@@ -824,6 +832,7 @@ impl Building {
             Self::Blender(s) => s.description(),
             Self::ParticleAccelerator(s) => s.description(),
             Self::QuantumEncoder(s) => s.description(),
+            Self::Converter(s) => s.description(),
         }
     }
 
@@ -847,6 +856,7 @@ impl Building {
             Self::Blender(s) => s.input_resource(input_id),
             Self::ParticleAccelerator(s) => s.input_resource(input_id),
             Self::QuantumEncoder(s) => s.input_resource(input_id),
+            Self::Converter(s) => s.input_resource(input_id),
         }
     }
 
@@ -870,6 +880,7 @@ impl Building {
             Self::Blender(s) => s.output_resource(output_id),
             Self::ParticleAccelerator(s) => s.output_resource(output_id),
             Self::QuantumEncoder(s) => s.output_resource(output_id),
+            Self::Converter(s) => s.output_resource(output_id),
         }
     }
 
@@ -951,6 +962,11 @@ impl Building {
             Self::QuantumEncoder(q) => match output_id {
                 0 => q.current_output_fluid(),
                 1 => q.current_output_material(),
+                _ => unreachable!("2 outputs"),
+            },
+            Self::Converter(c) => match output_id {
+                0 => c.current_output_fluid(),
+                1 => c.current_output_material(),
                 _ => unreachable!("2 outputs"),
             },
         }
@@ -1106,6 +1122,15 @@ impl Building {
                 }
                 _ => unreachable!("4 inputs"),
             },
+            Self::Converter(c) => match input_id {
+                0 => {
+                    c.current_input_material_0.replace(input.into());
+                }
+                1 => {
+                    c.current_input_material_1.replace(input.into());
+                }
+                _ => unreachable!("2 inputs"),
+            },
         }
     }
 
@@ -1258,6 +1283,15 @@ impl Building {
                     q.current_input_material_2 = None;
                 }
                 _ => unreachable!("4 inputs"),
+            },
+            Self::Converter(c) => match input_id {
+                0 => {
+                    c.current_input_material_0 = None;
+                }
+                1 => {
+                    c.current_input_material_1 = None;
+                }
+                _ => unreachable!("2 inputs"),
             },
         }
     }
@@ -1521,6 +1555,45 @@ fn calc_output4_2(
 
             // restrict to the minimum
             min4(a, b, c, d)
+        }
+        None => 1.,
+    };
+
+    // 60/4 * 1 = 15
+    let b_a = round((60. / duration) * a * output_size_a);
+    let b_b = round((60. / duration) * a * output_size_b);
+    (b_a, b_b)
+}
+
+fn calc_output2_2(
+    input_size: Option<(f32, f32)>,
+    duration: f32,
+    output_size_a: f32,
+    output_size_b: f32,
+    input_base_a: f32,
+    input_base_b: f32,
+) -> (f32, f32) {
+    let a = match input_size {
+        Some((input_size_a, input_size_b)) => {
+            let input_size_a = (input_size_a / 60.) * duration;
+            let input_size_b = (input_size_b / 60.) * duration;
+
+            let a = if input_size_a < input_base_a {
+                input_size_a / input_base_a
+            } else {
+                1.
+            };
+            let b = if input_size_b < input_base_b {
+                input_size_b / input_base_b
+            } else {
+                1.
+            };
+            // restrict to the minimum
+            if a < b {
+                a
+            } else {
+                b
+            }
         }
         None => 1.,
     };

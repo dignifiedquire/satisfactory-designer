@@ -37,7 +37,7 @@
 - [x] Blender
 - [x] Particle Accelerator
 - [x] Quantom Encoder
-- [ ] Converter
+- [x] Converter
 
 ### Power
 #### Generators
