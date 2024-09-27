@@ -36,7 +36,7 @@
 - [x] Refinery
 - [x] Blender
 - [x] Particle Accelerator
-- [ ] Quantom Encoder
+- [x] Quantom Encoder
 - [ ] Converter
 
 ### Power

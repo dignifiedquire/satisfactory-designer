@@ -669,6 +669,100 @@ impl Viewer<'_> {
                 }
                 _ => unreachable!("3 inputs"),
             },
+            Building::QuantumEncoder(b) => match pin.id.input {
+                0 => {
+                    let max_input_speed = b.recipe.map(|r| r.input_speed().0).unwrap_or_default();
+                    let fluid = b.input_material().map(|b| Resource::Fluid(b.0));
+
+                    let actual_input_speed = b
+                        .current_input_fluid_0
+                        .as_ref()
+                        .map(|i| i.speed)
+                        .unwrap_or_default();
+                    let actual_input_fluid = b.current_input_fluid_0.as_ref().map(|i| i.resource);
+                    single_input(
+                        fluid,
+                        max_input_speed,
+                        actual_input_speed,
+                        actual_input_fluid,
+                        ui,
+                        pin,
+                        scale,
+                        snarl,
+                        PinInfo::circle(),
+                    )
+                }
+                1 => {
+                    let max_input_speed = b.recipe.map(|r| r.input_speed().1).unwrap_or_default();
+                    let material = b.input_material().map(|b| b.1).map(Resource::Material);
+
+                    let actual_input_speed = b
+                        .current_input_material_0
+                        .as_ref()
+                        .map(|i| i.speed)
+                        .unwrap_or_default();
+                    let actual_input_material =
+                        b.current_input_material_0.as_ref().map(|i| i.resource);
+                    single_input(
+                        material,
+                        max_input_speed,
+                        actual_input_speed,
+                        actual_input_material,
+                        ui,
+                        pin,
+                        scale,
+                        snarl,
+                        PinInfo::square(),
+                    )
+                }
+                2 => {
+                    let max_input_speed = b.recipe.map(|r| r.input_speed().2).unwrap_or_default();
+                    let material = b.input_material().map(|b| b.2).map(Resource::Material);
+
+                    let actual_input_speed = b
+                        .current_input_material_1
+                        .as_ref()
+                        .map(|i| i.speed)
+                        .unwrap_or_default();
+                    let actual_input_material =
+                        b.current_input_material_1.as_ref().map(|i| i.resource);
+                    single_input(
+                        material,
+                        max_input_speed,
+                        actual_input_speed,
+                        actual_input_material,
+                        ui,
+                        pin,
+                        scale,
+                        snarl,
+                        PinInfo::square(),
+                    )
+                }
+                3 => {
+                    let max_input_speed = b.recipe.map(|r| r.input_speed().3).unwrap_or_default();
+                    let material = b.input_material().map(|b| b.3).map(Resource::Material);
+
+                    let actual_input_speed = b
+                        .current_input_material_2
+                        .as_ref()
+                        .map(|i| i.speed)
+                        .unwrap_or_default();
+                    let actual_input_material =
+                        b.current_input_material_2.as_ref().map(|i| i.resource);
+                    single_input(
+                        material,
+                        max_input_speed,
+                        actual_input_speed,
+                        actual_input_material,
+                        ui,
+                        pin,
+                        scale,
+                        snarl,
+                        PinInfo::square(),
+                    )
+                }
+                _ => unreachable!("4 inputs"),
+            },
         }
     }
 
@@ -896,6 +990,15 @@ impl SnarlViewer<GraphIdx> for Viewer<'_> {
                     Building::ParticleAccelerator(b) => {
                         changed |=
                             particle_accelerator_recipe_selector(ui, scale, &mut b.recipe).changed;
+                        ui.add_space(10.0 * scale);
+
+                        changed |= add_speed_ui(ui, &mut b.speed).changed;
+                        ui.add_space(10.0 * scale);
+
+                        changed |= add_somersloop4_ui(ui, &mut b.amplified).changed;
+                    }
+                    Building::QuantumEncoder(b) => {
+                        changed |= general_selector(ui, scale, &mut b.recipe).changed;
                         ui.add_space(10.0 * scale);
 
                         changed |= add_speed_ui(ui, &mut b.speed).changed;
@@ -1360,6 +1463,35 @@ impl SnarlViewer<GraphIdx> for Viewer<'_> {
                         _ => unreachable!("1 output"),
                     }
                 }
+                Building::QuantumEncoder(b) => {
+                    let (max_speed_fluid, max_speed_material) = b
+                        .recipe
+                        .as_ref()
+                        .map(|r| r.max_output_speed())
+                        .unwrap_or_default();
+
+                    match pin.id.output {
+                        0 => {
+                            let fluid = b.output_fluid();
+                            let max_speed = max_speed_fluid;
+
+                            fluid_output(fluid, max_speed, b.current_output_fluid(), ui, scale)
+                        }
+                        1 => {
+                            let material = b.output_material();
+                            let max_speed = max_speed_material;
+
+                            material_output(
+                                material,
+                                max_speed,
+                                b.current_output_material(),
+                                ui,
+                                scale,
+                            )
+                        }
+                        _ => unreachable!("2 outputs"),
+                    }
+                }
             },
         }
     }
@@ -1388,6 +1520,7 @@ impl SnarlViewer<GraphIdx> for Viewer<'_> {
             MenuItem::Building(Building::Manufacturer(Default::default())),
             MenuItem::Building(Building::Blender(Default::default())),
             MenuItem::Building(Building::ParticleAccelerator(Default::default())),
+            MenuItem::Building(Building::QuantumEncoder(Default::default())),
             MenuItem::Sep,
             MenuItem::Building(Building::Splitter(Default::default())),
             MenuItem::Building(Building::Merger(Default::default())),

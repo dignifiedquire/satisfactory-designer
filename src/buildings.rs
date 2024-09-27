@@ -3,6 +3,7 @@ use egui::Color32;
 mod assembler;
 mod blender;
 mod constructor;
+mod encoder;
 mod foundry;
 mod manufacturer;
 mod merger;
@@ -24,6 +25,7 @@ use crate::util::load_img;
 pub use self::assembler::{Assembler, AssemblerRecipe};
 pub use self::blender::{Blender, BlenderRecipe};
 pub use self::constructor::{Constructor, ConstructorRecipe};
+pub use self::encoder::{QuantumEncoder, QuantumEncoderRecipe};
 pub use self::foundry::{Foundry, FoundryRecipe};
 pub use self::manufacturer::{Manufacturer, ManufacturerRecipe};
 pub use self::merger::Merger;
@@ -58,6 +60,7 @@ pub enum Building {
     AwesomeSink(AwesomeSink),
     Blender(Blender),
     ParticleAccelerator(ParticleAccelerator),
+    QuantumEncoder(QuantumEncoder),
 }
 
 #[derive(
@@ -407,6 +410,14 @@ pub enum Material {
     PlutoniumWaste,
     #[strum(to_string = "Time Crystal")]
     TimeCrystal,
+    #[strum(to_string = "Neural-Quantum Processor")]
+    NeuralQuantumProcessor,
+    #[strum(to_string = "AI Expansion Server")]
+    AIExpansionServer,
+    #[strum(to_string = "Alien Power Matrix")]
+    AlienPowerMatrix,
+    #[strum(to_string = "Ficsonium Fuel Rod")]
+    FicsoniumFuelRod,
 }
 
 impl Selectable for Material {
@@ -551,6 +562,10 @@ impl Selectable for Material {
             Self::Ficsonium => "40px-Ficsonium.png",
             Self::PlutoniumWaste => "40px-Plutonium_Waste.png",
             Self::TimeCrystal => "40px-Time_Crystal.png",
+            Self::NeuralQuantumProcessor => "40px-Neural-Quantum_Processor.png",
+            Self::AIExpansionServer => "40px-AI_Expansion_Server.png",
+            Self::AlienPowerMatrix => "40px-Alien_Power_Matrix.png",
+            Self::FicsoniumFuelRod => "40px-Ficsonium_Fuel_Rod.png",
         };
         load_img(name)
     }
@@ -620,6 +635,8 @@ pub enum Fluid {
     DissolvedSilica,
     #[strum(to_string = "Dark Matter Residue")]
     DarkMatterResidue,
+    #[strum(to_string = "Excited Photonic Matter")]
+    ExcitedPhotonicMatter,
 }
 
 impl Fluid {
@@ -643,6 +660,7 @@ impl Fluid {
             Self::Water => "#1662AD",
             Self::DissolvedSilica => "#eac9e3",
             Self::DarkMatterResidue => "#e8bce4",
+            Self::ExcitedPhotonicMatter => "#ffffff",
         };
         Color32::from_hex(code).unwrap()
     }
@@ -663,6 +681,7 @@ impl Fluid {
             Self::Water => "40px-Water.png",
             Self::DissolvedSilica => "40px-Dissolved_Silica.png",
             Self::DarkMatterResidue => "40px-Dark_Matter_Residue.png",
+            Self::ExcitedPhotonicMatter => "40px-Excited_Photonic_Matter.png",
         };
         load_img(name)
     }
@@ -689,6 +708,7 @@ impl Building {
             Self::AwesomeSink(s) => Self::AwesomeSink(s.clear_clone()),
             Self::Blender(s) => Self::Blender(s.clear_clone()),
             Self::ParticleAccelerator(s) => Self::ParticleAccelerator(s.clear_clone()),
+            Self::QuantumEncoder(s) => Self::QuantumEncoder(s.clear_clone()),
         }
     }
 
@@ -711,6 +731,7 @@ impl Building {
             Self::AwesomeSink(s) => s.header_image(),
             Self::Blender(s) => s.header_image(),
             Self::ParticleAccelerator(s) => s.header_image(),
+            Self::QuantumEncoder(s) => s.header_image(),
         }
     }
 
@@ -733,6 +754,7 @@ impl Building {
             Self::AwesomeSink(s) => s.num_outputs(),
             Self::Blender(s) => s.num_outputs(),
             Self::ParticleAccelerator(s) => s.num_outputs(),
+            Self::QuantumEncoder(s) => s.num_outputs(),
         }
     }
 
@@ -755,6 +777,7 @@ impl Building {
             Self::AwesomeSink(s) => s.num_inputs(),
             Self::Blender(s) => s.num_inputs(),
             Self::ParticleAccelerator(s) => s.num_inputs(),
+            Self::QuantumEncoder(s) => s.num_inputs(),
         }
     }
 
@@ -777,6 +800,7 @@ impl Building {
             Self::AwesomeSink(s) => s.name(),
             Self::Blender(s) => s.name(),
             Self::ParticleAccelerator(s) => s.name(),
+            Self::QuantumEncoder(s) => s.name(),
         }
     }
 
@@ -799,6 +823,7 @@ impl Building {
             Self::AwesomeSink(s) => s.description(),
             Self::Blender(s) => s.description(),
             Self::ParticleAccelerator(s) => s.description(),
+            Self::QuantumEncoder(s) => s.description(),
         }
     }
 
@@ -821,6 +846,7 @@ impl Building {
             Self::AwesomeSink(s) => s.input_resource(input_id),
             Self::Blender(s) => s.input_resource(input_id),
             Self::ParticleAccelerator(s) => s.input_resource(input_id),
+            Self::QuantumEncoder(s) => s.input_resource(input_id),
         }
     }
 
@@ -843,6 +869,7 @@ impl Building {
             Self::AwesomeSink(s) => s.output_resource(output_id),
             Self::Blender(s) => s.output_resource(output_id),
             Self::ParticleAccelerator(s) => s.output_resource(output_id),
+            Self::QuantumEncoder(s) => s.output_resource(output_id),
         }
     }
 
@@ -920,6 +947,11 @@ impl Building {
             Self::ParticleAccelerator(b) => match output_id {
                 0 => b.current_output_material(),
                 _ => unreachable!("1 outputs"),
+            },
+            Self::QuantumEncoder(q) => match output_id {
+                0 => q.current_output_fluid(),
+                1 => q.current_output_material(),
+                _ => unreachable!("2 outputs"),
             },
         }
     }
@@ -1059,6 +1091,21 @@ impl Building {
                 }
                 _ => unreachable!("3 inputs"),
             },
+            Self::QuantumEncoder(q) => match input_id {
+                0 => {
+                    q.current_input_fluid_0.replace(input.into());
+                }
+                1 => {
+                    q.current_input_material_0.replace(input.into());
+                }
+                2 => {
+                    q.current_input_material_1.replace(input.into());
+                }
+                3 => {
+                    q.current_input_material_2.replace(input.into());
+                }
+                _ => unreachable!("4 inputs"),
+            },
         }
     }
 
@@ -1196,6 +1243,21 @@ impl Building {
                     b.current_input_material_1 = None;
                 }
                 _ => unreachable!("3 inputs"),
+            },
+            Self::QuantumEncoder(q) => match input_id {
+                0 => {
+                    q.current_input_fluid_0 = None;
+                }
+                1 => {
+                    q.current_input_material_0 = None;
+                }
+                2 => {
+                    q.current_input_material_1 = None;
+                }
+                3 => {
+                    q.current_input_material_2 = None;
+                }
+                _ => unreachable!("4 inputs"),
             },
         }
     }
