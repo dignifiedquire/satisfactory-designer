@@ -239,7 +239,7 @@ impl Assembler {
 
     pub fn output_resource(&self, output_id: usize) -> crate::node::ResourceType {
         match output_id {
-            0 => crate::node::ResourceType::Fluid,
+            0 => crate::node::ResourceType::Material,
             _ => unreachable!("1 output"),
         }
     }
