@@ -1,6 +1,7 @@
 mod app;
 mod buildings;
 mod node;
+pub mod savegame;
 mod util;
 mod viewer;
 
