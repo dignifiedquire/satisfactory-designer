@@ -1,73 +1,29 @@
 use anyhow::{ensure, Result};
-use bytes::{Buf, Bytes, BytesMut};
+use zerocopy::{
+    little_endian::{F32, F64, I32, I64},
+    FromBytes, Immutable, KnownLayout,
+};
 
 // All formats are encoded in little endian
 
-type Byte = u8;
-type Int = i32;
-type Long = i64;
-type Float = f32;
-
-#[derive(Debug)]
-pub struct String {
-    length: Int,
+#[derive(KnownLayout, Immutable, FromBytes)]
+#[repr(C, packed)]
+pub struct StringRef<'a> {
+    length: I32,
     /// Includes 1-2 termination characters
-    chars: Bytes,
+    chars: &'a [u8],
 }
 
-#[derive(Debug)]
-pub struct Vec4 {
-    pub w: Float,
-    pub x: Float,
-    pub y: Float,
-    pub z: Float,
-}
-impl Vec4 {
-    pub fn parse<B: Buf>(b: &mut B) -> Result<Self> {
-        let w = b.get_f32_le();
-        let x = b.get_f32_le();
-        let y = b.get_f32_le();
-        let z = b.get_f32_le();
-        Ok(Self { w, x, y, z })
+impl std::fmt::Debug for StringRef<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("StringRef")
+            .field("len", &self.length.get())
+            .field("chars", &self.as_str())
+            .finish()
     }
 }
 
-#[derive(Debug)]
-pub struct Vec3 {
-    pub x: Float,
-    pub y: Float,
-    pub z: Float,
-}
-impl Vec3 {
-    pub fn parse<B: Buf>(b: &mut B) -> Result<Self> {
-        let x = b.get_f32_le();
-        let y = b.get_f32_le();
-        let z = b.get_f32_le();
-        Ok(Self { x, y, z })
-    }
-}
-
-impl String {
-    pub fn parse<B: Buf>(data: &mut B) -> Result<Self> {
-        let length = data.get_i32_le();
-
-        if length == 0 {
-            Ok(Self {
-                length,
-                chars: Bytes::default(),
-            })
-        } else if length > 0 {
-            // UTF 8
-            let chars = data.copy_to_bytes(length as _);
-            Ok(Self { length, chars })
-        } else {
-            // Utf 16
-            let actual_length = length * -2;
-            let chars = data.copy_to_bytes(actual_length as _);
-            Ok(Self { length, chars })
-        }
-    }
-
+impl StringRef<'_> {
     /// Return the UTF-8 encoded version of this string.
     pub fn as_str(&self) -> &str {
         if self.length == 0 {
@@ -85,19 +41,36 @@ impl String {
 }
 
 #[derive(Debug)]
-pub struct Savegame {
-    pub header: SaveFileHeader,
-    pub compressed_chunks: Vec<CompressedBodyChunk>,
+pub struct Vec4 {
+    pub w: F32,
+    pub x: F32,
+    pub y: F32,
+    pub z: F32,
 }
 
-impl Savegame {
-    pub fn parse<B: Buf>(data: &mut B) -> Result<Self> {
-        let header = SaveFileHeader::parse(data)?;
+#[derive(Debug)]
+pub struct Vec3 {
+    pub x: F32,
+    pub y: F32,
+    pub z: F32,
+}
+
+#[derive(Debug)]
+pub struct Savegame<'a> {
+    pub header: SaveFileHeader<'a>,
+    pub compressed_chunks: Vec<CompressedBodyChunk<'a>>,
+}
+
+impl<'a> Savegame<'a> {
+    pub fn parse(data: &'a [u8]) -> Result<Self> {
+        let mut parser = Parser::new(data);
+
+        let header = SaveFileHeader::parse(&mut parser)?;
 
         let mut compressed_chunks = Vec::new();
 
-        while data.has_remaining() {
-            let chunk = CompressedBodyChunk::parse(data)?;
+        while parser.has_remaining() {
+            let chunk = CompressedBodyChunk::parse(&mut parser)?;
             compressed_chunks.push(chunk);
         }
 
@@ -110,7 +83,7 @@ impl Savegame {
     pub fn uncompressed_len(&self) -> usize {
         self.compressed_chunks
             .iter()
-            .map(|c| c.uncompressed_size as usize)
+            .map(|c| c.uncompressed_size.get() as usize)
             .sum()
     }
 
@@ -122,7 +95,11 @@ impl Savegame {
         let mut decoder = ZlibDecoder::new(&[][..]);
         for chunk in &self.compressed_chunks {
             decoder.reset(&chunk.bytes[..]);
-            decoder.read_to_end(&mut out)?;
+            let out_size = decoder.read_to_end(&mut out)?;
+            ensure!(
+                out_size == chunk.uncompressed_size.get() as usize,
+                "inconsistent chunk data"
+            );
         }
 
         Ok(out)
@@ -130,53 +107,64 @@ impl Savegame {
 }
 
 #[derive(Debug)]
-pub struct SaveFileBody {
-    pub grid: Grid,
-    pub levels: Vec<Level>,
-}
-#[derive(Debug)]
-pub struct Level {
-    pub name: String,
-    pub object_headers: Vec<ObjectHeader>,
-    pub collectables: Vec<ObjectReference>,
-    pub objects: Vec<Object>,
-    pub collectables_2: Vec<ObjectReference>,
+pub struct SaveFileBody<'a> {
+    pub grid: Grid<'a>,
+    pub levels: Vec<Level<'a>>,
 }
 
 #[derive(Debug)]
-pub struct Grid {
-    pub u1: String,
-    pub u2: Long,
-    pub u3: Int,
-    pub u4: String,
-    pub u5: Int,
-    pub data: Vec<GridData>,
+pub struct Level<'a> {
+    pub name: StringRef<'a>,
+    pub object_headers: Vec<ObjectHeader<'a>>,
+    pub collectables: Vec<ObjectReference<'a>>,
+    pub objects: Vec<Object<'a>>,
+    pub collectables_2: Vec<ObjectReference<'a>>,
 }
 
 #[derive(Debug)]
-pub struct GridData {
-    pub u1: String,
-    pub u2: Int,
-    pub u3: Int,
-    pub levels: Vec<GridLevel>,
+pub struct Grid<'a> {
+    pub u1: StringRef<'a>,
+    pub u2: I64,
+    pub u3: I32,
+    pub u4: StringRef<'a>,
+    pub u5: I32,
+    pub data: Vec<GridData<'a>>,
 }
 
 #[derive(Debug)]
-pub struct GridLevel {
-    pub u1: String,
-    pub u2: Int,
+pub struct GridData<'a> {
+    pub u1: StringRef<'a>,
+    pub u2: I32,
+    pub u3: I32,
+    pub levels: Vec<GridLevel<'a>>,
+}
+
+#[derive(KnownLayout, Immutable, FromBytes)]
+#[repr(C, packed)]
+pub struct GridLevel<'a> {
+    pub u1: StringRef<'a>,
+    pub u2: I32,
+}
+
+impl std::fmt::Debug for GridLevel<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("GridLevel")
+            .field("u1", &self.u1)
+            .field("u2", &self.u2)
+            .finish()
+    }
 }
 
 #[derive(Debug)]
-pub struct ObjectReference {
-    pub level_name: String,
-    pub path_name: String,
+pub struct ObjectReference<'a> {
+    pub level_name: StringRef<'a>,
+    pub path_name: StringRef<'a>,
 }
 
-impl ObjectReference {
-    pub fn parse<B: Buf>(b: &mut B) -> Result<Self> {
-        let level_name = String::parse(b)?;
-        let path_name = String::parse(b)?;
+impl<'a> ObjectReference<'a> {
+    pub fn parse(parser: &mut Parser<'a>) -> Result<Self> {
+        let level_name = parser.read_string()?;
+        let path_name = parser.read_string()?;
 
         Ok(Self {
             level_name,
@@ -186,60 +174,59 @@ impl ObjectReference {
 }
 
 #[derive(Debug)]
-pub enum Object {
+pub enum Object<'a> {
     Component {
-        entity_save_version: Int,
-        properties: Properties,
+        entity_save_version: I32,
+        properties: Properties<'a>,
     },
     Actor {
-        entity_save_version: Int,
-        parent_object_root: String,
-        parent_object_name: String,
-        components: Vec<ObjectReference>,
-        properties: Properties,
+        entity_save_version: I32,
+        parent_object_root: StringRef<'a>,
+        parent_object_name: StringRef<'a>,
+        components: Vec<ObjectReference<'a>>,
+        properties: Properties<'a>,
     },
 }
 
-impl Object {
-    pub fn parse<B: Buf>(header: &ObjectHeader, b: &mut B) -> Result<Self> {
-        let entity_save_version = b.get_i32_le();
-        let _unknown = b.get_i32_le();
+impl<'a> Object<'a> {
+    pub fn parse(header: &ObjectHeader, parser: &mut Parser<'a>) -> Result<Self> {
+        let entity_save_version = parser.read_i32()?;
+        let _unknown = parser.read_i32()?;
         dbg!(_unknown);
-        let binary_size = b.get_i32_le() as usize;
-        let mut data = b.take(binary_size);
+        let binary_size = parser.read_i32()?.get() as usize;
+        let mut sub_parser = parser.sub_parser(binary_size)?;
 
         match header {
             ObjectHeader::Component { .. } => {
-                let properties = Properties::parse(&mut data)?;
+                let properties = Properties::parse(&mut sub_parser)?;
 
-                let remaining = data.copy_to_bytes(data.remaining());
+                let remaining = sub_parser.remaining();
                 dbg!(&remaining);
 
                 Ok(Self::Component {
                     entity_save_version,
-                    properties
+                    properties,
                 })
             }
             ObjectHeader::Actor { .. } => {
-                let parent_object_root = String::parse(&mut data)?;
-                let parent_object_name = String::parse(&mut data)?;
-                let components_count = data.get_i32_le() as usize;
+                let parent_object_root = sub_parser.read_string()?;
+                let parent_object_name = sub_parser.read_string()?;
+                let components_count = sub_parser.read_i32()?.get() as usize;
                 let mut components = Vec::with_capacity(components_count);
 
                 for _j in 0..components_count {
-                    let component = ObjectReference::parse(&mut data)?;
+                    let component = ObjectReference::parse(parser)?;
                     components.push(component);
                 }
 
-                let properties = if data.has_remaining() {
-                    Properties::parse(&mut data)?
+                let properties = if sub_parser.has_remaining() {
+                    Properties::parse(&mut sub_parser)?
                 } else {
                     Properties::default()
                 };
 
-                let remaining = data.copy_to_bytes(data.remaining());
+                let remaining = sub_parser.remaining();
                 dbg!(remaining);
-
 
                 Ok(Self::Actor {
                     entity_save_version,
@@ -254,15 +241,16 @@ impl Object {
 }
 
 #[derive(Debug, Default)]
-pub struct Properties {
-    pub props: Vec<Property>,
+pub struct Properties<'a> {
+    pub props: Vec<Property<'a>>,
 }
 
-impl Properties {
-    pub fn parse<B: Buf>(b: &mut B) -> Result<Self> {
+impl<'a> Properties<'a> {
+    pub fn parse(parser: &mut Parser<'a>) -> Result<Self> {
         let mut props = Vec::new();
-        while b.has_remaining() {
-            let prop = Property::parse(b)?;
+        while parser.has_remaining() {
+            let prop = Property::parse(parser)?;
+            dbg!(&prop);
             if prop.is_none() {
                 break;
             }
@@ -274,32 +262,178 @@ impl Properties {
 }
 
 #[derive(Debug)]
-pub enum Property {
-    Array(ArrayProperty),
+pub enum Property<'a> {
+    Array(ArrayProperty<'a>),
+    Object {
+        index: I32,
+        value: ObjectReference<'a>,
+    },
+    Bool {
+        index: I32,
+        value: u8,
+    },
+    Int {
+        index: I32,
+        value: I32,
+    },
+    Struct {
+        index: I32,
+        value: TypedData<'a>,
+    },
     /// Signals the end of a property list
     None,
 }
 
 #[derive(Debug)]
-pub struct ArrayProperty {
-    pub r#type: String,
-    pub index: Int,
-    pub data: Vec<ArrayPropertyElement>,
+pub struct ArrayProperty<'a> {
+    pub r#type: StringRef<'a>,
+    pub index: I32,
+    pub data: ArrayPropertyElements<'a>,
 }
 
-impl ArrayProperty {
-    pub fn parse<B: Buf>(b: &mut B) -> Result<Self> {
-        let binary_size = b.get_i32_le();
-        let index = b.get_i32_le();
-        let r#type = String::parse(b)?;
-        let padding = b.get_u8();
+impl<'a> ArrayProperty<'a> {
+    pub fn parse(parser: &mut Parser<'a>) -> Result<Self> {
+        let binary_size = parser.read_i32()?;
+        let index = parser.read_i32()?;
+        let r#type = parser.read_string()?;
+        let padding = parser.read_u8()?;
         ensure!(padding == 0, "corrupted array property: invalid padding");
-        let length = b.get_i32_le();
+
+        let mut parser = parser.sub_parser(binary_size.get() as usize)?;
+        let length = parser.read_i32()?.get() as usize;
 
         let typ = r#type.as_str();
-        dbg!(typ, length);
+        dbg!(binary_size, typ, length);
 
-        let mut data = Vec::new();
+        let data = match typ {
+            "ByteProperty" => {
+                let mut data = Vec::with_capacity(length);
+                for _i in 0..length {
+                    let el = parser.read_u8()?;
+                    data.push(el);
+                }
+                ArrayPropertyElements::Byte(data)
+            }
+            "BoolProperty" => {
+                let mut data = Vec::with_capacity(length);
+                for _i in 0..length {
+                    let el = parser.read_u8()?;
+                    data.push(el);
+                }
+                ArrayPropertyElements::Bool(data)
+            }
+            "EnumProperty" => {
+                let mut data = Vec::with_capacity(length);
+                for _i in 0..length {
+                    let el = parser.read_string()?;
+                    data.push(el);
+                }
+                ArrayPropertyElements::Enum(data)
+            }
+            "StrProperty" => {
+                let mut data = Vec::with_capacity(length);
+                for _i in 0..length {
+                    let el = parser.read_string()?;
+                    data.push(el);
+                }
+                ArrayPropertyElements::Str(data)
+            }
+            "InterfaceProperty" => {
+                let mut data = Vec::with_capacity(length);
+                for _i in 0..length {
+                    let el = ObjectReference::parse(&mut parser)?;
+                    data.push(el);
+                }
+                ArrayPropertyElements::Interface(data)
+            }
+            "ObjectProperty" => {
+                let mut data = Vec::with_capacity(length);
+                for _i in 0..length {
+                    let el = ObjectReference::parse(&mut parser)?;
+                    data.push(el);
+                }
+                ArrayPropertyElements::Object(data)
+            }
+            "IntProperty" => {
+                let mut data = Vec::with_capacity(length);
+                for _i in 0..length {
+                    let el = parser.read_i32()?;
+                    data.push(el);
+                }
+                ArrayPropertyElements::Int(data)
+            }
+            "Int64Property" => {
+                let mut data = Vec::with_capacity(length);
+                for _i in 0..length {
+                    let el = parser.read_i64()?;
+                    data.push(el);
+                }
+                ArrayPropertyElements::Int64(data)
+            }
+            "FloatProperty" => {
+                let mut data = Vec::with_capacity(length);
+                for _i in 0..length {
+                    let el = parser.read_f32()?;
+                    data.push(el);
+                }
+                ArrayPropertyElements::Float(data)
+            }
+            "DoubleProperty" => {
+                let mut data = Vec::with_capacity(length);
+                for _i in 0..length {
+                    let el = parser.read_f64()?;
+                    data.push(el);
+                }
+                ArrayPropertyElements::Double(data)
+            }
+            "SoftObjectProperty" => {
+                todo!()
+            }
+            "TextProperty" => {
+                todo!()
+            }
+            "StructProperty" => {
+                let property_name = parser.read_string()?;
+                let property_type = parser.read_string()?;
+
+                let binary_size = parser.read_i32()?.get() as usize;
+                let padding = parser.read_i32()?;
+                ensure!(padding == 0, "invalid padding");
+
+                let element_type = parser.read_string()?;
+                let uuid = [
+                    parser.read_i32()?,
+                    parser.read_i32()?,
+                    parser.read_i32()?,
+                    parser.read_i32()?,
+                ];
+                let padding = parser.read_u8()?;
+                ensure!(padding == 0, "invalid padding");
+                println!(
+                    "reading {} typed values {} {}",
+                    length,
+                    element_type.as_str(),
+                    binary_size
+                );
+
+                let mut value_space = parser.sub_parser(binary_size)?;
+                let mut values = Vec::with_capacity(length);
+                for _i in 0..length {
+                    let val = TypedData::parse(element_type.as_str(), &mut value_space)?;
+                    values.push(val);
+                }
+                ensure!(!value_space.has_remaining(), "failed to parse full array");
+                ArrayPropertyElements::Struct {
+                    name: property_name,
+                    r#type: property_type,
+                    uuid,
+                    values,
+                }
+            }
+            _ => anyhow::bail!("unknown ArrayProperty: {}", typ),
+        };
+
+        ensure!(!parser.has_remaining(), "failed to fully parse");
 
         Ok(Self {
             index,
@@ -310,49 +444,106 @@ impl ArrayProperty {
 }
 
 #[derive(Debug)]
-pub enum ArrayPropertyElement {
-    Byte(u8),
-    Enum(String),
-    Str(String),
-    Interface {
-        level_name: String,
-        path_name: String,
-    },
-    Object {
-        level_name: String,
-        path_name: String,
-    },
-    Int(Int),
-    Int64(Long),
+pub enum ArrayPropertyElements<'a> {
+    Byte(Vec<u8>),
+    Bool(Vec<u8>),
+    Enum(Vec<StringRef<'a>>),
+    Str(Vec<StringRef<'a>>),
+    Interface(Vec<ObjectReference<'a>>),
+    Object(Vec<ObjectReference<'a>>),
+    Int(Vec<I32>),
+    Int64(Vec<I64>),
+    Float(Vec<F32>),
+    Double(Vec<F64>),
     Struct {
-        name: String,
-        r#type: String,
-        values: Vec<TypedData>,
-    }
+        name: StringRef<'a>,
+        r#type: StringRef<'a>,
+        uuid: [I32; 4],
+        values: Vec<TypedData<'a>>,
+    },
 }
 
 #[derive(Debug)]
-pub enum TypedData {
-
+pub enum TypedData<'a> {
+    SpawnData(Properties<'a>),
 }
-impl TypedData {
-    pub fn parse<B: Buf>(typ: &str, b: &mut B) -> Result<Self> {
-        todo!("{}", typ)
+
+impl<'a> TypedData<'a> {
+    pub fn parse(typ: &str, parser: &mut Parser<'a>) -> Result<Self> {
+        match typ {
+            "SpawnData" => {
+                // b"\t\0\0\0creature\0
+                //   \x0f\0\0\0ObjectProperty\0
+                //   \x08\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\n\0\0\0WasKilled\0
+                //   \r\0\0\0BoolProperty\0\0\0\0\0\0\0\0\0\0\0\x0f\0\0\0NumTimesKilled\0\x0c\0\0\0IntProperty\0\x04\0\0\0\0\0\0\0\0\0\0\0\0\x0e\0\0\0KilledOnDayNr\0\x0c\0\0\0IntProperty\0\x04\0\0\0\0\0\0\0\0\xff\xff\xff\xff\x05\0\0\0None\0"
+                let props = Properties::parse(parser)?;
+                Ok(Self::SpawnData(props))
+            }
+            _ => anyhow::bail!("unknown typed data: {}", typ),
+        }
     }
 }
-impl Property {
-    pub fn parse<B: Buf>(b: &mut B) -> Result<Self> {
-        let property_name = String::parse(b)?;
+
+impl<'a> Property<'a> {
+    pub fn parse(parser: &mut Parser<'a>) -> Result<Self> {
+        let property_name = parser.read_string()?;
+        dbg!(&property_name);
 
         let name = property_name.as_str();
         if name == "None" || name == "" {
             return Ok(Self::None);
         }
-        let type_name = String::parse(b)?;
+        let type_name = parser.read_string()?;
         match dbg!(type_name.as_str()) {
             "ArrayProperty" => {
-                let prop = ArrayProperty::parse(b)?;
+                let prop = ArrayProperty::parse(parser)?;
                 Ok(Self::Array(prop))
+            }
+            "ObjectProperty" => {
+                let binary_size = parser.read_i32()?;
+                let index = parser.read_i32()?;
+                let padding = parser.read_u8()?;
+                ensure!(padding == 0, "invalid padding");
+                let mut rest = parser.sub_parser(binary_size.get() as _)?;
+                let value = ObjectReference::parse(&mut rest)?;
+                ensure!(!rest.has_remaining(), "failed to read full property");
+                Ok(Self::Object { index, value })
+            }
+            "BoolProperty" => {
+                let padding = parser.read_i32()?;
+                ensure!(padding == 0, "invalid padding");
+                let index = parser.read_i32()?;
+                let value = parser.read_u8()?;
+                let padding = parser.read_u8()?;
+                ensure!(padding == 0, "invalid padding");
+
+                Ok(Self::Bool { index, value })
+            }
+            "IntProperty" => {
+                let binary_size = parser.read_i32()?;
+                let index = parser.read_i32()?;
+                let padding = parser.read_u8()?;
+                ensure!(padding == 0, "invalid padding");
+                let mut rest = parser.sub_parser(binary_size.get() as _)?;
+                let value = rest.read_i32()?;
+                ensure!(!rest.has_remaining(), "failed to read full property");
+
+                Ok(Self::Int { index, value })
+            }
+            "StructProperty" => {
+                let binary_size = parser.read_i32()?;
+                let index = parser.read_i32()?;
+                let type_name = parser.read_string()?;
+                let padding = parser.read_i64()?;
+                ensure!(padding == 0, "invalid padding");
+                let padding = parser.read_i64()?;
+                ensure!(padding == 0, "invalid padding");
+                let padding = parser.read_i64()?;
+                ensure!(padding == 0, "invalid padding");
+                let mut rest = parser.sub_parser(binary_size.get() as _)?;
+                let value = TypedData::parse(type_name.as_str(), &mut rest)?;
+                ensure!(!rest.has_remaining(), "failed to read full property");
+                Ok(Self::Struct { index, value })
             }
             name => todo!("{}", name),
         }
@@ -364,35 +555,35 @@ impl Property {
 }
 
 #[derive(Debug)]
-pub enum ObjectHeader {
+pub enum ObjectHeader<'a> {
     Component {
-        type_path: String,
-        root_object: String,
-        instance_name: String,
-        parent_actor_name: String,
+        type_path: StringRef<'a>,
+        root_object: StringRef<'a>,
+        instance_name: StringRef<'a>,
+        parent_actor_name: StringRef<'a>,
     },
     Actor {
-        type_path: String,
-        root_object: String,
-        instance_name: String,
-        need_transform: Int,
+        type_path: StringRef<'a>,
+        root_object: StringRef<'a>,
+        instance_name: StringRef<'a>,
+        need_transform: I32,
         rotation: Vec4,
         position: Vec3,
         scale: Vec3,
-        was_placed_in_level: Int,
+        was_placed_in_level: I32,
     },
 }
 
-impl ObjectHeader {
-    pub fn parse<B: Buf>(b: &mut B) -> Result<Self> {
-        let typ = b.get_i32_le();
-        match typ {
+impl<'a> ObjectHeader<'a> {
+    pub fn parse(parser: &mut Parser<'a>) -> Result<Self> {
+        let typ = parser.read_i32()?;
+        match typ.get() {
             0 => {
                 // Component
-                let type_path = String::parse(b)?;
-                let root_object = String::parse(b)?;
-                let instance_name = String::parse(b)?;
-                let parent_actor_name = String::parse(b)?;
+                let type_path = parser.read_string()?;
+                let root_object = parser.read_string()?;
+                let instance_name = parser.read_string()?;
+                let parent_actor_name = parser.read_string()?;
 
                 Ok(Self::Component {
                     type_path,
@@ -403,14 +594,14 @@ impl ObjectHeader {
             }
             1 => {
                 // Actor
-                let type_path = String::parse(b)?;
-                let root_object = String::parse(b)?;
-                let instance_name = String::parse(b)?;
-                let need_transform = b.get_i32_le();
-                let rotation = Vec4::parse(b)?;
-                let position = Vec3::parse(b)?;
-                let scale = Vec3::parse(b)?;
-                let was_placed_in_level = b.get_i32_le();
+                let type_path = parser.read_string()?;
+                let root_object = parser.read_string()?;
+                let instance_name = parser.read_string()?;
+                let need_transform = parser.read_i32()?;
+                let rotation = parser.read_vec4()?;
+                let position = parser.read_vec3()?;
+                let scale = parser.read_vec3()?;
+                let was_placed_in_level = parser.read_i32()?;
                 Ok(Self::Actor {
                     type_path,
                     root_object,
@@ -427,24 +618,24 @@ impl ObjectHeader {
     }
 }
 
-impl SaveFileBody {
-    pub fn parse(data_owned: Vec<u8>) -> Result<Self> {
-        let mut data = BytesMut::from(&data_owned[..]);
+impl<'a> SaveFileBody<'a> {
+    pub fn parse(data: &'a [u8]) -> Result<Self> {
+        let mut parser = Parser::new(data);
         // Check that the size is correct
-        let total_len = data.get_i64_le();
+        let total_len = parser.read_i64()?;
         ensure!(
-            data.len() as u64 == total_len as u64,
+            parser.remaining() as u64 == total_len.get() as u64,
             "invalid length: {} != {}",
-            data.len(),
+            parser.remaining(),
             total_len
         );
 
-        let grid_count = data.get_i32_le() as usize;
-        let unknown_1 = String::parse(&mut data)?;
-        let unknown_2 = data.get_i64_le();
-        let unknown_3 = data.get_i32_le();
-        let unknown_4 = String::parse(&mut data)?;
-        let unknown_5 = data.get_i32_le();
+        let grid_count = parser.read_i32()?.get() as usize;
+        let unknown_1 = parser.read_string()?;
+        let unknown_2 = parser.read_i64()?;
+        let unknown_3 = parser.read_i32()?;
+        let unknown_4 = parser.read_string()?;
+        let unknown_5 = parser.read_i32()?;
 
         let mut grid = Grid {
             u1: unknown_1,
@@ -456,17 +647,16 @@ impl SaveFileBody {
         };
 
         for x in 0..grid_count - 1 {
-            let unknown_6 = String::parse(&mut data)?;
-            let unknown_7 = data.get_i32_le();
-            let unknown_8 = data.get_i32_le();
-            let level_count = data.get_i32_le() as usize;
+            let unknown_6 = parser.read_string()?;
+            let unknown_7 = parser.read_i32()?;
+            let unknown_8 = parser.read_i32()?;
+            let level_count = parser.read_i32()?.get() as usize;
 
             let mut levels = Vec::with_capacity(level_count);
-
             println!("Grid {}: Level Count {}", x, level_count);
             for _y in 0..level_count {
-                let unknown_9 = String::parse(&mut data)?;
-                let unknown_10 = data.get_i32_le();
+                let unknown_9 = parser.read_string()?;
+                let unknown_10 = parser.read_i32()?;
 
                 levels.push(GridLevel {
                     u1: unknown_9,
@@ -482,12 +672,16 @@ impl SaveFileBody {
             });
         }
 
-        let level_count = data.get_i32_le() as usize;
+        let level_count = parser.read_i32()?.get() as usize;
         let mut levels = Vec::with_capacity(level_count + 1);
         for i in 0..=level_count {
-            let name = String::parse(&mut data)?;
-            let binary_length = data.get_i64_le();
-            let object_header_count = data.get_i32_le() as usize;
+            let name = parser.read_string()?;
+            let binary_length = parser.read_i64()?;
+            println!("level {:?}: {}bytes", name, binary_length);
+            let mut level_parser = parser.sub_parser(binary_length.get() as usize)?;
+
+            let object_header_count = level_parser.read_i32()?.get() as usize;
+            dbg!(&object_header_count);
             let mut object_headers = Vec::with_capacity(object_header_count);
 
             println!(
@@ -495,39 +689,46 @@ impl SaveFileBody {
                 i, object_header_count
             );
             for _j in 0..object_header_count {
-                let object_header = ObjectHeader::parse(&mut data)?;
+                let object_header = ObjectHeader::parse(&mut level_parser)?;
                 object_headers.push(object_header);
             }
 
-            let collectables_count = data.get_i32_le() as usize;
+            let collectables_count = level_parser.read_i32()?.get() as usize;
+            dbg!(collectables_count);
             let mut collectables = Vec::with_capacity(collectables_count);
             println!("Level {}: parsing {} collectable", i, collectables_count);
             for _j in 0..collectables_count {
-                let collectable = ObjectReference::parse(&mut data)?;
+                let collectable = ObjectReference::parse(&mut level_parser)?;
                 collectables.push(collectable);
             }
 
-            let binary_length_objects = data.get_i64_le() as usize;
-            let objects_count = data.get_i32_le() as usize;
+            let binary_length_objects = parser.read_i64()?.get() as usize;
+            ensure!(!level_parser.has_remaining(), "not fully read");
+
+            println!("parsing objects {}bytes", binary_length_objects);
+
+            let mut level_parser = parser.sub_parser(binary_length_objects)?;
+            let objects_count = level_parser.read_i32()?.get() as usize;
             ensure!(object_header_count == objects_count, "corrupted level");
 
             let mut objects = Vec::with_capacity(objects_count);
             println!("Level {}: parsing {} objects", i, objects_count);
             for j in 0..objects_count {
-                let object = Object::parse(&object_headers[j], &mut data)?;
+                let object = Object::parse(&object_headers[j], &mut level_parser)?;
                 objects.push(object);
             }
 
-            let collectables_count_2 = data.get_i32_le() as usize;
+            let collectables_count_2 = parser.read_i32()?.get() as usize;
             let mut collectables_2 = Vec::with_capacity(collectables_count_2);
             println!(
                 "Level {}: parsing {} collectables 2",
                 i, collectables_count_2
             );
             for _j in 0..collectables_count_2 {
-                let collectable = ObjectReference::parse(&mut data)?;
+                let collectable = ObjectReference::parse(&mut level_parser)?;
                 collectables_2.push(collectable);
             }
+            ensure!(!level_parser.has_remaining(), "not fully read");
 
             levels.push(Level {
                 name,
@@ -543,36 +744,28 @@ impl SaveFileBody {
 }
 
 #[derive(derive_more::Debug)]
-pub struct CompressedBodyChunk {
-    pub compressed_size: Int,
-    pub uncompressed_size: Int,
+pub struct CompressedBodyChunk<'a> {
+    pub compressed_size: I32,
+    pub uncompressed_size: I32,
     #[debug("{} bytes", bytes.len())]
-    pub bytes: Bytes,
+    pub bytes: &'a [u8],
 }
 
-fn read_chunk<B: Buf>(data: &mut B) -> (Int, Int, Int, Int) {
-    let a = data.get_i32_le();
-    let b = data.get_i32_le();
-    let c = data.get_i32_le();
-    let d = data.get_i32_le();
-    (a, b, c, d)
-}
+const MAGIC_SIGNATURE: i32 = -1641380927;
+const MAX_CHUNK_SIZE: i32 = 128 * 1024;
 
-const MAGIC_SIGNATURE: Int = -1641380927;
-const MAX_CHUNK_SIZE: Int = 128 * 1024;
-
-impl CompressedBodyChunk {
-    pub fn parse<B: Buf>(data: &mut B) -> Result<Self> {
-        let (signature, _, maximum_chunk_size, _) = read_chunk(data);
+impl<'a> CompressedBodyChunk<'a> {
+    pub fn parse(parser: &mut Parser<'a>) -> Result<Self> {
+        let (signature, _, maximum_chunk_size, _) = parser.read_chunk()?;
         ensure!(signature == MAGIC_SIGNATURE, "corrupted chunk: magic");
         ensure!(
             maximum_chunk_size == MAX_CHUNK_SIZE,
             "corrupted chunk: maximum chunk size"
         );
 
-        let _ = data.get_u8();
-        let summary = read_chunk(data);
-        let sub_chunk = read_chunk(data);
+        let _ = parser.read_u8()?;
+        let summary = parser.read_chunk()?;
+        let sub_chunk = parser.read_chunk()?;
 
         let uncompressed_size = summary.2;
         ensure!(
@@ -581,7 +774,7 @@ impl CompressedBodyChunk {
         );
 
         let compressed_size = summary.0;
-        let bytes = data.copy_to_bytes(compressed_size as _);
+        let bytes = parser.read_bytes(compressed_size.get() as _)?;
 
         Ok(Self {
             compressed_size,
@@ -592,45 +785,155 @@ impl CompressedBodyChunk {
 }
 
 #[derive(Debug)]
-pub struct SaveFileHeader {
-    pub header_version: Int,
-    pub save_version: Int,
-    pub build_version: Int,
-    pub map_name: String,
-    pub map_options: String,
-    pub session_name: String,
-    pub session_play_time_secs: Int,
-    pub save_timestamp_ticks: Long,
-    pub session_visibility: Byte,
-    pub editor_object_version: Int,
-    pub mod_metadata: String,
-    pub mod_flags: Int,
-    pub save_identifier: String,
-    pub is_partitioned_new_world: Int,
-    pub save_data_hash: [u8; 20],
-    pub is_creative_mode_enabled: Int,
+pub struct SaveFileHeader<'a> {
+    pub header_version: I32,
+    pub save_version: I32,
+    pub build_version: I32,
+    pub map_name: StringRef<'a>,
+    pub map_options: StringRef<'a>,
+    pub session_name: StringRef<'a>,
+    pub session_play_time_secs: I32,
+    pub save_timestamp_ticks: I64,
+    pub session_visibility: u8,
+    pub editor_object_version: I32,
+    pub mod_metadata: StringRef<'a>,
+    pub mod_flags: I32,
+    pub save_identifier: StringRef<'a>,
+    pub is_partitioned_new_world: I32,
+    pub save_data_hash: &'a [u8; 20],
+    pub is_creative_mode_enabled: I32,
 }
 
-impl SaveFileHeader {
-    pub fn parse<B: Buf>(data: &mut B) -> Result<Self> {
-        let header_version = data.get_i32_le();
-        let save_version = data.get_i32_le();
-        let build_version = data.get_i32_le();
-        let map_name = String::parse(data)?;
-        let map_options = String::parse(data)?;
-        let session_name = String::parse(data)?;
-        let session_play_time_secs = data.get_i32_le();
-        let save_timestamp_ticks = data.get_i64_le();
-        let session_visibility = data.get_u8();
-        let editor_object_version = data.get_i32_le();
-        let mod_metadata = String::parse(data)?;
-        let mod_flags = data.get_i32_le();
-        let save_identifier = String::parse(data)?;
+struct Parser<'a> {
+    data: &'a [u8],
+    offset: usize,
+}
 
-        let is_partitioned_new_world = data.get_i32_le();
-        let mut save_data_hash = [0u8; 20];
-        data.copy_to_slice(&mut save_data_hash);
-        let is_creative_mode_enabled = data.get_i32_le();
+impl<'a> Parser<'a> {
+    fn new(data: &'a [u8]) -> Self {
+        Self { data, offset: 0 }
+    }
+
+    fn remaining(&self) -> usize {
+        self.data.len() - self.offset
+    }
+
+    fn has_remaining(&self) -> bool {
+        self.remaining() > 0
+    }
+
+    fn read_u8(&mut self) -> Result<u8> {
+        ensure!(self.remaining() > 0, "too short");
+        let out = self.data[self.offset];
+        self.offset += 1;
+        Ok(out)
+    }
+
+    fn read_i32(&mut self) -> Result<I32> {
+        let (out, _) = I32::read_from_prefix(&self.data[self.offset..])
+            .map_err(|e| anyhow::anyhow!(e.to_string()))?;
+        self.offset += 4;
+        Ok(out)
+    }
+
+    fn read_i64(&mut self) -> Result<I64> {
+        let (out, _) = I64::read_from_prefix(&self.data[self.offset..])
+            .map_err(|e| anyhow::anyhow!(e.to_string()))?;
+        self.offset += 8;
+        Ok(out)
+    }
+
+    fn read_f32(&mut self) -> Result<F32> {
+        let (out, _) = F32::read_from_prefix(&self.data[self.offset..])
+            .map_err(|e| anyhow::anyhow!(e.to_string()))?;
+        self.offset += 4;
+        Ok(out)
+    }
+
+    fn read_f64(&mut self) -> Result<F64> {
+        let (out, _) = F64::read_from_prefix(&self.data[self.offset..])
+            .map_err(|e| anyhow::anyhow!(e.to_string()))?;
+        self.offset += 8;
+        Ok(out)
+    }
+
+    fn read_vec3(&mut self) -> Result<Vec3> {
+        let x = self.read_f32()?;
+        let y = self.read_f32()?;
+        let z = self.read_f32()?;
+        Ok(Vec3 { x, y, z })
+    }
+
+    fn read_vec4(&mut self) -> Result<Vec4> {
+        let w = self.read_f32()?;
+        let x = self.read_f32()?;
+        let y = self.read_f32()?;
+        let z = self.read_f32()?;
+        Ok(Vec4 { w, x, y, z })
+    }
+
+    fn read_bytes(&mut self, len: usize) -> Result<&'a [u8]> {
+        ensure!(
+            self.remaining() >= len,
+            "too short: remaining: {}, wanted: {}",
+            self.remaining(),
+            len
+        );
+        let res = &self.data[self.offset..self.offset + len];
+        self.offset += len;
+        Ok(res)
+    }
+
+    fn sub_parser(&mut self, len: usize) -> Result<Parser<'a>> {
+        let bytes = self.read_bytes(len)?;
+        Ok(Parser::new(bytes))
+    }
+
+    fn read_string(&mut self) -> Result<StringRef<'a>> {
+        let length = self.read_i32()?;
+        let actual_length = if length == 0 {
+            length.get() as usize
+        } else if length > 0 {
+            // UTF8
+            length.get() as usize
+        } else {
+            // UTF16
+            (length.get() * -2) as usize
+        };
+        let chars = self.read_bytes(actual_length)?;
+
+        Ok(StringRef { length, chars })
+    }
+
+    fn read_chunk(&mut self) -> Result<(I32, I32, I32, I32)> {
+        let a = self.read_i32()?;
+        let b = self.read_i32()?;
+        let c = self.read_i32()?;
+        let d = self.read_i32()?;
+
+        Ok((a, b, c, d))
+    }
+}
+
+impl<'a> SaveFileHeader<'a> {
+    pub fn parse(parser: &mut Parser<'a>) -> Result<Self> {
+        let header_version = parser.read_i32()?;
+        let save_version = parser.read_i32()?;
+        let build_version = parser.read_i32()?;
+        let map_name = parser.read_string()?;
+        let map_options = parser.read_string()?;
+        let session_name = parser.read_string()?;
+        let session_play_time_secs = parser.read_i32()?;
+        let save_timestamp_ticks = parser.read_i64()?;
+        let session_visibility = parser.read_u8()?;
+        let editor_object_version = parser.read_i32()?;
+        let mod_metadata = parser.read_string()?;
+        let mod_flags = parser.read_i32()?;
+        let save_identifier = parser.read_string()?;
+
+        let is_partitioned_new_world = parser.read_i32()?;
+        let save_data_hash = parser.read_bytes(20)?.try_into()?;
+        let is_creative_mode_enabled = parser.read_i32()?;
 
         Ok(Self {
             header_version,
@@ -670,7 +973,8 @@ mod tests {
         assert_eq!(file_data.len(), save_game.uncompressed_len());
         dbg!(file_data.len(), save_game.uncompressed_len());
 
-        let body = SaveFileBody::parse(file_data).unwrap();
+        let body = SaveFileBody::parse(&file_data).unwrap();
+        dbg!(&body);
 
         assert!(false);
     }
