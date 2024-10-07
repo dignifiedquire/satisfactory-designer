@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-egui = { version = "0.28" }
+egui = { version = "0.29" }
 egui-snarl = { version = "0.4", features = ["serde"] }
 egui-probe = { version = "0.5.1", features = ["derive"] }
 eframe = { version = "0.28", features = ["serde", "persistence"] }
