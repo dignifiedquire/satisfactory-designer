@@ -7,7 +7,7 @@ edition = "2021"
 egui = { version = "0.28" }
 egui-snarl = { version = "0.4", features = ["serde"] }
 egui-probe = { version = "0.5.1", features = ["derive"] }
-eframe = { version = "0.28", features = ["serde", "persistence"] }
+eframe = { version = "0.29", features = ["serde", "persistence"] }
 egui_extras = { version = "0.28", features = ["all_loaders"] }
 syn = { version = "2.0", features = ["extra-traits"] }
 serde_json = { version = "1.0" }
