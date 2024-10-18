@@ -1,13 +1,12 @@
 use anyhow::{ensure, Result};
 use zerocopy::{
-    little_endian::{F32, F64, I32, I64},
+    little_endian::{F32, F64, I32, I64, U32, U64},
     FromBytes, Immutable, KnownLayout,
 };
 
 // All formats are encoded in little endian
 
-#[derive(KnownLayout, Immutable, FromBytes)]
-#[repr(C, packed)]
+#[derive(KnownLayout, Immutable, FromBytes, Clone)]
 pub struct StringRef<'a> {
     length: I32,
     /// Includes 1-2 termination characters
@@ -139,20 +138,10 @@ pub struct GridData<'a> {
     pub levels: Vec<GridLevel<'a>>,
 }
 
-#[derive(KnownLayout, Immutable, FromBytes)]
-#[repr(C, packed)]
+#[derive(Debug, KnownLayout, Immutable, FromBytes)]
 pub struct GridLevel<'a> {
     pub u1: StringRef<'a>,
     pub u2: I32,
-}
-
-impl std::fmt::Debug for GridLevel<'_> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("GridLevel")
-            .field("u1", &self.u1)
-            .field("u2", &self.u2)
-            .finish()
-    }
 }
 
 #[derive(Debug)]
@@ -164,7 +153,9 @@ pub struct ObjectReference<'a> {
 impl<'a> ObjectReference<'a> {
     pub fn parse(parser: &mut Parser<'a>) -> Result<Self> {
         let level_name = parser.read_string()?;
+        dbg!(&level_name);
         let path_name = parser.read_string()?;
+        dbg!(&path_name);
 
         Ok(Self {
             level_name,
@@ -185,24 +176,31 @@ pub enum Object<'a> {
         parent_object_name: StringRef<'a>,
         components: Vec<ObjectReference<'a>>,
         properties: Properties<'a>,
+        extra_data: Option<ExtraData<'a>>,
     },
 }
 
 impl<'a> Object<'a> {
-    pub fn parse(header: &ObjectHeader, parser: &mut Parser<'a>) -> Result<Self> {
+    pub fn parse(header: &ObjectHeader<'a>, parser: &mut Parser<'a>) -> Result<Self> {
         let entity_save_version = parser.read_i32()?;
         let _unknown = parser.read_i32()?;
         dbg!(_unknown);
         let binary_size = parser.read_i32()?.get() as usize;
+        dbg!(entity_save_version, binary_size);
         let mut sub_parser = parser.sub_parser(binary_size)?;
 
         match header {
             ObjectHeader::Component { .. } => {
                 let properties = Properties::parse(&mut sub_parser)?;
+                // TODO: can there be extra data here?
 
                 let remaining = sub_parser.remaining();
                 dbg!(&remaining);
+                if remaining == 4 {
+                    let _ = sub_parser.read_bytes(4);
+                }
 
+                ensure!(!sub_parser.has_remaining(), "failed to parse full actor");
                 Ok(Self::Component {
                     entity_save_version,
                     properties,
@@ -214,19 +212,23 @@ impl<'a> Object<'a> {
                 let components_count = sub_parser.read_i32()?.get() as usize;
                 let mut components = Vec::with_capacity(components_count);
 
+                dbg!(&parent_object_root, &parent_object_name, components_count);
                 for _j in 0..components_count {
+                    println!("parsing object ref {}/{}", _j, components_count);
                     let component = ObjectReference::parse(parser)?;
+                    dbg!(&component);
                     components.push(component);
                 }
 
-                let properties = if sub_parser.has_remaining() {
-                    Properties::parse(&mut sub_parser)?
+                let (properties, extra_data) = if sub_parser.has_remaining() {
+                    let properties = Properties::parse(&mut sub_parser)?;
+                    let extra_data = ExtraData::parse(header.type_path(), &mut sub_parser)?;
+                    (properties, Some(extra_data))
                 } else {
-                    Properties::default()
+                    (Properties::default(), None)
                 };
 
-                let remaining = sub_parser.remaining();
-                dbg!(remaining);
+                ensure!(!sub_parser.has_remaining(), "failed to parse full actor");
 
                 Ok(Self::Actor {
                     entity_save_version,
@@ -234,9 +236,44 @@ impl<'a> Object<'a> {
                     parent_object_name,
                     components,
                     properties,
+                    extra_data,
                 })
             }
         }
+    }
+}
+
+#[derive(Debug)]
+pub enum ExtraData<'a> {
+    Unknown {
+        type_path: StringRef<'a>,
+        data: &'a [u8],
+    },
+}
+
+impl<'a> ExtraData<'a> {
+    pub fn parse(type_path: &StringRef<'a>, parser: &mut Parser<'a>) -> Result<Self> {
+        let remaining = parser.remaining();
+        dbg!(&type_path, remaining);
+
+        // Unknown
+        let data = if remaining > 4 {
+            if type_path.as_str().starts_with("/Script/FactoryGame.FG") {
+                parser.read_bytes(8)?
+            } else {
+                parser.read_bytes(remaining)?
+            }
+        } else {
+            let _ = parser.read_bytes(4)?;
+            &[][..]
+        };
+
+        dbg!(std::string::String::from_utf8_lossy(data));
+
+        Ok(Self::Unknown {
+            type_path: type_path.clone(),
+            data,
+        })
     }
 }
 
@@ -272,9 +309,51 @@ pub enum Property<'a> {
         index: I32,
         value: u8,
     },
+    Int8 {
+        index: I32,
+        value: u8,
+    },
     Int {
         index: I32,
         value: I32,
+    },
+    UInt32 {
+        index: I32,
+        value: U32,
+    },
+    Int64 {
+        index: I32,
+        value: I64,
+    },
+    UInt64 {
+        index: I32,
+        value: U64,
+    },
+    Float {
+        index: I32,
+        value: F32,
+    },
+    Double {
+        index: I32,
+        value: F64,
+    },
+    String {
+        index: I32,
+        value: StringRef<'a>,
+    },
+    Enum {
+        index: I32,
+        r#type: StringRef<'a>,
+        value: StringRef<'a>,
+    },
+    Byte {
+        index: I32,
+        name: StringRef<'a>,
+        value: StringRef<'a>,
+    },
+    Text {
+        index: I32,
+        value: TextProperty<'a>,
     },
     Struct {
         index: I32,
@@ -285,28 +364,142 @@ pub enum Property<'a> {
 }
 
 #[derive(Debug)]
+pub struct TextProperty<'a> {
+    pub flags: I32,
+    pub history_type: TextPropertyHistoryType<'a>,
+}
+
+impl<'a> TextProperty<'a> {
+    pub fn parse(parser: &mut Parser<'a>) -> Result<Self> {
+        let flags = parser.read_i32()?;
+        let history = parser.read_u8()?;
+        let history_type = match history {
+            0 => {
+                let namespace = parser.read_string()?;
+                let key = parser.read_string()?;
+                let value = parser.read_string()?;
+
+                TextPropertyHistoryType::A {
+                    namespace,
+                    key,
+                    value
+                }
+            }
+            1 => TextPropertyHistoryType::B,
+            3 => {
+                let source_fmt = TextProperty::parse(parser)?;
+                let count = parser.read_i32()?.get() as usize;
+                let mut arguments = Vec::with_capacity(count);
+                for _i in 0..count {
+                    let arg = Argument::parse(parser)?;
+                    arguments.push(arg);
+                }
+
+                TextPropertyHistoryType::C {
+                    source_fmt: Box::new(source_fmt),
+                    arguments,
+                }
+            }
+            _ => anyhow::bail!("Unknown History Type {}", history),
+        };
+
+        Ok(Self {
+            flags,
+            history_type,
+        })
+    }
+}
+
+#[derive(Debug)]
+pub enum TextPropertyHistoryType<'a> {
+    A {
+        namespace: StringRef<'a>,
+        key: StringRef<'a>,
+        value: StringRef<'a>,
+    },
+    B,
+    C {
+        source_fmt: Box<TextProperty<'a>>,
+        arguments: Vec<Argument<'a>>,
+    },
+    D {
+        source_text: Box<TextProperty<'a>>,
+        transform_type: u8,
+    },
+    E {
+        table_id: StringRef<'a>,
+        text_key: StringRef<'a>,
+    },
+    F {
+        has_culture_invariant_string: I32,
+        value: Option<StringRef<'a>>,
+    }
+}
+
+#[derive(Debug)]
+pub struct Argument<'a> {
+    pub name: StringRef<'a>,
+    pub value: ArgumentValue<'a>,
+}
+
+impl<'a> Argument<'a> {
+    pub fn parse(parser: &mut Parser<'a>) -> Result<Self> {
+        let name = parser.read_string()?;
+        let value_type = parser.read_u8()?;
+        let value = match value_type {
+            0 => {
+                let value = parser.read_i32()?;
+                let unknown = parser.read_i32()?;
+                ArgumentValue::A {
+                    value,
+                    unknown
+                }
+            }
+            4 => {
+                let value = TextProperty::parse(parser)?;
+                ArgumentValue::B {
+                    value,
+                }
+            }
+            _ => anyhow::bail!("unknown argument value type {}", value_type),
+        };
+
+        Ok(Self {
+            name,
+            value,
+        })
+    }
+}
+
+#[derive(Debug)]
+pub enum ArgumentValue<'a> {
+    A {
+        value: I32,
+        unknown: I32,
+    },
+    B {
+        value: TextProperty<'a>,
+    }
+}
+
+#[derive(Debug)]
 pub struct ArrayProperty<'a> {
     pub r#type: StringRef<'a>,
-    pub index: I32,
     pub data: ArrayPropertyElements<'a>,
 }
 
 impl<'a> ArrayProperty<'a> {
     pub fn parse(parser: &mut Parser<'a>) -> Result<Self> {
-        let binary_size = parser.read_i32()?;
-        let index = parser.read_i32()?;
         let r#type = parser.read_string()?;
-        let padding = parser.read_u8()?;
-        ensure!(padding == 0, "corrupted array property: invalid padding");
+        let _ = parser.read_u8()?;
 
-        let mut parser = parser.sub_parser(binary_size.get() as usize)?;
         let length = parser.read_i32()?.get() as usize;
-
         let typ = r#type.as_str();
-        dbg!(binary_size, typ, length);
 
         let data = match typ {
             "ByteProperty" => {
+                // TODO: if e.name == "mFogOfWarRawData"
+
                 let mut data = Vec::with_capacity(length);
                 for _i in 0..length {
                     let el = parser.read_u8()?;
@@ -341,7 +534,7 @@ impl<'a> ArrayProperty<'a> {
             "InterfaceProperty" => {
                 let mut data = Vec::with_capacity(length);
                 for _i in 0..length {
-                    let el = ObjectReference::parse(&mut parser)?;
+                    let el = ObjectReference::parse(parser)?;
                     data.push(el);
                 }
                 ArrayPropertyElements::Interface(data)
@@ -349,7 +542,7 @@ impl<'a> ArrayProperty<'a> {
             "ObjectProperty" => {
                 let mut data = Vec::with_capacity(length);
                 for _i in 0..length {
-                    let el = ObjectReference::parse(&mut parser)?;
+                    let el = ObjectReference::parse(parser)?;
                     data.push(el);
                 }
                 ArrayPropertyElements::Object(data)
@@ -387,10 +580,25 @@ impl<'a> ArrayProperty<'a> {
                 ArrayPropertyElements::Double(data)
             }
             "SoftObjectProperty" => {
-                todo!()
+                let mut data = Vec::with_capacity(length);
+                for _i in 0..length {
+                    let path_name = parser.read_string()?;
+                    let sub_path = parser.read_string()?;
+                    let el = SoftObject {
+                        path_name,
+                        sub_path,
+                    };
+                    data.push(el);
+                }
+                ArrayPropertyElements::SoftObject(data)
             }
             "TextProperty" => {
-                todo!()
+                let mut data = Vec::with_capacity(length);
+                for _i in 0..length {
+                    let el = TextProperty::parse(parser)?;
+                    data.push(el);
+                }
+                ArrayPropertyElements::Text(data)
             }
             "StructProperty" => {
                 let property_name = parser.read_string()?;
@@ -407,22 +615,28 @@ impl<'a> ArrayProperty<'a> {
                     parser.read_i32()?,
                     parser.read_i32()?,
                 ];
-                let padding = parser.read_u8()?;
-                ensure!(padding == 0, "invalid padding");
-                println!(
-                    "reading {} typed values {} {}",
-                    length,
-                    element_type.as_str(),
-                    binary_size
-                );
 
-                let mut value_space = parser.sub_parser(binary_size)?;
                 let mut values = Vec::with_capacity(length);
-                for _i in 0..length {
-                    let val = TypedData::parse(element_type.as_str(), &mut value_space)?;
-                    values.push(val);
+
+                if length > 0 {
+                    let padding = parser.read_u8()?;
+                    ensure!(padding == 0, "invalid padding");
+                    println!(
+                        "reading {} typed values {} {}",
+                        length,
+                        element_type.as_str(),
+                        binary_size
+                    );
+
+                    let mut value_space = parser.sub_parser(binary_size)?;
+
+                    for _i in 0..length {
+                        let val = TypedData::parse(element_type.as_str(), &mut value_space)?;
+                        values.push(val);
+                    }
+                    ensure!(!value_space.has_remaining(), "failed to parse full array");
                 }
-                ensure!(!value_space.has_remaining(), "failed to parse full array");
+
                 ArrayPropertyElements::Struct {
                     name: property_name,
                     r#type: property_type,
@@ -436,7 +650,6 @@ impl<'a> ArrayProperty<'a> {
         ensure!(!parser.has_remaining(), "failed to fully parse");
 
         Ok(Self {
-            index,
             r#type,
             data,
         })
@@ -455,6 +668,8 @@ pub enum ArrayPropertyElements<'a> {
     Int64(Vec<I64>),
     Float(Vec<F32>),
     Double(Vec<F64>),
+    SoftObject(Vec<SoftObject<'a>>),
+    Text(Vec<TextProperty<'a>>),
     Struct {
         name: StringRef<'a>,
         r#type: StringRef<'a>,
@@ -464,20 +679,57 @@ pub enum ArrayPropertyElements<'a> {
 }
 
 #[derive(Debug)]
+pub struct SoftObject<'a> {
+    path_name: StringRef<'a>,
+    sub_path: StringRef<'a>,
+}
+
+#[derive(Debug)]
 pub enum TypedData<'a> {
-    SpawnData(Properties<'a>),
+    InventoryItem {
+        item_name_level_name: StringRef<'a>,
+        item_name_path_name: StringRef<'a>,
+        item_state_level_name: StringRef<'a>,
+        item_state_path_name: StringRef<'a>,
+    },
+    Guid(Guid),
 }
 
 impl<'a> TypedData<'a> {
     pub fn parse(typ: &str, parser: &mut Parser<'a>) -> Result<Self> {
+        dbg!(typ);
         match typ {
-            "SpawnData" => {
-                // b"\t\0\0\0creature\0
-                //   \x0f\0\0\0ObjectProperty\0
-                //   \x08\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\n\0\0\0WasKilled\0
-                //   \r\0\0\0BoolProperty\0\0\0\0\0\0\0\0\0\0\0\x0f\0\0\0NumTimesKilled\0\x0c\0\0\0IntProperty\0\x04\0\0\0\0\0\0\0\0\0\0\0\0\x0e\0\0\0KilledOnDayNr\0\x0c\0\0\0IntProperty\0\x04\0\0\0\0\0\0\0\0\xff\xff\xff\xff\x05\0\0\0None\0"
-                let props = Properties::parse(parser)?;
-                Ok(Self::SpawnData(props))
+            "InventoryItem" => {
+                let item_name_level_name = parser.read_string()?;
+                let item_name_path_name = parser.read_string()?;
+                let item_state_level_name = parser.read_string()?;
+                let item_state_path_name = parser.read_string()?;
+
+                Ok(Self::InventoryItem {
+                    item_name_level_name,
+                    item_name_path_name,
+                    item_state_level_name,
+                    item_state_path_name,
+                })
+            }
+            "Guid" => {
+                let guid = parser.read_property_guid()?;
+                Ok(Self::Guid(guid))
+            }
+            "FINNetworkTrace" => {
+                todo!()
+            }
+            "Vector" => {
+                todo!()
+            }
+            "LinearColor" => {
+                todo!()
+            }
+            "FINGPUT1BufferPixel" => {
+                todo!()
+            }
+            "FINDynamicStructHolder" => {
+                todo!()
             }
             _ => anyhow::bail!("unknown typed data: {}", typ),
         }
@@ -494,41 +746,87 @@ impl<'a> Property<'a> {
             return Ok(Self::None);
         }
         let type_name = parser.read_string()?;
-        match dbg!(type_name.as_str()) {
-            "ArrayProperty" => {
-                let prop = ArrayProperty::parse(parser)?;
-                Ok(Self::Array(prop))
-            }
-            "ObjectProperty" => {
-                let binary_size = parser.read_i32()?;
-                let index = parser.read_i32()?;
-                let padding = parser.read_u8()?;
-                ensure!(padding == 0, "invalid padding");
-                let mut rest = parser.sub_parser(binary_size.get() as _)?;
-                let value = ObjectReference::parse(&mut rest)?;
-                ensure!(!rest.has_remaining(), "failed to read full property");
-                Ok(Self::Object { index, value })
-            }
-            "BoolProperty" => {
-                let padding = parser.read_i32()?;
-                ensure!(padding == 0, "invalid padding");
-                let index = parser.read_i32()?;
-                let value = parser.read_u8()?;
-                let padding = parser.read_u8()?;
-                ensure!(padding == 0, "invalid padding");
+        let binary_size = parser.read_i32()?;
+        let index = parser.read_i32()?;
 
+
+        let mut parser = parser.sub_parser(binary_size.get() as _)?;
+        let res = match dbg!(type_name.as_str()) {
+            "BoolProperty" => {
+                let _guid = parser.read_property_guid()?;
+                let value = parser.read_u8()?;
                 Ok(Self::Bool { index, value })
             }
+            "Int8Property" => {
+                let _guid = parser.read_property_guid()?;
+                let value = parser.read_u8()?;
+                Ok(Self::Int8 { index, value })
+            }
             "IntProperty" => {
-                let binary_size = parser.read_i32()?;
-                let index = parser.read_i32()?;
-                let padding = parser.read_u8()?;
-                ensure!(padding == 0, "invalid padding");
-                let mut rest = parser.sub_parser(binary_size.get() as _)?;
-                let value = rest.read_i32()?;
-                ensure!(!rest.has_remaining(), "failed to read full property");
-
+                let _guid = parser.read_property_guid()?;
+                let value = parser.read_i32()?;
                 Ok(Self::Int { index, value })
+            }
+            "UInt32Property" => {
+                let _guid = parser.read_property_guid()?;
+                let value = parser.read_u32()?;
+                Ok(Self::UInt32 { index, value })
+            }
+            "Int64Property" => {
+                let _guid = parser.read_property_guid()?;
+                let value = parser.read_i64()?;
+                Ok(Self::Int64 { index, value })
+            }
+            "UInt64Property" => {
+                let _guid = parser.read_property_guid()?;
+                let value = parser.read_u64()?;
+                Ok(Self::UInt64 { index, value })
+            }
+            "FloatProperty" => {
+                let _guid = parser.read_property_guid()?;
+                let value = parser.read_f32()?;
+                Ok(Self::Float { index, value })
+            }
+            "DoubleProperty" => {
+                let _guid = parser.read_property_guid()?;
+                let value = parser.read_f64()?;
+                Ok(Self::Double { index, value })
+            }
+            "StrProperty" | "NameProperty"=> {
+                let _guid = parser.read_property_guid()?;
+                let value = parser.read_string()?;
+                Ok(Self::String { index, value })
+            }
+            "ObjectProperty" | "InterfaceProperty" => {
+                let _guid = parser.read_property_guid()?;
+                let value = ObjectReference::parse(&mut parser)?;
+                Ok(Self::Object { index, value })
+            }
+            "EnumProperty" => {
+                let r#type = parser.read_string()?;
+                let _guid = parser.read_property_guid()?;
+                let value = parser.read_string()?;
+
+                Ok(Self::Enum { index, r#type, value })
+            }
+            "ByteProperty" => {
+                let name = parser.read_string()?;
+                let _guid = parser.read_property_guid()?;
+                let value = parser.read_string()?;
+                Ok(Self::Byte {
+                    index,
+                    name,
+                    value,
+                })
+            }
+            "TextProperty" => {
+                let _guid = parser.read_property_guid()?;
+                let value = TextProperty::parse(&mut parser)?;
+                Ok(Self::Text { index, value })
+            }
+            "ArrayProperty" => {
+                let prop = ArrayProperty::parse(&mut parser)?;
+                Ok(Self::Array(prop))
             }
             "StructProperty" => {
                 let binary_size = parser.read_i32()?;
@@ -538,15 +836,19 @@ impl<'a> Property<'a> {
                 ensure!(padding == 0, "invalid padding");
                 let padding = parser.read_i64()?;
                 ensure!(padding == 0, "invalid padding");
-                let padding = parser.read_i64()?;
+                let padding = parser.read_u8()?;
                 ensure!(padding == 0, "invalid padding");
                 let mut rest = parser.sub_parser(binary_size.get() as _)?;
-                let value = TypedData::parse(type_name.as_str(), &mut rest)?;
-                ensure!(!rest.has_remaining(), "failed to read full property");
-                Ok(Self::Struct { index, value })
+                todo!()
+                // let value = TypedData::parse(type_name.as_str(), &mut rest)?;
+                // ensure!(!rest.has_remaining(), "failed to read full property");
+                // Ok(Self::Struct { index, value })
             }
             name => todo!("{}", name),
-        }
+        };
+
+        ensure!(!parser.has_remaining(), "failed to read full property");
+        res
     }
 
     pub fn is_none(&self) -> bool {
@@ -575,6 +877,13 @@ pub enum ObjectHeader<'a> {
 }
 
 impl<'a> ObjectHeader<'a> {
+    fn type_path(&self) -> &StringRef<'a> {
+        match self {
+            Self::Component { type_path, .. } => type_path,
+            Self::Actor { type_path, .. } => type_path,
+        }
+    }
+
     pub fn parse(parser: &mut Parser<'a>) -> Result<Self> {
         let typ = parser.read_i32()?;
         match typ.get() {
@@ -618,8 +927,14 @@ impl<'a> ObjectHeader<'a> {
     }
 }
 
+#[derive(Debug)]
+pub struct ObjectProperty<'a> {
+    pub level_name: StringRef<'a>,
+    pub path_name: StringRef<'a>,
+}
+
 impl<'a> SaveFileBody<'a> {
-    pub fn parse(data: &'a [u8]) -> Result<Self> {
+    pub fn parse(header: &SaveFileHeader<'a>, data: &'a [u8]) -> Result<Self> {
         let mut parser = Parser::new(data);
         // Check that the size is correct
         let total_len = parser.read_i64()?;
@@ -675,9 +990,15 @@ impl<'a> SaveFileBody<'a> {
         let level_count = parser.read_i32()?.get() as usize;
         let mut levels = Vec::with_capacity(level_count + 1);
         for i in 0..=level_count {
-            let name = parser.read_string()?;
+            let name = if i == level_count {
+                // TODO: Add "Level " prefix
+                header.map_name.clone()
+            } else {
+                parser.read_string()?
+            };
             let binary_length = parser.read_i64()?;
             println!("level {:?}: {}bytes", name, binary_length);
+
             let mut level_parser = parser.sub_parser(binary_length.get() as usize)?;
 
             let object_header_count = level_parser.read_i32()?.get() as usize;
@@ -692,6 +1013,8 @@ impl<'a> SaveFileBody<'a> {
                 let object_header = ObjectHeader::parse(&mut level_parser)?;
                 object_headers.push(object_header);
             }
+
+            // TODO: could be missing
 
             let collectables_count = level_parser.read_i32()?.get() as usize;
             dbg!(collectables_count);
@@ -718,6 +1041,8 @@ impl<'a> SaveFileBody<'a> {
                 objects.push(object);
             }
 
+            ensure!(!level_parser.has_remaining(), "not fully read");
+
             let collectables_count_2 = parser.read_i32()?.get() as usize;
             let mut collectables_2 = Vec::with_capacity(collectables_count_2);
             println!(
@@ -725,10 +1050,9 @@ impl<'a> SaveFileBody<'a> {
                 i, collectables_count_2
             );
             for _j in 0..collectables_count_2 {
-                let collectable = ObjectReference::parse(&mut level_parser)?;
+                let collectable = ObjectReference::parse(&mut parser)?;
                 collectables_2.push(collectable);
             }
-            ensure!(!level_parser.has_remaining(), "not fully read");
 
             levels.push(Level {
                 name,
@@ -843,6 +1167,20 @@ impl<'a> Parser<'a> {
         Ok(out)
     }
 
+    fn read_u32(&mut self) -> Result<U32> {
+        let (out, _) = U32::read_from_prefix(&self.data[self.offset..])
+            .map_err(|e| anyhow::anyhow!(e.to_string()))?;
+        self.offset += 4;
+        Ok(out)
+    }
+
+    fn read_u64(&mut self) -> Result<U64> {
+        let (out, _) = U64::read_from_prefix(&self.data[self.offset..])
+            .map_err(|e| anyhow::anyhow!(e.to_string()))?;
+        self.offset += 8;
+        Ok(out)
+    }
+
     fn read_f32(&mut self) -> Result<F32> {
         let (out, _) = F32::read_from_prefix(&self.data[self.offset..])
             .map_err(|e| anyhow::anyhow!(e.to_string()))?;
@@ -875,9 +1213,10 @@ impl<'a> Parser<'a> {
     fn read_bytes(&mut self, len: usize) -> Result<&'a [u8]> {
         ensure!(
             self.remaining() >= len,
-            "too short: remaining: {}, wanted: {}",
+            "too short: remaining: {}, wanted: {} ({:?})",
             self.remaining(),
-            len
+            len,
+            std::str::from_utf8(&self.data[self.offset..]),
         );
         let res = &self.data[self.offset..self.offset + len];
         self.offset += len;
@@ -913,7 +1252,19 @@ impl<'a> Parser<'a> {
 
         Ok((a, b, c, d))
     }
+
+    fn read_property_guid(&mut self) -> Result<Option<Guid>> {
+        let b = self.read_u8()?;
+        if b == 1 {
+            let guid = self.read_bytes(16)?;
+            return Ok(Some(Guid(guid.try_into()?)));
+        }
+        Ok(None)
+    }
 }
+
+#[derive(Debug)]
+pub struct Guid([u8; 16]);
 
 impl<'a> SaveFileHeader<'a> {
     pub fn parse(parser: &mut Parser<'a>) -> Result<Self> {
@@ -973,7 +1324,7 @@ mod tests {
         assert_eq!(file_data.len(), save_game.uncompressed_len());
         dbg!(file_data.len(), save_game.uncompressed_len());
 
-        let body = SaveFileBody::parse(&file_data).unwrap();
+        let body = SaveFileBody::parse(&save_game.header, &file_data).unwrap();
         dbg!(&body);
 
         assert!(false);
