@@ -3035,12 +3035,14 @@ dependencies = [
  "flate2",
  "hex",
  "image",
+ "log",
  "petgraph",
  "serde",
  "serde_json",
  "strum",
  "syn 2.0.79",
  "wasm-bindgen-futures",
+ "web-sys",
  "zerocopy 0.8.6",
 ]
 

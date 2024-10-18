@@ -22,9 +22,11 @@ flate2 = { version = "1.0.34", features = ["zlib"] }
 derive_more = { version = "1.0.0", features = ["debug"] }
 hex = "0.4.3"
 zerocopy = { version = "0.8.0-alpha.26", features = ["derive"] }
+log = "0.4.22"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen-futures = "0.4"
+web-sys = "0.3.70"
 
 [profile.release]
 debug = true
