@@ -43,7 +43,7 @@ impl Viewer<'_> {
         &self,
         graph_idx: GraphIdx,
         b: &Building,
-        pin: &InPin,
+        input: usize,
         ui: &mut Ui,
         scale: f32,
         snarl: &Snarl,
@@ -62,7 +62,7 @@ impl Viewer<'_> {
                 unreachable!("Storage Container has no inputs")
             }
             Building::Packager(p) => {
-                if pin.id.input == 0 {
+                if input == 0 {
                     let max_input_speed =
                         p.recipe.map(|r| r.input_fluid_speed()).unwrap_or_default();
                     let fluid = p.input_fluid().map(Resource::Fluid);
@@ -79,12 +79,11 @@ impl Viewer<'_> {
                         actual_input_speed,
                         actual_input_fluid,
                         ui,
-                        pin,
                         scale,
                         snarl,
                         PinInfo::circle(),
                     )
-                } else if pin.id.input == 1 {
+                } else if input == 1 {
                     let max_input_speed = p
                         .recipe
                         .map(|r| r.input_material_speed())
@@ -103,7 +102,6 @@ impl Viewer<'_> {
                         actual_input_speed,
                         actual_input_material,
                         ui,
-                        pin,
                         scale,
                         snarl,
                         PinInfo::square(),
@@ -113,7 +111,7 @@ impl Viewer<'_> {
                 }
             }
             Building::Foundry(f) => {
-                if pin.id.input == 0 {
+                if input == 0 {
                     let max_input_speed = f
                         .recipe
                         .map(|r| r.input_material_speed().0)
@@ -132,12 +130,11 @@ impl Viewer<'_> {
                         actual_input_speed,
                         actual_input_material,
                         ui,
-                        pin,
                         scale,
                         snarl,
                         PinInfo::square(),
                     )
-                } else if pin.id.input == 1 {
+                } else if input == 1 {
                     let max_input_speed = f
                         .recipe
                         .map(|r| r.input_material_speed().1)
@@ -156,7 +153,6 @@ impl Viewer<'_> {
                         actual_input_speed,
                         actual_input_material,
                         ui,
-                        pin,
                         scale,
                         snarl,
                         PinInfo::square(),
@@ -166,7 +162,7 @@ impl Viewer<'_> {
                 }
             }
             Building::Assembler(f) => {
-                if pin.id.input == 0 {
+                if input == 0 {
                     let max_input_speed = f
                         .recipe
                         .map(|r| r.input_material_speed().0)
@@ -186,12 +182,11 @@ impl Viewer<'_> {
                         actual_input_speed,
                         actual_input_material,
                         ui,
-                        pin,
                         scale,
                         snarl,
                         PinInfo::square(),
                     )
-                } else if pin.id.input == 1 {
+                } else if input == 1 {
                     let max_input_speed = f
                         .recipe
                         .map(|r| r.input_material_speed().1)
@@ -210,7 +205,6 @@ impl Viewer<'_> {
                         actual_input_speed,
                         actual_input_material,
                         ui,
-                        pin,
                         scale,
                         snarl,
                         PinInfo::square(),
@@ -219,7 +213,7 @@ impl Viewer<'_> {
                     unreachable!("only two inputs");
                 }
             }
-            Building::Manufacturer(f) => match pin.id.input {
+            Building::Manufacturer(f) => match input {
                 0 => {
                     let max_input_speed = f
                         .recipe
@@ -239,7 +233,6 @@ impl Viewer<'_> {
                         actual_input_speed,
                         actual_input_material,
                         ui,
-                        pin,
                         scale,
                         snarl,
                         PinInfo::square(),
@@ -264,7 +257,6 @@ impl Viewer<'_> {
                         actual_input_speed,
                         actual_input_material,
                         ui,
-                        pin,
                         scale,
                         snarl,
                         PinInfo::square(),
@@ -289,7 +281,6 @@ impl Viewer<'_> {
                         actual_input_speed,
                         actual_input_material,
                         ui,
-                        pin,
                         scale,
                         snarl,
                         PinInfo::square(),
@@ -316,7 +307,6 @@ impl Viewer<'_> {
                         actual_input_speed,
                         actual_input_material,
                         ui,
-                        pin,
                         scale,
                         snarl,
                         PinInfo::square(),
@@ -325,7 +315,7 @@ impl Viewer<'_> {
                 _ => unreachable!("only four inputs"),
             },
             Building::Refinery(p) => {
-                if pin.id.input == 0 {
+                if input == 0 {
                     let max_input_speed =
                         p.recipe.map(|r| r.input_fluid_speed()).unwrap_or_default();
                     let fluid = p.input_fluid().map(Resource::Fluid);
@@ -341,12 +331,11 @@ impl Viewer<'_> {
                         actual_input_speed,
                         actual_input_fluid,
                         ui,
-                        pin,
                         scale,
                         snarl,
                         PinInfo::circle(),
                     )
-                } else if pin.id.input == 1 {
+                } else if input == 1 {
                     let max_input_speed = p
                         .recipe
                         .map(|r| r.input_material_speed())
@@ -365,7 +354,6 @@ impl Viewer<'_> {
                         actual_input_speed,
                         actual_input_material,
                         ui,
-                        pin,
                         scale,
                         snarl,
                         PinInfo::square(),
@@ -375,7 +363,7 @@ impl Viewer<'_> {
                 }
             }
             Building::Smelter(ref s) => {
-                assert_eq!(pin.id.input, 0, "Smelter node has only one input");
+                assert_eq!(input, 0, "Smelter node has only one input");
 
                 let material = s.input_material().map(Resource::Material);
                 let max_input_speed = s.input_speed();
@@ -391,7 +379,6 @@ impl Viewer<'_> {
                     actual_input_speed,
                     actual_input_material,
                     ui,
-                    pin,
                     scale,
                     snarl,
                     PinInfo::square(),
@@ -400,7 +387,7 @@ impl Viewer<'_> {
             Building::PipelineJunction(s) => {
                 // 4 inputs
 
-                let current_input = match pin.id.input {
+                let current_input = match input {
                     0 => &s.current_input_0,
                     1 => &s.current_input_1,
                     2 => &s.current_input_2,
@@ -421,7 +408,7 @@ impl Viewer<'_> {
                 PinInfo::circle().with_fill(color)
             }
             Building::Splitter(s) => {
-                assert_eq!(pin.id.input, 0, "Splitter node has only one input");
+                assert_eq!(input, 0, "Splitter node has only one input");
 
                 let (actual_input_speed, material) = match s.current_input {
                     Some(ref input) => (input.speed, Some(input.resource)),
@@ -443,7 +430,7 @@ impl Viewer<'_> {
             Building::Merger(m) => {
                 // 3 inputs
 
-                let current_input = match pin.id.input {
+                let current_input = match input {
                     0 => &m.current_input_0,
                     1 => &m.current_input_1,
                     2 => &m.current_input_2,
@@ -463,7 +450,7 @@ impl Viewer<'_> {
                 PinInfo::square().with_fill(color)
             }
             Building::Constructor(ref s) => {
-                assert_eq!(pin.id.input, 0, "Constructor node has only one input");
+                assert_eq!(input, 0, "Constructor node has only one input");
 
                 let material = s.input_material().map(Resource::Material);
                 let max_input_speed = s.input_speed();
@@ -481,14 +468,13 @@ impl Viewer<'_> {
                     actual_input_speed,
                     actual_input_material,
                     ui,
-                    pin,
                     scale,
                     snarl,
                     PinInfo::square(),
                 )
             }
             Building::AwesomeSink(ref s) => {
-                assert_eq!(pin.id.input, 0, "Awesome sink node has only one input");
+                assert_eq!(input, 0, "Awesome sink node has only one input");
 
                 let color = match s.current_input {
                     Some(ref input) => {
@@ -505,7 +491,7 @@ impl Viewer<'_> {
 
                 PinInfo::square().with_fill(color)
             }
-            Building::Blender(b) => match pin.id.input {
+            Building::Blender(b) => match input {
                 0 => {
                     let max_input_speed = b.recipe.map(|r| r.input_speed().0).unwrap_or_default();
                     let fluid = b.input_material().map(|b| Resource::Fluid(b.0));
@@ -522,7 +508,6 @@ impl Viewer<'_> {
                         actual_input_speed,
                         actual_input_fluid,
                         ui,
-                        pin,
                         scale,
                         snarl,
                         PinInfo::circle(),
@@ -544,7 +529,6 @@ impl Viewer<'_> {
                         actual_input_speed,
                         actual_input_fluid,
                         ui,
-                        pin,
                         scale,
                         snarl,
                         PinInfo::circle(),
@@ -567,7 +551,6 @@ impl Viewer<'_> {
                         actual_input_speed,
                         actual_input_material,
                         ui,
-                        pin,
                         scale,
                         snarl,
                         PinInfo::square(),
@@ -590,7 +573,6 @@ impl Viewer<'_> {
                         actual_input_speed,
                         actual_input_material,
                         ui,
-                        pin,
                         scale,
                         snarl,
                         PinInfo::square(),
@@ -598,7 +580,7 @@ impl Viewer<'_> {
                 }
                 _ => unreachable!("4 inputs"),
             },
-            Building::ParticleAccelerator(b) => match pin.id.input {
+            Building::ParticleAccelerator(b) => match input {
                 0 => {
                     let max_input_speed = b.recipe.map(|r| r.input_speed().0).unwrap_or_default();
                     let fluid = b.input_material().and_then(|b| b.0).map(Resource::Fluid);
@@ -615,7 +597,6 @@ impl Viewer<'_> {
                         actual_input_speed,
                         actual_input_fluid,
                         ui,
-                        pin,
                         scale,
                         snarl,
                         PinInfo::circle(),
@@ -638,7 +619,6 @@ impl Viewer<'_> {
                         actual_input_speed,
                         actual_input_material,
                         ui,
-                        pin,
                         scale,
                         snarl,
                         PinInfo::square(),
@@ -661,7 +641,6 @@ impl Viewer<'_> {
                         actual_input_speed,
                         actual_input_material,
                         ui,
-                        pin,
                         scale,
                         snarl,
                         PinInfo::square(),
@@ -669,7 +648,7 @@ impl Viewer<'_> {
                 }
                 _ => unreachable!("3 inputs"),
             },
-            Building::QuantumEncoder(b) => match pin.id.input {
+            Building::QuantumEncoder(b) => match input {
                 0 => {
                     let max_input_speed = b.recipe.map(|r| r.input_speed().0).unwrap_or_default();
                     let fluid = b.input_material().map(|b| Resource::Fluid(b.0));
@@ -686,7 +665,6 @@ impl Viewer<'_> {
                         actual_input_speed,
                         actual_input_fluid,
                         ui,
-                        pin,
                         scale,
                         snarl,
                         PinInfo::circle(),
@@ -709,7 +687,6 @@ impl Viewer<'_> {
                         actual_input_speed,
                         actual_input_material,
                         ui,
-                        pin,
                         scale,
                         snarl,
                         PinInfo::square(),
@@ -732,7 +709,6 @@ impl Viewer<'_> {
                         actual_input_speed,
                         actual_input_material,
                         ui,
-                        pin,
                         scale,
                         snarl,
                         PinInfo::square(),
@@ -755,7 +731,6 @@ impl Viewer<'_> {
                         actual_input_speed,
                         actual_input_material,
                         ui,
-                        pin,
                         scale,
                         snarl,
                         PinInfo::square(),
@@ -763,7 +738,7 @@ impl Viewer<'_> {
                 }
                 _ => unreachable!("4 inputs"),
             },
-            Building::Converter(b) => match pin.id.input {
+            Building::Converter(b) => match input {
                 0 => {
                     let max_input_speed = b.recipe.map(|r| r.input_speed().0).unwrap_or_default();
                     let material = b.input_material().and_then(|b| b.0).map(Resource::Material);
@@ -781,7 +756,6 @@ impl Viewer<'_> {
                         actual_input_speed,
                         actual_input_material,
                         ui,
-                        pin,
                         scale,
                         snarl,
                         PinInfo::square(),
@@ -804,7 +778,6 @@ impl Viewer<'_> {
                         actual_input_speed,
                         actual_input_material,
                         ui,
-                        pin,
                         scale,
                         snarl,
                         PinInfo::square(),
@@ -908,164 +881,162 @@ impl SnarlViewer<GraphIdx> for Viewer<'_> {
         let graph_idx = snarl[node];
         let node = self.graph.node_weight_mut(graph_idx).unwrap();
 
-        ui.vertical(|ui| {
-            match node {
-                Node::Group { snarl, .. } => {
-                    todo!()
-                    // for node in snarl.nodes() {
-                    //     ui.horizontal(|ui| {
-                    //         let x = 25. * scale;
-                    //         if let Some(img) = node.header_image() {
-                    //             let image = egui::Image::new(img)
-                    //                 .fit_to_exact_size(vec2(x, x))
-                    //                 .show_loading_spinner(true);
-                    //             ui.add(image);
-                    //         } else {
-                    //             ui.add_space(x);
-                    //         }
-                    //         ui.add_space(5. * scale);
-                    //         ui.label(node.name());
-                    //     });
-                    //     ui.add_space(5. * scale);
-                    // }
+        ui.vertical(|ui| match node {
+            Node::Group { snarl, graph, .. } => {
+                for node_idx in snarl.nodes() {
+                    let node = &graph[*node_idx];
+                    ui.horizontal(|ui| {
+                        let x = 25. * scale;
+                        if let Some(img) = node.header_image() {
+                            let image = egui::Image::new(img)
+                                .fit_to_exact_size(vec2(x, x))
+                                .show_loading_spinner(true);
+                            ui.add(image);
+                        } else {
+                            ui.add_space(x);
+                        }
+                        ui.add_space(5. * scale);
+                        ui.label(node.name());
+                    });
+                    ui.add_space(5. * scale);
                 }
-                Node::Building(b) => match b {
-                    Building::Miner(m) => {
-                        changed |= resource_selector(ui, scale, &mut m.resource).changed;
-                        ui.add_space(10.0 * scale);
-
-                        changed |= level_selector(ui, scale, &mut m.level).changed;
-                        ui.add_space(10.0 * scale);
-
-                        changed |= purity_selector(ui, scale, &mut m.resource_purity).changed;
-                        ui.add_space(10.0 * scale);
-
-                        changed |= add_speed_ui(ui, &mut m.speed).changed;
-                    }
-                    Building::OilExtractor(m) => {
-                        changed |= pipe_selector(ui, scale, &mut m.output_pipe).changed;
-                        ui.add_space(10.0 * scale);
-
-                        changed |= purity_selector(ui, scale, &mut m.resource_purity).changed;
-                        ui.add_space(10.0 * scale);
-
-                        changed |= add_speed_ui(ui, &mut m.speed).changed;
-                    }
-                    Building::Packager(p) => {
-                        changed |= packager_recipe_selector(ui, scale, &mut p.recipe).changed;
-                        ui.add_space(10.0 * scale);
-
-                        changed |= add_speed_ui(ui, &mut p.speed).changed;
-                    }
-                    Building::Foundry(f) => {
-                        changed |= foundry_recipe_selector(ui, scale, &mut f.recipe).changed;
-                        ui.add_space(10.0 * scale);
-
-                        changed |= add_speed_ui(ui, &mut f.speed).changed;
-                        ui.add_space(10.0 * scale);
-
-                        changed |= add_somersloop2_ui(ui, &mut f.amplified).changed;
-                    }
-                    Building::Assembler(f) => {
-                        changed |= assembler_recipe_selector(ui, scale, &mut f.recipe).changed;
-                        ui.add_space(10.0 * scale);
-
-                        changed |= add_speed_ui(ui, &mut f.speed).changed;
-
-                        ui.add_space(10.0 * scale);
-                        changed |= add_somersloop2_ui(ui, &mut f.amplified).changed;
-                    }
-                    Building::Manufacturer(f) => {
-                        changed |= manufacturer_recipe_selector(ui, scale, &mut f.recipe).changed;
-                        ui.add_space(10.0 * scale);
-
-                        changed |= add_speed_ui(ui, &mut f.speed).changed;
-                        ui.add_space(10.0 * scale);
-
-                        changed |= add_somersloop4_ui(ui, &mut f.amplified).changed;
-                    }
-                    Building::Refinery(p) => {
-                        changed |= refinery_recipe_selector(ui, scale, &mut p.recipe).changed;
-                        ui.add_space(10.0 * scale);
-
-                        changed |= add_speed_ui(ui, &mut p.speed).changed;
-                        ui.add_space(10.0 * scale);
-
-                        changed |= add_somersloop2_ui(ui, &mut p.amplified).changed;
-                    }
-                    Building::WaterExtractor(m) => {
-                        changed |= pipe_selector(ui, scale, &mut m.output_pipe).changed;
-                        ui.add_space(10.0 * scale);
-
-                        changed |= add_speed_ui(ui, &mut m.speed).changed;
-                    }
-                    Building::StorageContainer(s) => {
-                        changed |= material_selector(ui, scale, &mut s.material).changed;
-                        ui.add_space(10.0 * scale);
-
-                        changed |= belt_selector(ui, scale, &mut s.output_belt).changed;
-                    }
-                    Building::Smelter(s) => {
-                        changed |= smelter_recipe_selector(ui, scale, &mut s.recipe).changed;
-                        ui.add_space(10.0 * scale);
-
-                        changed |= add_speed_ui(ui, &mut s.speed).changed;
-                        ui.add_space(10.0 * scale);
-
-                        changed |= add_somersloop1_ui(ui, &mut s.amplified).changed;
-                    }
-                    Building::PipelineJunction(_) => {}
-                    Building::Splitter(_) => {}
-                    Building::Merger(_) => {}
-                    Building::AwesomeSink(_) => {}
-                    Building::Constructor(s) => {
-                        changed |= constructor_recipe_selector(ui, scale, &mut s.recipe).changed;
-                        ui.add_space(10.0 * scale);
-
-                        changed |= add_speed_ui(ui, &mut s.speed).changed;
-                        ui.add_space(10.0 * scale);
-
-                        changed |= add_somersloop1_ui(ui, &mut s.amplified).changed;
-                    }
-                    Building::Blender(b) => {
-                        changed |= blender_recipe_selector(ui, scale, &mut b.recipe).changed;
-                        ui.add_space(10.0 * scale);
-
-                        changed |= add_speed_ui(ui, &mut b.speed).changed;
-                        ui.add_space(10.0 * scale);
-
-                        changed |= add_somersloop4_ui(ui, &mut b.amplified).changed;
-                    }
-                    Building::ParticleAccelerator(b) => {
-                        changed |=
-                            particle_accelerator_recipe_selector(ui, scale, &mut b.recipe).changed;
-                        ui.add_space(10.0 * scale);
-
-                        changed |= add_speed_ui(ui, &mut b.speed).changed;
-                        ui.add_space(10.0 * scale);
-
-                        changed |= add_somersloop4_ui(ui, &mut b.amplified).changed;
-                    }
-                    Building::QuantumEncoder(b) => {
-                        changed |= general_selector(ui, scale, &mut b.recipe).changed;
-                        ui.add_space(10.0 * scale);
-
-                        changed |= add_speed_ui(ui, &mut b.speed).changed;
-                        ui.add_space(10.0 * scale);
-
-                        changed |= add_somersloop4_ui(ui, &mut b.amplified).changed;
-                    }
-                    Building::Converter(b) => {
-                        changed |= general_selector(ui, scale, &mut b.recipe).changed;
-                        ui.add_space(10.0 * scale);
-
-                        changed |= add_speed_ui(ui, &mut b.speed).changed;
-                        ui.add_space(10.0 * scale);
-
-                        changed |= add_somersloop2_ui(ui, &mut b.amplified).changed;
-                    }
-                },
             }
+            Node::Building(b) => match b {
+                Building::Miner(m) => {
+                    changed |= resource_selector(ui, scale, &mut m.resource).changed;
+                    ui.add_space(10.0 * scale);
+
+                    changed |= level_selector(ui, scale, &mut m.level).changed;
+                    ui.add_space(10.0 * scale);
+
+                    changed |= purity_selector(ui, scale, &mut m.resource_purity).changed;
+                    ui.add_space(10.0 * scale);
+
+                    changed |= add_speed_ui(ui, &mut m.speed).changed;
+                }
+                Building::OilExtractor(m) => {
+                    changed |= pipe_selector(ui, scale, &mut m.output_pipe).changed;
+                    ui.add_space(10.0 * scale);
+
+                    changed |= purity_selector(ui, scale, &mut m.resource_purity).changed;
+                    ui.add_space(10.0 * scale);
+
+                    changed |= add_speed_ui(ui, &mut m.speed).changed;
+                }
+                Building::Packager(p) => {
+                    changed |= packager_recipe_selector(ui, scale, &mut p.recipe).changed;
+                    ui.add_space(10.0 * scale);
+
+                    changed |= add_speed_ui(ui, &mut p.speed).changed;
+                }
+                Building::Foundry(f) => {
+                    changed |= foundry_recipe_selector(ui, scale, &mut f.recipe).changed;
+                    ui.add_space(10.0 * scale);
+
+                    changed |= add_speed_ui(ui, &mut f.speed).changed;
+                    ui.add_space(10.0 * scale);
+
+                    changed |= add_somersloop2_ui(ui, &mut f.amplified).changed;
+                }
+                Building::Assembler(f) => {
+                    changed |= assembler_recipe_selector(ui, scale, &mut f.recipe).changed;
+                    ui.add_space(10.0 * scale);
+
+                    changed |= add_speed_ui(ui, &mut f.speed).changed;
+
+                    ui.add_space(10.0 * scale);
+                    changed |= add_somersloop2_ui(ui, &mut f.amplified).changed;
+                }
+                Building::Manufacturer(f) => {
+                    changed |= manufacturer_recipe_selector(ui, scale, &mut f.recipe).changed;
+                    ui.add_space(10.0 * scale);
+
+                    changed |= add_speed_ui(ui, &mut f.speed).changed;
+                    ui.add_space(10.0 * scale);
+
+                    changed |= add_somersloop4_ui(ui, &mut f.amplified).changed;
+                }
+                Building::Refinery(p) => {
+                    changed |= refinery_recipe_selector(ui, scale, &mut p.recipe).changed;
+                    ui.add_space(10.0 * scale);
+
+                    changed |= add_speed_ui(ui, &mut p.speed).changed;
+                    ui.add_space(10.0 * scale);
+
+                    changed |= add_somersloop2_ui(ui, &mut p.amplified).changed;
+                }
+                Building::WaterExtractor(m) => {
+                    changed |= pipe_selector(ui, scale, &mut m.output_pipe).changed;
+                    ui.add_space(10.0 * scale);
+
+                    changed |= add_speed_ui(ui, &mut m.speed).changed;
+                }
+                Building::StorageContainer(s) => {
+                    changed |= material_selector(ui, scale, &mut s.material).changed;
+                    ui.add_space(10.0 * scale);
+
+                    changed |= belt_selector(ui, scale, &mut s.output_belt).changed;
+                }
+                Building::Smelter(s) => {
+                    changed |= smelter_recipe_selector(ui, scale, &mut s.recipe).changed;
+                    ui.add_space(10.0 * scale);
+
+                    changed |= add_speed_ui(ui, &mut s.speed).changed;
+                    ui.add_space(10.0 * scale);
+
+                    changed |= add_somersloop1_ui(ui, &mut s.amplified).changed;
+                }
+                Building::PipelineJunction(_) => {}
+                Building::Splitter(_) => {}
+                Building::Merger(_) => {}
+                Building::AwesomeSink(_) => {}
+                Building::Constructor(s) => {
+                    changed |= constructor_recipe_selector(ui, scale, &mut s.recipe).changed;
+                    ui.add_space(10.0 * scale);
+
+                    changed |= add_speed_ui(ui, &mut s.speed).changed;
+                    ui.add_space(10.0 * scale);
+
+                    changed |= add_somersloop1_ui(ui, &mut s.amplified).changed;
+                }
+                Building::Blender(b) => {
+                    changed |= blender_recipe_selector(ui, scale, &mut b.recipe).changed;
+                    ui.add_space(10.0 * scale);
+
+                    changed |= add_speed_ui(ui, &mut b.speed).changed;
+                    ui.add_space(10.0 * scale);
+
+                    changed |= add_somersloop4_ui(ui, &mut b.amplified).changed;
+                }
+                Building::ParticleAccelerator(b) => {
+                    changed |=
+                        particle_accelerator_recipe_selector(ui, scale, &mut b.recipe).changed;
+                    ui.add_space(10.0 * scale);
+
+                    changed |= add_speed_ui(ui, &mut b.speed).changed;
+                    ui.add_space(10.0 * scale);
+
+                    changed |= add_somersloop4_ui(ui, &mut b.amplified).changed;
+                }
+                Building::QuantumEncoder(b) => {
+                    changed |= general_selector(ui, scale, &mut b.recipe).changed;
+                    ui.add_space(10.0 * scale);
+
+                    changed |= add_speed_ui(ui, &mut b.speed).changed;
+                    ui.add_space(10.0 * scale);
+
+                    changed |= add_somersloop4_ui(ui, &mut b.amplified).changed;
+                }
+                Building::Converter(b) => {
+                    changed |= general_selector(ui, scale, &mut b.recipe).changed;
+                    ui.add_space(10.0 * scale);
+
+                    changed |= add_speed_ui(ui, &mut b.speed).changed;
+                    ui.add_space(10.0 * scale);
+
+                    changed |= add_somersloop2_ui(ui, &mut b.amplified).changed;
+                }
+            },
         });
 
         if changed {
@@ -1207,30 +1178,26 @@ impl SnarlViewer<GraphIdx> for Viewer<'_> {
         let graph_idx = snarl[pin.id.node];
         let node = self.graph.node_weight(graph_idx).unwrap();
         match node {
-            Node::Group { ref snarl, .. } => {
-                // let mut counter = 0;
-                // let mut building = None;
+            Node::Group {
+                ref snarl,
+                graph,
+                inputs,
+                ..
+            } => {
+                let (node_id, node_idx, input_id, current_input) = &inputs[pin.id.input];
 
-                todo!()
-                // for b in snarl.nodes() {
-                //     counter += b.inputs();
-                //     if b.inputs() > 0 && counter > pin.id.input {
-                //         building = Some((b, counter - pin.id.input - 1));
-                //         break;
-                //     }
-                // }
-                // let (building, output_id) = building.unwrap();
+                let building = graph.node_weight(*node_idx).unwrap();
 
-                // let mut fake_pin = pin.clone();
-                // fake_pin.id.input = output_id;
+                let building = match building {
+                    Node::Building(b) => b,
+                    Node::Group { .. } => todo!("nested groups are not supported yet"),
+                };
 
-                // let building = match building {
-                //     Node::Building(b) => b,
-                //     Node::Group { .. } => todo!("nested groups are not supported yet"),
-                // };
-                // self.show_input_building(building, &fake_pin, ui, scale, snarl)
+                self.show_input_building(*node_idx, building, *input_id, ui, scale, snarl)
             }
-            Node::Building(ref b) => self.show_input_building(graph_idx, b, pin, ui, scale, snarl),
+            Node::Building(ref b) => {
+                self.show_input_building(graph_idx, b, pin.id.input, ui, scale, snarl)
+            }
         }
     }
 
@@ -1645,42 +1612,70 @@ impl SnarlViewer<GraphIdx> for Viewer<'_> {
                             let mut buildings = Snarl::new();
                             let mut sub_graph = NodeGraph::default();
                             let mut to_remove = Vec::new();
-                            let mut num_inputs = 0;
-                            let mut num_outputs = 0;
+                            let mut inputs = vec![];
+                            let mut outputs = vec![];
+
+                            let mut graph_idx_map = HashMap::new();
+
                             for (id, graph_idx) in selected {
                                 let node = self.graph.node_weight(*graph_idx).unwrap();
                                 let info = snarl.get_node_info(id).unwrap();
-                                num_outputs += node.outputs();
-                                num_inputs += node.inputs();
                                 let new_graph_idx = sub_graph.add_node(node.clone());
                                 buildings.insert_node(info.pos, new_graph_idx);
+                                graph_idx_map.insert(graph_idx, new_graph_idx);
+
+                                for i in 0..node.outputs() {
+                                    outputs.push((id, new_graph_idx, i, node.current_output(i)));
+                                }
+                                for i in 0..node.inputs() {
+                                    inputs.push((id, new_graph_idx, i, node.current_input(i)));
+                                }
+
                                 to_remove.push((id, *graph_idx));
                             }
-                            // copy wires
-                            // TODO
-                            // let mut connections = Vec::new();
-                            // for (output, input) in snarl.wires() {
-                            //     if to_remove.contains(&output.node)
-                            //         && to_remove.contains(&input.node)
-                            //     {
-                            //         num_inputs -= 1;
-                            //         num_outputs -= 1;
-                            //         connections.push((output, input));
-                            //     }
-                            // }
 
-                            // for id in to_remove {
-                            //     snarl.remove_node(id);
-                            // }
-                            // for (output, input) in connections {
-                            //     buildings.connect(output, input);
-                            // }
+                            // copy wires
+                            let mut connections = Vec::new();
+                            for (node_id_a, idx_a) in &to_remove {
+                                for (node_id_b, idx_b) in &to_remove {
+                                    for edge in self.graph.edges_connecting(*idx_a, *idx_b) {
+                                        connections.push((
+                                            *node_id_a,
+                                            *node_id_b,
+                                            *idx_a,
+                                            *idx_b,
+                                            edge.id(),
+                                        ));
+                                    }
+                                }
+                            }
+
+                            for (node_id_a, node_id_b, idx_a, idx_b, edge_id) in connections {
+                                let new_idx_a = graph_idx_map.get(&idx_a).unwrap();
+                                let new_idx_b = graph_idx_map.get(&idx_b).unwrap();
+                                let edge_details = self.graph.edge_weight(edge_id).unwrap();
+                                sub_graph.add_edge(*new_idx_a, *new_idx_b, edge_details.clone());
+
+                                let wire = snarl
+                                    .wires()
+                                    .find(|(input, output)| {
+                                        output.node == node_id_a && input.node == node_id_b
+                                    })
+                                    .unwrap();
+                                buildings.connect(wire.0, wire.1);
+                            }
+
+                            // Remove nodes from snarl and the graph;
+                            for (id, graph_idx) in &to_remove {
+                                snarl.remove_node(*id);
+                                self.graph.remove_node(*graph_idx);
+                            }
 
                             let node = Node::Group {
                                 graph: sub_graph,
                                 snarl: buildings,
-                                num_inputs,
-                                num_outputs,
+                                inputs,
+                                outputs,
                             };
                             let graph_idx = self.graph.add_node(node);
                             snarl.insert_node(pos, graph_idx);
@@ -1851,7 +1846,7 @@ fn general_selector<S: Selectable>(ui: &mut Ui, scale: f32, resource: &mut Optio
             None => format!("Select {}", S::NAME),
         };
 
-        let r = egui::ComboBox::from_id_source(egui::Id::new(format!("{}_resource", S::NAME)))
+        let r = egui::ComboBox::from_id_salt(egui::Id::new(format!("{}_resource", S::NAME)))
             .selected_text(text)
             .show_ui(ui, |ui| {
                 S::VARIANTS
@@ -1980,7 +1975,6 @@ fn single_input(
     actual_input_speed: f32,
     actual_input_material: Option<Resource>,
     ui: &mut Ui,
-    pin: &InPin,
     scale: f32,
     snarl: &Snarl,
     pin_info: PinInfo,
@@ -2084,7 +2078,7 @@ fn material_output(
 }
 
 fn add_somersloop1_ui(ui: &mut Ui, amplified: &mut SomersloopSlot1) -> Response {
-    let r = egui::ComboBox::from_id_source(egui::Id::new("amplification1"))
+    let r = egui::ComboBox::from_id_salt(egui::Id::new("amplification1"))
         .selected_text(amplified.name())
         .show_ui(ui, |ui| {
             SomersloopSlot1::VARIANTS
@@ -2100,7 +2094,7 @@ fn add_somersloop1_ui(ui: &mut Ui, amplified: &mut SomersloopSlot1) -> Response 
 }
 
 fn add_somersloop2_ui(ui: &mut Ui, amplified: &mut SomersloopSlot2) -> Response {
-    let r = egui::ComboBox::from_id_source(egui::Id::new("amplification2"))
+    let r = egui::ComboBox::from_id_salt(egui::Id::new("amplification2"))
         .selected_text(amplified.name())
         .show_ui(ui, |ui| {
             SomersloopSlot2::VARIANTS
@@ -2116,7 +2110,7 @@ fn add_somersloop2_ui(ui: &mut Ui, amplified: &mut SomersloopSlot2) -> Response 
 }
 
 fn add_somersloop4_ui(ui: &mut Ui, amplified: &mut SomersloopSlot4) -> Response {
-    let r = egui::ComboBox::from_id_source(egui::Id::new("amplification4"))
+    let r = egui::ComboBox::from_id_salt(egui::Id::new("amplification4"))
         .selected_text(amplified.name())
         .show_ui(ui, |ui| {
             SomersloopSlot4::VARIANTS

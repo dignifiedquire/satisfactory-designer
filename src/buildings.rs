@@ -20,7 +20,7 @@ mod splitter;
 mod storage_container;
 mod water_extractor;
 
-use crate::node::Output;
+use crate::node::{Input, Output};
 use crate::util::load_img;
 
 pub use self::assembler::{Assembler, AssemblerRecipe};
@@ -968,6 +968,104 @@ impl Building {
                 0 => c.current_output_fluid(),
                 1 => c.current_output_material(),
                 _ => unreachable!("2 outputs"),
+            },
+        }
+    }
+
+    pub fn current_input(&self, input_id: usize) -> Option<Input> {
+        match self {
+            Self::Miner(_) => {
+                unreachable!("no inputs");
+            }
+            Self::Smelter(s) => {
+                assert_eq!(input_id, 0, "1 input");
+                s.current_input.clone()
+            }
+            Self::Constructor(c) => {
+                assert_eq!(input_id, 0, "1 input");
+                c.current_input.clone()
+            }
+            Self::StorageContainer(_) => {
+                unreachable!("no inputs");
+            }
+            Self::WaterExtractor(_) => {
+                unreachable!("no inputs");
+            }
+            Self::OilExtractor(_) => {
+                unreachable!("no inputs");
+            }
+            Self::Packager(p) => match input_id {
+                0 => p.current_input_fluid.clone(),
+                1 => p.current_input_material.clone(),
+                _ => unreachable!("2 inputs"),
+            },
+            Self::Refinery(r) => match input_id {
+                0 => r.current_input_fluid.clone(),
+                1 => r.current_input_material.clone(),
+                _ => unreachable!("2 inputs"),
+            },
+            Self::Foundry(f) => match input_id {
+                0 => f.current_input_material_0.clone(),
+                1 => f.current_input_material_1.clone(),
+                _ => unreachable!("2 inputs"),
+            },
+            Self::Assembler(a) => match input_id {
+                0 => a.current_input_material_0.clone(),
+                1 => a.current_input_material_1.clone(),
+                _ => unreachable!("2 inputs"),
+            },
+            Self::Manufacturer(m) => match input_id {
+                0 => m.current_input_material_0.clone(),
+                1 => m.current_input_material_1.clone(),
+                2 => m.current_input_material_2.clone(),
+                3 => m.current_input_material_3.clone(),
+                _ => unreachable!("4 inputs"),
+            },
+            Self::Splitter(s) => {
+                assert_eq!(input_id, 0, "1 input");
+                s.current_input.clone()
+            }
+            Self::Merger(m) => match input_id {
+                0 => m.current_input_0.clone(),
+                1 => m.current_input_1.clone(),
+                2 => m.current_input_2.clone(),
+                _ => unreachable!("3 inputs"),
+            },
+            Self::PipelineJunction(s) => match input_id {
+                0 => s.current_input_0.clone(),
+                1 => s.current_input_1.clone(),
+                2 => s.current_input_2.clone(),
+                3 => s.current_input_3.clone(),
+                _ => unreachable!("3 inputs"),
+            },
+            Self::AwesomeSink(s) => {
+                assert_eq!(input_id, 0, "1 input");
+                s.current_input.clone()
+            }
+            Self::Blender(b) => match input_id {
+                0 => b.current_input_fluid_0.clone(),
+                1 => b.current_input_fluid_1.clone(),
+                2 => b.current_input_material_0.clone(),
+                3 => b.current_input_material_1.clone(),
+                _ => unreachable!("4 inputs"),
+            },
+            Self::ParticleAccelerator(b) => match input_id {
+                0 => b.current_input_fluid_0.clone(),
+                1 => b.current_input_material_0.clone(),
+                2 => b.current_input_material_1.clone(),
+                _ => unreachable!("3 inputs"),
+            },
+            Self::QuantumEncoder(q) => match input_id {
+                0 => q.current_input_fluid_0.clone(),
+                1 => q.current_input_material_0.clone(),
+                2 => q.current_input_material_1.clone(),
+                3 => q.current_input_material_2.clone(),
+                _ => unreachable!("4 inputs"),
+            },
+            Self::Converter(c) => match input_id {
+                0 => c.current_input_material_0.clone(),
+                1 => c.current_input_material_1.clone(),
+                _ => unreachable!("2 inputs"),
             },
         }
     }

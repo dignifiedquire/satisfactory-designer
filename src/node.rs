@@ -3,6 +3,7 @@ use crate::{
     buildings::{Building, Fluid, Material, Selectable},
 };
 use egui::Color32;
+use petgraph::prelude::NodeIndex;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
@@ -11,10 +12,8 @@ pub enum Node {
     Group {
         snarl: Snarl,
         graph: NodeGraph,
-        /// Number of open inputs
-        num_inputs: usize,
-        /// Number of open outputs
-        num_outputs: usize,
+        inputs: Vec<(egui_snarl::NodeId, NodeIndex, usize, Option<Input>)>,
+        outputs: Vec<(egui_snarl::NodeId, NodeIndex, usize, Option<Output>)>,
     },
 }
 
@@ -47,14 +46,14 @@ impl Node {
     pub fn inputs(&self) -> usize {
         match self {
             Self::Building(b) => b.inputs(),
-            Self::Group { num_inputs, .. } => *num_inputs,
+            Self::Group { inputs, .. } => inputs.len(),
         }
     }
 
     pub fn outputs(&self) -> usize {
         match self {
             Self::Building(b) => b.outputs(),
-            Self::Group { num_outputs, .. } => *num_outputs,
+            Self::Group { outputs, .. } => outputs.len(),
         }
     }
 
@@ -78,8 +77,19 @@ impl Node {
 
     pub fn current_output(&self, output_id: usize) -> Option<Output> {
         match self {
-            Self::Group { .. } => None,
+            Self::Group { outputs, .. } => outputs
+                .get(output_id)
+                .and_then(|(_, _, _, output)| output.clone()),
             Self::Building(b) => b.current_output(output_id),
+        }
+    }
+
+    pub fn current_input(&self, input_id: usize) -> Option<Input> {
+        match self {
+            Self::Group { inputs, .. } => inputs
+                .get(input_id)
+                .and_then(|(_, _, _, input)| input.clone()),
+            Self::Building(b) => b.current_input(input_id),
         }
     }
 
