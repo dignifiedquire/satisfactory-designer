@@ -12,9 +12,7 @@ use strum::VariantArray;
 use crate::{
     app::{EdgeDetails, GraphIdx, GroupEdit, NodeGraph, Snarl},
     buildings::{
-        AssemblerRecipe, Belt, BlenderRecipe, Building, ConstructorRecipe, Fluid, FoundryRecipe,
-        ManufacturerRecipe, Material, MinerLevel, PackagerRecipe, ParticleAcceleratorRecipe, Pipe,
-        RefineryRecipe, ResourcePurity, ResourceType, Selectable, SmelterRecipe, SomersloopSlot1,
+        Building, Fluid, Material, MinerLevel, Pipe, ResourcePurity, Selectable, SomersloopSlot1,
         SomersloopSlot2, SomersloopSlot4,
     },
     node::{Node, Output, Resource},
@@ -34,7 +32,6 @@ pub struct Viewer<'a> {
 impl Viewer<'_> {
     fn show_input_building(
         &self,
-        graph_idx: GraphIdx,
         b: &Building,
         input: usize,
         ui: &mut Ui,
@@ -787,7 +784,7 @@ impl Viewer<'_> {
         output: usize,
         ui: &mut Ui,
         scale: f32,
-        snarl: &Snarl,
+        _snarl: &Snarl,
     ) -> PinInfo {
         match b {
             Building::Miner(m) => {
@@ -1228,7 +1225,7 @@ impl SnarlViewer<GraphIdx> for Viewer<'_> {
             }
             Node::Building(b) => match b {
                 Building::Miner(m) => {
-                    changed |= resource_selector(ui, scale, &mut m.resource).changed;
+                    changed |= general_selector(ui, scale, &mut m.resource).changed;
                     ui.add_space(10.0 * scale);
 
                     changed |= level_selector(ui, scale, &mut m.level).changed;
@@ -1249,13 +1246,13 @@ impl SnarlViewer<GraphIdx> for Viewer<'_> {
                     changed |= add_speed_ui(ui, &mut m.speed).changed;
                 }
                 Building::Packager(p) => {
-                    changed |= packager_recipe_selector(ui, scale, &mut p.recipe).changed;
+                    changed |= general_selector(ui, scale, &mut p.recipe).changed;
                     ui.add_space(10.0 * scale);
 
                     changed |= add_speed_ui(ui, &mut p.speed).changed;
                 }
                 Building::Foundry(f) => {
-                    changed |= foundry_recipe_selector(ui, scale, &mut f.recipe).changed;
+                    changed |= general_selector(ui, scale, &mut f.recipe).changed;
                     ui.add_space(10.0 * scale);
 
                     changed |= add_speed_ui(ui, &mut f.speed).changed;
@@ -1264,7 +1261,7 @@ impl SnarlViewer<GraphIdx> for Viewer<'_> {
                     changed |= add_somersloop2_ui(ui, &mut f.amplified).changed;
                 }
                 Building::Assembler(f) => {
-                    changed |= assembler_recipe_selector(ui, scale, &mut f.recipe).changed;
+                    changed |= general_selector(ui, scale, &mut f.recipe).changed;
                     ui.add_space(10.0 * scale);
 
                     changed |= add_speed_ui(ui, &mut f.speed).changed;
@@ -1273,7 +1270,7 @@ impl SnarlViewer<GraphIdx> for Viewer<'_> {
                     changed |= add_somersloop2_ui(ui, &mut f.amplified).changed;
                 }
                 Building::Manufacturer(f) => {
-                    changed |= manufacturer_recipe_selector(ui, scale, &mut f.recipe).changed;
+                    changed |= general_selector(ui, scale, &mut f.recipe).changed;
                     ui.add_space(10.0 * scale);
 
                     changed |= add_speed_ui(ui, &mut f.speed).changed;
@@ -1282,7 +1279,7 @@ impl SnarlViewer<GraphIdx> for Viewer<'_> {
                     changed |= add_somersloop4_ui(ui, &mut f.amplified).changed;
                 }
                 Building::Refinery(p) => {
-                    changed |= refinery_recipe_selector(ui, scale, &mut p.recipe).changed;
+                    changed |= general_selector(ui, scale, &mut p.recipe).changed;
                     ui.add_space(10.0 * scale);
 
                     changed |= add_speed_ui(ui, &mut p.speed).changed;
@@ -1297,13 +1294,13 @@ impl SnarlViewer<GraphIdx> for Viewer<'_> {
                     changed |= add_speed_ui(ui, &mut m.speed).changed;
                 }
                 Building::StorageContainer(s) => {
-                    changed |= material_selector(ui, scale, &mut s.material).changed;
+                    changed |= general_selector(ui, scale, &mut s.material).changed;
                     ui.add_space(10.0 * scale);
 
-                    changed |= belt_selector(ui, scale, &mut s.output_belt).changed;
+                    changed |= general_selector(ui, scale, &mut s.output_belt).changed;
                 }
                 Building::Smelter(s) => {
-                    changed |= smelter_recipe_selector(ui, scale, &mut s.recipe).changed;
+                    changed |= general_selector(ui, scale, &mut s.recipe).changed;
                     ui.add_space(10.0 * scale);
 
                     changed |= add_speed_ui(ui, &mut s.speed).changed;
@@ -1316,7 +1313,7 @@ impl SnarlViewer<GraphIdx> for Viewer<'_> {
                 Building::Merger(_) => {}
                 Building::AwesomeSink(_) => {}
                 Building::Constructor(s) => {
-                    changed |= constructor_recipe_selector(ui, scale, &mut s.recipe).changed;
+                    changed |= general_selector(ui, scale, &mut s.recipe).changed;
                     ui.add_space(10.0 * scale);
 
                     changed |= add_speed_ui(ui, &mut s.speed).changed;
@@ -1325,7 +1322,7 @@ impl SnarlViewer<GraphIdx> for Viewer<'_> {
                     changed |= add_somersloop1_ui(ui, &mut s.amplified).changed;
                 }
                 Building::Blender(b) => {
-                    changed |= blender_recipe_selector(ui, scale, &mut b.recipe).changed;
+                    changed |= general_selector(ui, scale, &mut b.recipe).changed;
                     ui.add_space(10.0 * scale);
 
                     changed |= add_speed_ui(ui, &mut b.speed).changed;
@@ -1334,8 +1331,7 @@ impl SnarlViewer<GraphIdx> for Viewer<'_> {
                     changed |= add_somersloop4_ui(ui, &mut b.amplified).changed;
                 }
                 Building::ParticleAccelerator(b) => {
-                    changed |=
-                        particle_accelerator_recipe_selector(ui, scale, &mut b.recipe).changed;
+                    changed |= general_selector(ui, scale, &mut b.recipe).changed;
                     ui.add_space(10.0 * scale);
 
                     changed |= add_speed_ui(ui, &mut b.speed).changed;
@@ -1518,11 +1514,9 @@ impl SnarlViewer<GraphIdx> for Viewer<'_> {
                     Node::Group { .. } => todo!("nested groups are not supported yet"),
                 };
 
-                self.show_input_building(*node_idx, building, *input_id, ui, scale, snarl)
+                self.show_input_building(building, *input_id, ui, scale, snarl)
             }
-            Node::Building(ref b) => {
-                self.show_input_building(graph_idx, b, pin.id.input, ui, scale, snarl)
-            }
+            Node::Building(ref b) => self.show_input_building(b, pin.id.input, ui, scale, snarl),
         }
     }
 
@@ -1775,7 +1769,7 @@ impl SnarlViewer<GraphIdx> for Viewer<'_> {
     }
 }
 
-fn level_selector(ui: &mut Ui, scale: f32, level: &mut MinerLevel) -> Response {
+fn level_selector(ui: &mut Ui, _scale: f32, level: &mut MinerLevel) -> Response {
     let r = egui::ComboBox::from_label("Level")
         .selected_text(level.name())
         .show_ui(ui, |ui| {
@@ -1791,7 +1785,7 @@ fn level_selector(ui: &mut Ui, scale: f32, level: &mut MinerLevel) -> Response {
     r.inner.unwrap_or(r.response)
 }
 
-fn purity_selector(ui: &mut Ui, scale: f32, purity: &mut ResourcePurity) -> Response {
+fn purity_selector(ui: &mut Ui, _scale: f32, purity: &mut ResourcePurity) -> Response {
     let r = egui::ComboBox::from_label("Purity")
         .selected_text(purity.name())
         .show_ui(ui, |ui| {
@@ -1808,7 +1802,7 @@ fn purity_selector(ui: &mut Ui, scale: f32, purity: &mut ResourcePurity) -> Resp
     r.inner.unwrap_or(r.response)
 }
 
-fn pipe_selector(ui: &mut Ui, scale: f32, pipe: &mut Option<Pipe>) -> Response {
+fn pipe_selector(ui: &mut Ui, _scale: f32, pipe: &mut Option<Pipe>) -> Response {
     let text = match pipe {
         Some(p) => p.name(),
         None => "Select Pipe".to_string(),
@@ -1828,14 +1822,6 @@ fn pipe_selector(ui: &mut Ui, scale: f32, pipe: &mut Option<Pipe>) -> Response {
         });
 
     r.inner.unwrap_or(r.response)
-}
-
-fn belt_selector(ui: &mut Ui, scale: f32, belt: &mut Option<Belt>) -> Response {
-    general_selector(ui, scale, belt)
-}
-
-fn material_selector(ui: &mut Ui, scale: f32, material: &mut Option<Material>) -> Response {
-    general_selector(ui, scale, material)
 }
 
 fn general_selector<S: Selectable>(ui: &mut Ui, scale: f32, resource: &mut Option<S>) -> Response {
@@ -1879,80 +1865,6 @@ fn general_selector<S: Selectable>(ui: &mut Ui, scale: f32, resource: &mut Optio
     .inner
 }
 
-fn resource_selector(ui: &mut Ui, scale: f32, resource: &mut Option<ResourceType>) -> Response {
-    general_selector(ui, scale, resource)
-}
-
-fn packager_recipe_selector(
-    ui: &mut Ui,
-    scale: f32,
-    recipe: &mut Option<PackagerRecipe>,
-) -> Response {
-    general_selector(ui, scale, recipe)
-}
-
-fn foundry_recipe_selector(
-    ui: &mut Ui,
-    scale: f32,
-    recipe: &mut Option<FoundryRecipe>,
-) -> Response {
-    general_selector(ui, scale, recipe)
-}
-
-fn assembler_recipe_selector(
-    ui: &mut Ui,
-    scale: f32,
-    recipe: &mut Option<AssemblerRecipe>,
-) -> Response {
-    general_selector(ui, scale, recipe)
-}
-
-fn manufacturer_recipe_selector(
-    ui: &mut Ui,
-    scale: f32,
-    recipe: &mut Option<ManufacturerRecipe>,
-) -> Response {
-    general_selector(ui, scale, recipe)
-}
-fn blender_recipe_selector(
-    ui: &mut Ui,
-    scale: f32,
-    recipe: &mut Option<BlenderRecipe>,
-) -> Response {
-    general_selector(ui, scale, recipe)
-}
-fn particle_accelerator_recipe_selector(
-    ui: &mut Ui,
-    scale: f32,
-    recipe: &mut Option<ParticleAcceleratorRecipe>,
-) -> Response {
-    general_selector(ui, scale, recipe)
-}
-
-fn refinery_recipe_selector(
-    ui: &mut Ui,
-    scale: f32,
-    recipe: &mut Option<RefineryRecipe>,
-) -> Response {
-    general_selector(ui, scale, recipe)
-}
-
-fn smelter_recipe_selector(
-    ui: &mut Ui,
-    scale: f32,
-    recipe: &mut Option<SmelterRecipe>,
-) -> Response {
-    general_selector(ui, scale, recipe)
-}
-
-fn constructor_recipe_selector(
-    ui: &mut Ui,
-    scale: f32,
-    recipe: &mut Option<ConstructorRecipe>,
-) -> Response {
-    general_selector(ui, scale, recipe)
-}
-
 fn add_resource_image(ui: &mut Ui, scale: f32, material: &Option<Resource>) {
     if let Some(material) = material {
         let image = egui::Image::new(material.image())
@@ -1985,7 +1897,7 @@ fn single_input(
     actual_input_material: Option<Resource>,
     ui: &mut Ui,
     scale: f32,
-    snarl: &Snarl,
+    _snarl: &Snarl,
     pin_info: PinInfo,
 ) -> PinInfo {
     let color = match (resource, actual_input_material) {
