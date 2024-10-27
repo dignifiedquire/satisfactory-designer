@@ -10,7 +10,7 @@ use petgraph::visit::EdgeRef;
 use strum::VariantArray;
 
 use crate::{
-    app::{EdgeDetails, GraphIdx, NodeGraph, Snarl},
+    app::{EdgeDetails, GraphIdx, GroupEdit, NodeGraph, Snarl},
     buildings::{
         AssemblerRecipe, Belt, BlenderRecipe, Building, ConstructorRecipe, Fluid, FoundryRecipe,
         ManufacturerRecipe, Material, MinerLevel, PackagerRecipe, ParticleAcceleratorRecipe, Pipe,
@@ -28,14 +28,7 @@ pub struct Viewer<'a> {
     pub snarl_ui_id: Option<Id>,
     pub index: (SurfaceIndex, egui_dock::NodeIndex, usize),
     pub graph: &'a mut NodeGraph,
-    pub group_edits: &'a mut Vec<(
-        SurfaceIndex,
-        egui_dock::NodeIndex,
-        usize,
-        NodeId,
-        NodeGraph,
-        Snarl,
-    )>,
+    pub group_edits: &'a mut Vec<(GroupEdit, NodeGraph, Snarl)>,
 }
 
 impl Viewer<'_> {
@@ -1738,10 +1731,12 @@ impl SnarlViewer<GraphIdx> for Viewer<'_> {
             Node::Group { snarl, graph, .. } => {
                 if ui.button("Edit").clicked() {
                     self.group_edits.push((
-                        self.index.0,
-                        self.index.1,
-                        self.index.2,
-                        node_id,
+                        GroupEdit {
+                            surface: self.index.0,
+                            node_idx: self.index.1,
+                            source_tab: self.index.2,
+                            node_id,
+                        },
                         graph.clone(),
                         snarl.clone(),
                     ));

@@ -21,9 +21,17 @@ pub struct App {
 #[derive(Default)]
 struct TabViewer {
     added_nodes: Vec<(SurfaceIndex, NodeIndex)>,
-    group_edits: Vec<(SurfaceIndex, NodeIndex, usize, NodeId, NodeGraph, Snarl)>,
-    group_saves: Vec<(SurfaceIndex, NodeIndex, usize, NodeId, NodeGraph, Snarl)>,
+    group_edits: Vec<(GroupEdit, NodeGraph, Snarl)>,
+    group_saves: Vec<(GroupEdit, NodeGraph, Snarl)>,
     current_tab_index: usize,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GroupEdit {
+    pub surface: SurfaceIndex,
+    pub node_idx: NodeIndex,
+    pub source_tab: usize,
+    pub node_id: NodeId,
 }
 
 pub type NodeGraph = petgraph::stable_graph::StableDiGraph<Node, EdgeDetails>;
@@ -48,7 +56,7 @@ struct TabState {
     graph: NodeGraph,
     style: SnarlStyle,
     index: (SurfaceIndex, NodeIndex),
-    group_edit: Option<(SurfaceIndex, NodeIndex, usize, NodeId)>,
+    group_edit: Option<GroupEdit>,
 }
 
 impl egui_dock::TabViewer for TabViewer {
@@ -76,17 +84,11 @@ impl egui_dock::TabViewer for TabViewer {
     }
 
     fn on_close(&mut self, closing_tab: &mut Self::Tab) -> bool {
-        if let Some((surface, node_index, tab_index, group_id)) = closing_tab.group_edit.take() {
+        if let Some(group_state) = closing_tab.group_edit.take() {
             let current_graph = closing_tab.graph.clone();
             let current_snarl = closing_tab.snarl.clone();
-            self.group_saves.push((
-                surface,
-                node_index,
-                tab_index,
-                group_id,
-                current_graph,
-                current_snarl,
-            ));
+            self.group_saves
+                .push((group_state, current_graph, current_snarl));
         }
 
         true
@@ -178,10 +180,14 @@ impl eframe::App for App {
                     .style(egui_dock::Style::from_egui(ctx.style().as_ref()))
                     .show_inside(ui, &mut self.tab_viewer);
 
-                self.tab_viewer.group_edits.drain(..).for_each(
-                    |(surface, node_index, active_tab, id, graph, snarl)| {
-                        self.tree
-                            .set_focused_node_and_surface((surface, node_index));
+                self.tab_viewer
+                    .group_edits
+                    .drain(..)
+                    .for_each(|(group_state, graph, snarl)| {
+                        self.tree.set_focused_node_and_surface((
+                            group_state.surface,
+                            group_state.node_idx,
+                        ));
                         let mut style = SnarlStyle::new();
                         style
                             .bg_pattern
@@ -190,37 +196,36 @@ impl eframe::App for App {
                         let tab_id = self.tab_viewer.current_tab_index;
                         self.tab_viewer.current_tab_index += 1;
                         self.tree.push_to_focused_leaf(TabState {
-                            name: format!("Editing Group {}", id.0),
+                            name: format!("Editing Group {}", group_state.node_id.0),
                             id: tab_id,
                             snarl_ui_id: None,
                             graph,
                             snarl,
                             style,
-                            group_edit: Some((surface, node_index, active_tab, id)),
-                            index: (surface, node_index),
+                            group_edit: Some(group_state.clone()),
+                            index: (group_state.surface, group_state.node_idx),
                         });
-                    },
-                );
+                    });
+
                 self.tab_viewer.group_saves.drain(..).for_each(
-                    |(surface, node_index, tab_index, group_id, group_graph, group_snarl)| {
-                        let tab = &mut self.tree[surface][node_index];
+                    |(group_state, group_graph, group_snarl)| {
+                        // Grap the current tab
+                        let tab = &mut self.tree[group_state.surface][group_state.node_idx];
                         match tab {
                             egui_dock::Node::Leaf { tabs, .. } => {
-                                if let Some((id, _node_index)) = tabs[tab_index]
-                                    .snarl
-                                    .node_ids()
-                                    .find(|(id, _)| id == &group_id)
-                                {
-                                    let graph_idx = group_snarl[id];
-                                    let node =
-                                        tabs[tab_index].graph.node_weight_mut(graph_idx).unwrap();
-                                    match node {
-                                        Node::Building(_) => unreachable!("invalid group building"),
-                                        Node::Group { snarl, graph, .. } => {
-                                            // TODO: update inputs and outputs
-                                            *graph = group_graph;
-                                            *snarl = group_snarl;
-                                        }
+                                let source_tab = &mut tabs[group_state.source_tab];
+
+                                let node_info =
+                                    source_tab.snarl.get_node_info(group_state.node_id).unwrap();
+                                let graph_idx = node_info.value;
+                                let node = source_tab.graph.node_weight_mut(graph_idx).unwrap();
+
+                                match node {
+                                    Node::Building(_) => unreachable!("invalid group building"),
+                                    Node::Group { snarl, graph, .. } => {
+                                        // TODO: update inputs and outputs
+                                        *graph = group_graph;
+                                        *snarl = group_snarl;
                                     }
                                 }
                             }

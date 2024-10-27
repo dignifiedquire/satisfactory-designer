@@ -6,7 +6,7 @@ use egui::Color32;
 use petgraph::prelude::NodeIndex;
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum Node {
     Building(Building),
     Group {
