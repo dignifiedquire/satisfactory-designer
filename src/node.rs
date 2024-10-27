@@ -59,8 +59,10 @@ impl Node {
 
     pub fn input_resource(&self, input_id: usize) -> ResourceType {
         match self {
-            Self::Group { .. } => {
-                todo!()
+            Self::Group { inputs, graph, .. } => {
+                let (_, node_idx, inner_input_id, _) = &inputs[input_id];
+                let node = graph.node_weight(*node_idx).unwrap();
+                node.input_resource(*inner_input_id)
             }
             Self::Building(b) => b.input_resource(input_id),
         }
@@ -68,8 +70,10 @@ impl Node {
 
     pub fn output_resource(&self, output_id: usize) -> ResourceType {
         match self {
-            Self::Group { .. } => {
-                todo!()
+            Self::Group { outputs, graph, .. } => {
+                let (_, node_idx, inner_output_id, _) = &outputs[output_id];
+                let node = graph.node_weight(*node_idx).unwrap();
+                node.output_resource(*inner_output_id)
             }
             Self::Building(b) => b.output_resource(output_id),
         }
@@ -77,26 +81,32 @@ impl Node {
 
     pub fn current_output(&self, output_id: usize) -> Option<Output> {
         match self {
-            Self::Group { outputs, .. } => outputs
-                .get(output_id)
-                .and_then(|(_, _, _, output)| output.clone()),
+            Self::Group { outputs, graph, .. } => {
+                let (_, node_idx, inner_output_id, _) = &outputs[output_id];
+                let node = graph.node_weight(*node_idx).unwrap();
+                node.current_output(*inner_output_id)
+            }
             Self::Building(b) => b.current_output(output_id),
         }
     }
 
     pub fn current_input(&self, input_id: usize) -> Option<Input> {
         match self {
-            Self::Group { inputs, .. } => inputs
-                .get(input_id)
-                .and_then(|(_, _, _, input)| input.clone()),
+            Self::Group { inputs, graph, .. } => {
+                let (_, node_idx, inner_input_id, _) = &inputs[input_id];
+                let node = graph.node_weight(*node_idx).unwrap();
+                node.current_input(*inner_input_id)
+            }
             Self::Building(b) => b.current_input(input_id),
         }
     }
 
     pub fn set_current_input(&mut self, input: Output, input_id: usize) {
         match self {
-            Self::Group { .. } => {
-                // TODO
+            Self::Group { inputs, graph, .. } => {
+                let (_, node_idx, inner_input_id, _) = &inputs[input_id];
+                let node = graph.node_weight_mut(*node_idx).unwrap();
+                node.set_current_input(input, *inner_input_id);
             }
             Self::Building(b) => b.set_current_input(input, input_id),
         }
@@ -104,8 +114,10 @@ impl Node {
 
     pub fn clear_current_input(&mut self, input_id: usize) {
         match self {
-            Self::Group { .. } => {
-                // TODO
+            Self::Group { inputs, graph, .. } => {
+                let (_, node_idx, inner_input_id, _) = &inputs[input_id];
+                let node = graph.node_weight_mut(*node_idx).unwrap();
+                node.clear_current_input(*inner_input_id);
             }
             Self::Building(b) => b.clear_current_input(input_id),
         }
@@ -113,14 +125,22 @@ impl Node {
 
     pub fn set_current_output_connected(&mut self, output_id: usize) {
         match self {
-            Self::Group { .. } => {}
+            Self::Group { outputs, graph, .. } => {
+                let (_, node_idx, inner_output_id, _) = &outputs[output_id];
+                let node = graph.node_weight_mut(*node_idx).unwrap();
+                node.set_current_output_connected(*inner_output_id);
+            }
             Self::Building(b) => b.set_current_output_connected(output_id),
         }
     }
 
     pub fn set_current_output_disconnected(&mut self, output_id: usize) {
         match self {
-            Self::Group { .. } => {}
+            Self::Group { outputs, graph, .. } => {
+                let (_, node_idx, inner_output_id, _) = &outputs[output_id];
+                let node = graph.node_weight_mut(*node_idx).unwrap();
+                node.set_current_output_disconnected(*inner_output_id);
+            }
             Self::Building(b) => b.set_current_output_disconnected(output_id),
         }
     }

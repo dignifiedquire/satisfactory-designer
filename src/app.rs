@@ -222,10 +222,39 @@ impl eframe::App for App {
 
                                 match node {
                                     Node::Building(_) => unreachable!("invalid group building"),
-                                    Node::Group { snarl, graph, .. } => {
-                                        // TODO: update inputs and outputs
+                                    Node::Group {
+                                        snarl,
+                                        graph,
+                                        inputs,
+                                        outputs,
+                                    } => {
                                         *graph = group_graph;
                                         *snarl = group_snarl;
+
+                                        // update inputs and outputs
+                                        inputs.clear();
+                                        outputs.clear();
+                                        for (id, node) in snarl.nodes_ids_data() {
+                                            let graph_idx = node.value;
+                                            let node = graph.node_weight(graph_idx).unwrap();
+
+                                            for i in 0..node.outputs() {
+                                                outputs.push((
+                                                    id,
+                                                    graph_idx,
+                                                    i,
+                                                    node.current_output(i),
+                                                ));
+                                            }
+                                            for i in 0..node.inputs() {
+                                                inputs.push((
+                                                    id,
+                                                    graph_idx,
+                                                    i,
+                                                    node.current_input(i),
+                                                ));
+                                            }
+                                        }
                                     }
                                 }
                             }

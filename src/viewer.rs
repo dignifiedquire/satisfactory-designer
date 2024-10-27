@@ -781,6 +781,338 @@ impl Viewer<'_> {
         }
     }
 
+    fn show_output_building(
+        &self,
+        b: &Building,
+        output: usize,
+        ui: &mut Ui,
+        scale: f32,
+        snarl: &Snarl,
+    ) -> PinInfo {
+        match b {
+            Building::Miner(m) => {
+                assert_eq!(output, 0, "Miner has only one output");
+
+                let speed = m.output_speed();
+                let material = m.output_material().map(Resource::Material);
+                let color = material
+                    .as_ref()
+                    .map(|m| m.color())
+                    .unwrap_or(BUILDING_COLOR);
+
+                ui.horizontal(|ui| {
+                    add_resource_image(ui, scale, &material);
+                    ui.label(format!("{}/min", speed));
+                });
+
+                PinInfo::square().with_fill(color)
+            }
+            Building::Packager(p) => {
+                if output == 0 {
+                    // Fluid
+                    let fluid = p.output_fluid();
+                    let max_speed = p
+                        .recipe
+                        .as_ref()
+                        .map(|r| r.max_output_speed_fluid())
+                        .unwrap_or_default();
+
+                    fluid_output(fluid, max_speed, p.current_output_fluid(), ui, scale)
+                } else if output == 1 {
+                    // Material
+                    let material = p.output_material();
+                    let max_speed = p
+                        .recipe
+                        .as_ref()
+                        .map(|r| r.max_output_speed_material())
+                        .unwrap_or_default();
+
+                    material_output(material, max_speed, p.current_output_material(), ui, scale)
+                } else {
+                    unreachable!("only two outputs");
+                }
+            }
+            Building::Refinery(p) => {
+                if output == 0 {
+                    // Fluid
+                    let fluid = p.output_fluid();
+                    let max_speed = p
+                        .recipe
+                        .as_ref()
+                        .map(|r| r.max_output_speed_fluid())
+                        .unwrap_or_default();
+
+                    fluid_output(fluid, max_speed, p.current_output_fluid(), ui, scale)
+                } else if output == 1 {
+                    // Material
+                    let material = p.output_material();
+                    let max_speed = p
+                        .recipe
+                        .as_ref()
+                        .map(|r| r.max_output_speed_material())
+                        .unwrap_or_default();
+
+                    material_output(material, max_speed, p.current_output_material(), ui, scale)
+                } else {
+                    unreachable!("only two outputs");
+                }
+            }
+            Building::WaterExtractor(w) => {
+                assert_eq!(output, 0, "Water Extractor has only one output");
+                let speed = w.output_speed();
+                let fluid = Resource::Fluid(w.output_fluid());
+                let color = fluid.color();
+
+                ui.horizontal(|ui| {
+                    add_resource_image(ui, scale, &Some(fluid));
+                    ui.label(format!("{}/m^3", speed));
+                });
+
+                PinInfo::circle().with_fill(color)
+            }
+            Building::OilExtractor(o) => {
+                assert_eq!(output, 0, "Oil Extractor has only one output");
+                let speed = o.output_speed();
+                let fluid = Resource::Fluid(o.output_fluid());
+                let color = fluid.color();
+
+                ui.horizontal(|ui| {
+                    add_resource_image(ui, scale, &Some(fluid));
+                    ui.label(format!("{}/m^3", speed));
+                });
+
+                PinInfo::circle().with_fill(color)
+            }
+            Building::StorageContainer(s) => {
+                assert_eq!(output, 0, "Storage Container has only one output");
+                let speed = s.output_speed();
+                let material = s.output_material().map(Resource::Material);
+                let color = material
+                    .as_ref()
+                    .map(|m| m.color())
+                    .unwrap_or(BUILDING_COLOR);
+
+                ui.horizontal(|ui| {
+                    add_resource_image(ui, scale, &material);
+                    ui.label(format!("{}/min", speed));
+                });
+
+                PinInfo::square().with_fill(color)
+            }
+            Building::Smelter(s) => {
+                assert_eq!(output, 0, "Smelter node has only one output");
+
+                let material = s.output_material();
+                let max_speed = s
+                    .recipe
+                    .as_ref()
+                    .map(|r| r.max_output_speed())
+                    .unwrap_or_default();
+
+                material_output(material, max_speed, s.current_output(), ui, scale)
+            }
+            Building::Foundry(f) => {
+                assert_eq!(output, 0, "Foundry node has only one output");
+
+                let material = f.output_material();
+                let max_speed = f
+                    .recipe
+                    .as_ref()
+                    .map(|r| r.max_output_speed_material())
+                    .unwrap_or_default();
+
+                material_output(material, max_speed, f.current_output(), ui, scale)
+            }
+            Building::Assembler(f) => {
+                assert_eq!(output, 0, "Assembler node has only one output");
+
+                let material = f.output_material();
+                let max_speed = f
+                    .recipe
+                    .as_ref()
+                    .map(|r| r.max_output_speed_material())
+                    .unwrap_or_default();
+
+                material_output(material, max_speed, f.current_output(), ui, scale)
+            }
+            Building::Manufacturer(f) => {
+                assert_eq!(output, 0, "Assembler node has only one output");
+
+                let material = f.output_material();
+                let max_speed = f
+                    .recipe
+                    .as_ref()
+                    .map(|r| r.max_output_speed_material())
+                    .unwrap_or_default();
+
+                material_output(material, max_speed, f.current_output(), ui, scale)
+            }
+            Building::PipelineJunction(s) => {
+                let output = match output {
+                    0 => s.current_output_0(),
+                    1 => s.current_output_1(),
+                    2 => s.current_output_2(),
+                    3 => s.current_output_3(),
+                    _ => unreachable!("4 outputs"),
+                };
+                let (speed, fluid) = match output {
+                    Some(output) => (output.speed, Some(output.resource)),
+                    None => (0., None),
+                };
+
+                ui.horizontal(|ui| {
+                    add_resource_image(ui, scale, &fluid);
+                    ui.label(format!("{}/m^3", speed));
+                });
+
+                let color = fluid.map(|m| m.color()).unwrap_or(BUILDING_COLOR);
+                PinInfo::circle().with_fill(color)
+            }
+            Building::Splitter(s) => {
+                let output = match output {
+                    0 => s.current_output_0(),
+                    1 => s.current_output_1(),
+                    2 => s.current_output_2(),
+                    _ => unreachable!("3 outputs"),
+                };
+                let (speed, material) = match output {
+                    Some(output) => (output.speed, Some(output.resource)),
+                    None => (0., None),
+                };
+
+                ui.horizontal(|ui| {
+                    add_resource_image(ui, scale, &material);
+                    ui.label(format!("{}/min", speed));
+                });
+
+                let color = material.map(|m| m.color()).unwrap_or(BUILDING_COLOR);
+                PinInfo::square().with_fill(color)
+            }
+            Building::Merger(m) => {
+                let color = match m.current_output() {
+                    Some(output) => {
+                        let color = output.resource.color();
+                        ui.horizontal(|ui| {
+                            add_resource_image(ui, scale, &Some(output.resource));
+                            ui.label(format!("{}/min", output.speed));
+                        });
+                        color
+                    }
+                    None => BUILDING_COLOR,
+                };
+
+                PinInfo::square().with_fill(color)
+            }
+            Building::Constructor(s) => {
+                assert_eq!(output, 0, "Constructor node has only one output");
+                let material = s.output_material();
+                let max_speed = s
+                    .recipe
+                    .as_ref()
+                    .map(|r| r.max_output_speed())
+                    .unwrap_or_default();
+
+                material_output(material, max_speed, s.current_output(), ui, scale)
+            }
+            Building::AwesomeSink(_) => {
+                unreachable!("no outputs");
+            }
+            Building::Blender(b) => {
+                let (max_speed_fluid, max_speed_material) = b
+                    .recipe
+                    .as_ref()
+                    .map(|r| r.max_output_speed())
+                    .unwrap_or_default();
+
+                match output {
+                    0 => {
+                        let fluid = b.output_fluid();
+                        let max_speed = max_speed_fluid;
+
+                        fluid_output(fluid, max_speed, b.current_output_fluid(), ui, scale)
+                    }
+                    1 => {
+                        let material = b.output_material();
+                        let max_speed = max_speed_material;
+
+                        material_output(material, max_speed, b.current_output_material(), ui, scale)
+                    }
+                    _ => unreachable!("2 outputs"),
+                }
+            }
+            Building::ParticleAccelerator(b) => {
+                let max_speed_material = b
+                    .recipe
+                    .as_ref()
+                    .map(|r| r.max_output_speed())
+                    .unwrap_or_default();
+
+                match output {
+                    0 => {
+                        let material = b.output_material();
+
+                        material_output(
+                            material,
+                            max_speed_material,
+                            b.current_output_material(),
+                            ui,
+                            scale,
+                        )
+                    }
+                    _ => unreachable!("1 output"),
+                }
+            }
+            Building::QuantumEncoder(b) => {
+                let (max_speed_fluid, max_speed_material) = b
+                    .recipe
+                    .as_ref()
+                    .map(|r| r.max_output_speed())
+                    .unwrap_or_default();
+
+                match output {
+                    0 => {
+                        let fluid = b.output_fluid();
+                        let max_speed = max_speed_fluid;
+
+                        fluid_output(fluid, max_speed, b.current_output_fluid(), ui, scale)
+                    }
+                    1 => {
+                        let material = b.output_material();
+                        let max_speed = max_speed_material;
+
+                        material_output(material, max_speed, b.current_output_material(), ui, scale)
+                    }
+                    _ => unreachable!("2 outputs"),
+                }
+            }
+            Building::Converter(b) => {
+                let (max_speed_fluid, max_speed_material) = b
+                    .recipe
+                    .as_ref()
+                    .map(|r| r.max_output_speed())
+                    .unwrap_or_default();
+
+                match output {
+                    0 => fluid_output(
+                        b.output_fluid(),
+                        max_speed_fluid,
+                        b.current_output_fluid(),
+                        ui,
+                        scale,
+                    ),
+                    1 => material_output(
+                        b.output_material(),
+                        max_speed_material,
+                        b.current_output_material(),
+                        ui,
+                        scale,
+                    ),
+                    _ => unreachable!("2 outputs"),
+                }
+            }
+        }
+    }
+
     fn refresh_node(&mut self, node_idx: GraphIdx) {
         use petgraph::prelude::NodeIndex;
 
@@ -1177,7 +1509,7 @@ impl SnarlViewer<GraphIdx> for Viewer<'_> {
                 inputs,
                 ..
             } => {
-                let (node_id, node_idx, input_id, current_input) = &inputs[pin.id.input];
+                let (_node_id, node_idx, input_id, _current_input) = &inputs[pin.id.input];
 
                 let building = graph.node_weight(*node_idx).unwrap();
 
@@ -1198,344 +1530,24 @@ impl SnarlViewer<GraphIdx> for Viewer<'_> {
         let graph_idx = snarl[pin.id.node];
         let node = self.graph.node_weight(graph_idx).unwrap();
         match node {
-            Node::Group { .. } => {
-                // TODO
-                PinInfo::square().with_fill(BUILDING_COLOR)
+            Node::Group {
+                snarl,
+                graph,
+                outputs,
+                ..
+            } => {
+                let (_node_id, node_idx, output_id, _current_output) = &outputs[pin.id.output];
+
+                let building = graph.node_weight(*node_idx).unwrap();
+
+                let building = match building {
+                    Node::Building(b) => b,
+                    Node::Group { .. } => todo!("nested groups are not supported yet"),
+                };
+
+                self.show_output_building(building, *output_id, ui, scale, snarl)
             }
-            Node::Building(ref b) => match b {
-                Building::Miner(m) => {
-                    assert_eq!(pin.id.output, 0, "Miner has only one output");
-
-                    let speed = m.output_speed();
-                    let material = m.output_material().map(Resource::Material);
-                    let color = material
-                        .as_ref()
-                        .map(|m| m.color())
-                        .unwrap_or(BUILDING_COLOR);
-
-                    ui.horizontal(|ui| {
-                        add_resource_image(ui, scale, &material);
-                        ui.label(format!("{}/min", speed));
-                    });
-
-                    PinInfo::square().with_fill(color)
-                }
-                Building::Packager(p) => {
-                    if pin.id.output == 0 {
-                        // Fluid
-                        let fluid = p.output_fluid();
-                        let max_speed = p
-                            .recipe
-                            .as_ref()
-                            .map(|r| r.max_output_speed_fluid())
-                            .unwrap_or_default();
-
-                        fluid_output(fluid, max_speed, p.current_output_fluid(), ui, scale)
-                    } else if pin.id.output == 1 {
-                        // Material
-                        let material = p.output_material();
-                        let max_speed = p
-                            .recipe
-                            .as_ref()
-                            .map(|r| r.max_output_speed_material())
-                            .unwrap_or_default();
-
-                        material_output(material, max_speed, p.current_output_material(), ui, scale)
-                    } else {
-                        unreachable!("only two outputs");
-                    }
-                }
-                Building::Refinery(p) => {
-                    if pin.id.output == 0 {
-                        // Fluid
-                        let fluid = p.output_fluid();
-                        let max_speed = p
-                            .recipe
-                            .as_ref()
-                            .map(|r| r.max_output_speed_fluid())
-                            .unwrap_or_default();
-
-                        fluid_output(fluid, max_speed, p.current_output_fluid(), ui, scale)
-                    } else if pin.id.output == 1 {
-                        // Material
-                        let material = p.output_material();
-                        let max_speed = p
-                            .recipe
-                            .as_ref()
-                            .map(|r| r.max_output_speed_material())
-                            .unwrap_or_default();
-
-                        material_output(material, max_speed, p.current_output_material(), ui, scale)
-                    } else {
-                        unreachable!("only two outputs");
-                    }
-                }
-                Building::WaterExtractor(w) => {
-                    assert_eq!(pin.id.output, 0, "Water Extractor has only one output");
-                    let speed = w.output_speed();
-                    let fluid = Resource::Fluid(w.output_fluid());
-                    let color = fluid.color();
-
-                    ui.horizontal(|ui| {
-                        add_resource_image(ui, scale, &Some(fluid));
-                        ui.label(format!("{}/m^3", speed));
-                    });
-
-                    PinInfo::circle().with_fill(color)
-                }
-                Building::OilExtractor(o) => {
-                    assert_eq!(pin.id.output, 0, "Oil Extractor has only one output");
-                    let speed = o.output_speed();
-                    let fluid = Resource::Fluid(o.output_fluid());
-                    let color = fluid.color();
-
-                    ui.horizontal(|ui| {
-                        add_resource_image(ui, scale, &Some(fluid));
-                        ui.label(format!("{}/m^3", speed));
-                    });
-
-                    PinInfo::circle().with_fill(color)
-                }
-                Building::StorageContainer(s) => {
-                    assert_eq!(pin.id.output, 0, "Storage Container has only one output");
-                    let speed = s.output_speed();
-                    let material = s.output_material().map(Resource::Material);
-                    let color = material
-                        .as_ref()
-                        .map(|m| m.color())
-                        .unwrap_or(BUILDING_COLOR);
-
-                    ui.horizontal(|ui| {
-                        add_resource_image(ui, scale, &material);
-                        ui.label(format!("{}/min", speed));
-                    });
-
-                    PinInfo::square().with_fill(color)
-                }
-                Building::Smelter(s) => {
-                    assert_eq!(pin.id.output, 0, "Smelter node has only one output");
-
-                    let material = s.output_material();
-                    let max_speed = s
-                        .recipe
-                        .as_ref()
-                        .map(|r| r.max_output_speed())
-                        .unwrap_or_default();
-
-                    material_output(material, max_speed, s.current_output(), ui, scale)
-                }
-                Building::Foundry(f) => {
-                    assert_eq!(pin.id.output, 0, "Foundry node has only one output");
-
-                    let material = f.output_material();
-                    let max_speed = f
-                        .recipe
-                        .as_ref()
-                        .map(|r| r.max_output_speed_material())
-                        .unwrap_or_default();
-
-                    material_output(material, max_speed, f.current_output(), ui, scale)
-                }
-                Building::Assembler(f) => {
-                    assert_eq!(pin.id.output, 0, "Assembler node has only one output");
-
-                    let material = f.output_material();
-                    let max_speed = f
-                        .recipe
-                        .as_ref()
-                        .map(|r| r.max_output_speed_material())
-                        .unwrap_or_default();
-
-                    material_output(material, max_speed, f.current_output(), ui, scale)
-                }
-                Building::Manufacturer(f) => {
-                    assert_eq!(pin.id.output, 0, "Assembler node has only one output");
-
-                    let material = f.output_material();
-                    let max_speed = f
-                        .recipe
-                        .as_ref()
-                        .map(|r| r.max_output_speed_material())
-                        .unwrap_or_default();
-
-                    material_output(material, max_speed, f.current_output(), ui, scale)
-                }
-                Building::PipelineJunction(s) => {
-                    let output = match pin.id.output {
-                        0 => s.current_output_0(),
-                        1 => s.current_output_1(),
-                        2 => s.current_output_2(),
-                        3 => s.current_output_3(),
-                        _ => unreachable!("4 outputs"),
-                    };
-                    let (speed, fluid) = match output {
-                        Some(output) => (output.speed, Some(output.resource)),
-                        None => (0., None),
-                    };
-
-                    ui.horizontal(|ui| {
-                        add_resource_image(ui, scale, &fluid);
-                        ui.label(format!("{}/m^3", speed));
-                    });
-
-                    let color = fluid.map(|m| m.color()).unwrap_or(BUILDING_COLOR);
-                    PinInfo::circle().with_fill(color)
-                }
-                Building::Splitter(s) => {
-                    let output = match pin.id.output {
-                        0 => s.current_output_0(),
-                        1 => s.current_output_1(),
-                        2 => s.current_output_2(),
-                        _ => unreachable!("3 outputs"),
-                    };
-                    let (speed, material) = match output {
-                        Some(output) => (output.speed, Some(output.resource)),
-                        None => (0., None),
-                    };
-
-                    ui.horizontal(|ui| {
-                        add_resource_image(ui, scale, &material);
-                        ui.label(format!("{}/min", speed));
-                    });
-
-                    let color = material.map(|m| m.color()).unwrap_or(BUILDING_COLOR);
-                    PinInfo::square().with_fill(color)
-                }
-                Building::Merger(m) => {
-                    let color = match m.current_output() {
-                        Some(output) => {
-                            let color = output.resource.color();
-                            ui.horizontal(|ui| {
-                                add_resource_image(ui, scale, &Some(output.resource));
-                                ui.label(format!("{}/min", output.speed));
-                            });
-                            color
-                        }
-                        None => BUILDING_COLOR,
-                    };
-
-                    PinInfo::square().with_fill(color)
-                }
-                Building::Constructor(s) => {
-                    assert_eq!(pin.id.output, 0, "Constructor node has only one output");
-                    let material = s.output_material();
-                    let max_speed = s
-                        .recipe
-                        .as_ref()
-                        .map(|r| r.max_output_speed())
-                        .unwrap_or_default();
-
-                    material_output(material, max_speed, s.current_output(), ui, scale)
-                }
-                Building::AwesomeSink(_) => {
-                    unreachable!("no outputs");
-                }
-                Building::Blender(b) => {
-                    let (max_speed_fluid, max_speed_material) = b
-                        .recipe
-                        .as_ref()
-                        .map(|r| r.max_output_speed())
-                        .unwrap_or_default();
-
-                    match pin.id.output {
-                        0 => {
-                            let fluid = b.output_fluid();
-                            let max_speed = max_speed_fluid;
-
-                            fluid_output(fluid, max_speed, b.current_output_fluid(), ui, scale)
-                        }
-                        1 => {
-                            let material = b.output_material();
-                            let max_speed = max_speed_material;
-
-                            material_output(
-                                material,
-                                max_speed,
-                                b.current_output_material(),
-                                ui,
-                                scale,
-                            )
-                        }
-                        _ => unreachable!("2 outputs"),
-                    }
-                }
-                Building::ParticleAccelerator(b) => {
-                    let max_speed_material = b
-                        .recipe
-                        .as_ref()
-                        .map(|r| r.max_output_speed())
-                        .unwrap_or_default();
-
-                    match pin.id.output {
-                        0 => {
-                            let material = b.output_material();
-
-                            material_output(
-                                material,
-                                max_speed_material,
-                                b.current_output_material(),
-                                ui,
-                                scale,
-                            )
-                        }
-                        _ => unreachable!("1 output"),
-                    }
-                }
-                Building::QuantumEncoder(b) => {
-                    let (max_speed_fluid, max_speed_material) = b
-                        .recipe
-                        .as_ref()
-                        .map(|r| r.max_output_speed())
-                        .unwrap_or_default();
-
-                    match pin.id.output {
-                        0 => {
-                            let fluid = b.output_fluid();
-                            let max_speed = max_speed_fluid;
-
-                            fluid_output(fluid, max_speed, b.current_output_fluid(), ui, scale)
-                        }
-                        1 => {
-                            let material = b.output_material();
-                            let max_speed = max_speed_material;
-
-                            material_output(
-                                material,
-                                max_speed,
-                                b.current_output_material(),
-                                ui,
-                                scale,
-                            )
-                        }
-                        _ => unreachable!("2 outputs"),
-                    }
-                }
-                Building::Converter(b) => {
-                    let (max_speed_fluid, max_speed_material) = b
-                        .recipe
-                        .as_ref()
-                        .map(|r| r.max_output_speed())
-                        .unwrap_or_default();
-
-                    match pin.id.output {
-                        0 => fluid_output(
-                            b.output_fluid(),
-                            max_speed_fluid,
-                            b.current_output_fluid(),
-                            ui,
-                            scale,
-                        ),
-                        1 => material_output(
-                            b.output_material(),
-                            max_speed_material,
-                            b.current_output_material(),
-                            ui,
-                            scale,
-                        ),
-                        _ => unreachable!("2 outputs"),
-                    }
-                }
-            },
+            Node::Building(ref b) => self.show_output_building(b, pin.id.output, ui, scale, snarl),
         }
     }
 
@@ -1609,6 +1621,8 @@ impl SnarlViewer<GraphIdx> for Viewer<'_> {
                             let mut outputs = vec![];
 
                             let mut graph_idx_map = HashMap::new();
+
+                            // TODO: preserve connections outside the group
 
                             for (id, graph_idx) in selected {
                                 let node = self.graph.node_weight(*graph_idx).unwrap();
