@@ -168,7 +168,19 @@ impl eframe::App for App {
                 });
                 ui.add_space(16.0);
 
-                egui::widgets::global_theme_preference_switch(ui);
+                ui.menu_button("View", |ui| {
+                    if ui.button("New Tab").clicked() {
+                        let (surface, node) = match self.tree.find_active_focused() {
+                            Some((_, tab)) => tab.index,
+                            None => (SurfaceIndex::main(), NodeIndex::root()),
+                        };
+
+                        self.tab_viewer.added_nodes.push((surface, node));
+                        ui.close_menu();
+                    }
+
+                    egui::widgets::global_theme_preference_switch(ui);
+                });
             });
         });
 
