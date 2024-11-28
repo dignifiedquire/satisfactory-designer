@@ -3043,7 +3043,7 @@ dependencies = [
  "syn 2.0.79",
  "wasm-bindgen-futures",
  "web-sys",
- "zerocopy 0.8.6",
+ "zerocopy 0.9.0-alpha.0",
 ]
 
 [[package]]
@@ -4637,11 +4637,11 @@ dependencies = [
 
 [[package]]
 name = "zerocopy"
-version = "0.8.6"
+version = "0.9.0-alpha.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a65238aacd5fb83fb03fcaf94823e71643e937000ec03c46e7da94234b10c870"
+checksum = "3c9c378180b968f2e98efa0c4bba8c49fd4cd247dc82a7f01e72dc137d447d8c"
 dependencies = [
- "zerocopy-derive 0.8.6",
+ "zerocopy-derive 0.9.0-alpha.0",
 ]
 
 [[package]]
@@ -4657,9 +4657,9 @@ dependencies = [
 
 [[package]]
 name = "zerocopy-derive"
-version = "0.8.6"
+version = "0.9.0-alpha.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3ca22c4ad176b37bd81a565f66635bde3d654fe6832730c3e52e1018ae1655ee"
+checksum = "36811c5ea90dd441f941919fc99163e702f150a8e1495d72a268106a0100df09"
 dependencies = [
  "proc-macro2",
  "quote",
